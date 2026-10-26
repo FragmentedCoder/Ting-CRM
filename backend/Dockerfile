@@ -1,7 +1,7 @@
 # rclone, for SMB shares (Debian's is too old): its tagged release, built with a
 # current Go, which its own binaries can lag behind; Go checks every module against
 # its checksum database. The image scan in CI keeps watch.
-FROM golang:1.26.10-alpine AS rclone
+FROM golang:1.27.3-alpine AS rclone
 RUN CGO_ENABLED=0 go install -trimpath \
       -ldflags "-s -w -X github.com/rclone/rclone/fs.Version=v1.75.2" \
       github.com/rclone/rclone@v1.75.2
