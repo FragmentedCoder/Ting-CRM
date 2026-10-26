@@ -3,7 +3,7 @@
   color-scheme: light;
   --midnat: #0F1B2D;
   --fjord: #2B5D8A;
-  --rav: #C8862A;
+  --lyng: #9A78B0;
   --fjeld: #5B6675;
   --frost: #DCE6EE;
   --sne: #F7F7F7;
@@ -41,7 +41,7 @@
   --text: #0F1B2D;
   --text-muted: #5B6675;
   --link: #2B5D8A;
-  --accent: #C8862A;
+  --accent: #9A78B0;
   --on-accent: #0F1B2D;
   --button-bg: #0F1B2D;
   --button-text: #FFFFFF;
@@ -67,7 +67,7 @@
     --text: #E8ECF0;
     --text-muted: #A3AFBD;
     --link: #5B9BD5;
-    --accent: #E0A04A;
+    --accent: #B898C8;
     --on-accent: #0B1420;
     --button-bg: #E8ECF0;
     --button-text: #0B1420;
@@ -92,7 +92,7 @@
   --text: #E8ECF0;
   --text-muted: #A3AFBD;
   --link: #5B9BD5;
-  --accent: #E0A04A;
+  --accent: #B898C8;
   --on-accent: #0B1420;
   --button-bg: #E8ECF0;
   --button-text: #0B1420;

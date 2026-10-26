@@ -15,7 +15,7 @@
     tagline: "",
     company_name: "",
     primary_colour: "fjord",
-    accent_colour: "rav",
+    accent_colour: "lyng",
     enforce_colours: false,
   });
   let loaded = $state(false);

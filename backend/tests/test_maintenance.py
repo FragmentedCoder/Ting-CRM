@@ -27,8 +27,8 @@ def logo(fmt="PNG") -> bytes:
 
 def test_branding_starts_with_the_defaults_and_needs_no_sign_in(client) -> None:
     assert client.get("/api/branding").json() == {
-        "site_name": "Þing", "tagline": "Reports worth keeping.", "company_name": None,
-        "logo_url": None, "primary_colour": "fjord", "accent_colour": "rav",
+        "site_name": "Þing", "tagline": "Gather. Agree. Remember.", "company_name": None,
+        "logo_url": None, "primary_colour": "fjord", "accent_colour": "lyng",
         "enforce_colours": False,
     }
 

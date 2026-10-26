@@ -12,11 +12,11 @@ export interface Branding {
 
 const DEFAULTS: Branding = {
   site_name: "Þing",
-  tagline: "Reports worth keeping.",
+  tagline: "Gather. Agree. Remember.",
   company_name: null,
   logo_url: null,
   primary_colour: "fjord",
-  accent_colour: "rav",
+  accent_colour: "lyng",
   enforce_colours: false,
 };
 

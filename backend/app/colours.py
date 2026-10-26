@@ -13,8 +13,8 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, StringConstraints
 
-PrimaryColour = Literal["fjord", "pine", "teal", "heather", "rose", "slate"]
-AccentColour = Literal["rav", "copper", "moss", "sky", "rose", "violet"]
+PrimaryColour = Literal["fjord", "pine", "teal", "plum", "rose", "slate"]
+AccentColour = Literal["lyng", "copper", "moss", "sky", "rose", "violet"]
 HexColour = Annotated[
     str,
     StringConstraints(pattern=r"^#[0-9A-Fa-f]{6}$"),
@@ -25,4 +25,4 @@ SitePrimary = PrimaryColour | HexColour
 SiteAccent = AccentColour | HexColour
 
 DEFAULT_PRIMARY: PrimaryColour = "fjord"
-DEFAULT_ACCENT: AccentColour = "rav"
+DEFAULT_ACCENT: AccentColour = "lyng"
