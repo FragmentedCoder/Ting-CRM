@@ -141,8 +141,12 @@ copy_data_to() {
 		umask 077 # encrypted, but no one else's business either
 		compose run --rm --no-deps -T tools tar -C /data -czf - . >"$1.part"
 	) || return 1
-	# A copy to roll back to that can't be read, or lacks the database, is none.
-	gzip -t "$1.part" 2>/dev/null && tar -tzf "$1.part" | grep -qx './ting.db' || return 1
+	# A copy to roll back to that can't be read, or lacks the database, is none. The
+	# listing is read whole first: grep -q stops at the database, and under pipefail
+	# tar writing the names after it into a closed pipe would fail the copy.
+	local listing
+	gzip -t "$1.part" 2>/dev/null && listing=$(tar -tzf "$1.part") || return 1
+	grep -qx './ting.db' <<<"${listing}" || return 1
 	mv "$1.part" "$1"
 }
 
