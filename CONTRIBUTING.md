@@ -28,7 +28,7 @@ CI runs all of these on every pull request, and the browser tests keep their scr
 
 ## Never commit
 
-- Real customer data, in fixtures, examples, screenshots or templates. Use the fictional demo company.
+- Real customer data, in fixtures, examples, screenshots or import samples. Use the fictional demo company.
 - Passwords, API keys, tokens, private keys or certificates.
 
 ## Licence

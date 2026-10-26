@@ -1,6 +1,6 @@
 # Security policy
 
-Þing stores sensitive customer data, so security reports are very welcome.
+Þing stores customer data, including personal data about customer contacts, so security reports are very welcome.
 
 ## Reporting a vulnerability
 
@@ -20,6 +20,6 @@ There is no release yet. From 1.0, security fixes go to the latest minor release
 
 ## Scope
 
-In scope: the Þing application, the Bifrost delivery gateway, the installer and the published container images.
+In scope: the Þing application, the installer and the published container images.
 
 Out of scope: vulnerabilities in third-party dependencies (please report them upstream; tell us if Þing is affected) and deployments that change the default security settings.
