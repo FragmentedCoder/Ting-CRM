@@ -10,7 +10,7 @@ RUN npm run build
 # with a current Go and fixed dependencies Caddy's own release lacks (golang.org/x/net
 # 0.60 for CVE-2026-78669); the image scan in CI keeps watch. Go checks every module
 # against its checksum database.
-FROM golang:1.26.10-alpine AS caddy
+FROM golang:1.27.3-alpine AS caddy
 RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.7 \
  && xcaddy build v2.11.7 --output /usr/bin/caddy \
       --with github.com/caddy-dns/cloudflare@v0.2.4 \
