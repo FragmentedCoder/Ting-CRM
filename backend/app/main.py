@@ -11,7 +11,6 @@ from app import (
     branding,
     customer_routes,
     maintenance,
-    project_routes,
     server_routes,
     setup_routes,
 )
@@ -49,5 +48,4 @@ app.include_router(branding.router, prefix="/api")
 app.include_router(audit_routes.router, prefix="/api")
 app.include_router(backup_routes.router, prefix="/api")
 app.include_router(customer_routes.router, prefix="/api")
-app.include_router(project_routes.router, prefix="/api")
 app.include_router(server_routes.router, prefix="/api")

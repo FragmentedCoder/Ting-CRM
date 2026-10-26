@@ -10,30 +10,27 @@ from app.auth.sessions import UserSession
 from app.main import app
 from app.roles import GRANTS, Capability, Role, grant_role, roles_of
 
-A, M, D, T, R, U = (
-    "administrator", "manager", "report_designer", "technician", "reviewer", "auditor")
+A, T, U = "administrator", "technician", "auditor"
 
-# The access table from the spec ("Users, roles and access"), row by row, with the
-# Manager role added since (docs/architecture.md, Roles).
+# The roles table in docs/architecture.md, row by row: Administrators everything;
+# technicians read and update the customers they're assigned to; auditors read the
+# audit log and record metadata.
 SPEC = {
-    "manage_customers": {A, M},
+    "manage_customers": {A},
+    "edit_customers": {A, T},
     "delete_customers": {A},
-    "manage_projects": {A, M},
-    "create_reports": {A, T},
-    "fill_in_reports": {A, T},
-    "review_and_countersign": {A, R},
-    "build_templates": {A, D},
-    "edit_library": {A, D, T},
-    "lock_library_entries": {A},
-    "check_signed_reports": {A, M, D, T, R, U},
-    "edit_styles": {A, D},
+    "manage_service_catalog": {A},
+    "import_data": {A},
     "administer": {A},
-    "break_checkouts": {A},
     "read_audit_log": {A, U},
 }
 
 
-def test_the_grants_match_the_spec_access_table() -> None:
+def test_the_roles_are_thing_s_three() -> None:
+    assert {r.value for r in Role} == {A, T, U}
+
+
+def test_the_grants_match_the_roles_table() -> None:
     assert {c.value: {r.value for r in roles} for c, roles in GRANTS.items()} == SPEC
     assert set(GRANTS) == set(Capability)
 
@@ -89,8 +86,8 @@ def test_a_route_lets_in_only_roles_that_grant_its_capability(
 
 def test_the_session_lists_the_users_roles(client, make_user, session, full_session) -> None:
     astrid = make_user()
-    for role in (Role.TECHNICIAN, Role.REVIEWER):
+    for role in (Role.TECHNICIAN, Role.AUDITOR):
         grant_role(session, astrid, role, actor=None, ip=None)
     session.commit()
     info = client.get("/api/auth/session", headers=full_session(astrid)).json()
-    assert info["user"]["roles"] == ["reviewer", "technician"]
+    assert info["user"]["roles"] == ["auditor", "technician"]

@@ -26,14 +26,14 @@ def mail_set_up(session):
 @pytest.fixture
 def administrators(session, make_user):
     """Two Administrators with an email address, one without, one disabled, and a
-    Manager: only the first two get notices."""
+    technician: only the first two get notices."""
     people = {}
     for username, role, email, active in (
         ("ingrid", Role.ADMINISTRATOR, "ingrid@nordlys.example", True),
         ("bodil", Role.ADMINISTRATOR, "bodil@nordlys.example", True),
         ("nomail", Role.ADMINISTRATOR, None, True),
         ("gone", Role.ADMINISTRATOR, "gone@nordlys.example", False),
-        ("mona", Role.MANAGER, "mona@nordlys.example", True),
+        ("tor", Role.TECHNICIAN, "tor@nordlys.example", True),
     ):
         user = make_user(username, email=email)
         user.is_active = active

@@ -152,7 +152,7 @@ def test_a_server_without_a_from_address_is_refused(client, admin, smtp) -> None
 
 
 def test_only_administrators_reach_email(client, make_user, session, full_session) -> None:
-    manager = make_user("mona")
-    grant_role(session, manager, Role.MANAGER, actor=None, ip=None)
+    technician = make_user("tor")
+    grant_role(session, technician, Role.TECHNICIAN, actor=None, ip=None)
     session.commit()
-    assert client.get(EMAIL, headers=full_session(manager)).status_code == 403
+    assert client.get(EMAIL, headers=full_session(technician)).status_code == 403

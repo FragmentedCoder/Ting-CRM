@@ -315,10 +315,10 @@ def test_running_now_queues_one_job_per_target_at_a_time(client, as_admin, sessi
 
 
 def test_only_administrators_reach_backups(client, make_user, session, full_session) -> None:
-    manager = make_user("mona")
-    grant_role(session, manager, Role.MANAGER, actor=None, ip=None)
+    technician = make_user("tor")
+    grant_role(session, technician, Role.TECHNICIAN, actor=None, ip=None)
     session.commit()
-    assert client.get(BACKUPS, headers=full_session(manager)).status_code == 403
+    assert client.get(BACKUPS, headers=full_session(technician)).status_code == 403
 
 
 @needs_restic

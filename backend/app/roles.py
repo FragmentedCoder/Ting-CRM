@@ -1,8 +1,8 @@
-"""Roles and what each one may do: the access table in docs/architecture.md.
+"""Roles and what each one may do: the roles table in docs/architecture.md.
 
 Routes ask for a capability, never a role, so this table is the one place that
-says who may do what. Which customers someone sees (all, assigned, names only)
-is a separate question, answered when customers exist.
+says who may do what. Which customers someone sees (all, assigned, metadata) is a
+separate question, answered in app/customers.py.
 """
 
 from __future__ import annotations
@@ -20,53 +20,29 @@ from app.users import User
 
 class Role(StrEnum):
     ADMINISTRATOR = "administrator"
-    MANAGER = "manager"
-    REPORT_DESIGNER = "report_designer"
     TECHNICIAN = "technician"
-    REVIEWER = "reviewer"
     AUDITOR = "auditor"
 
 
 class Capability(StrEnum):
-    MANAGE_CUSTOMERS = "manage_customers"  # create and change customers, assign people
+    MANAGE_CUSTOMERS = "manage_customers"  # create customers, assign people, retention
+    EDIT_CUSTOMERS = "edit_customers"  # details, sites and contacts of customers in sight
     DELETE_CUSTOMERS = "delete_customers"
-    MANAGE_PROJECTS = "manage_projects"  # create, change, archive and reopen; teams
-    CREATE_REPORTS = "create_reports"
-    FILL_IN_REPORTS = "fill_in_reports"
-    REVIEW_AND_COUNTERSIGN = "review_and_countersign"
-    BUILD_TEMPLATES = "build_templates"
-    EDIT_LIBRARY = "edit_library"
-    LOCK_LIBRARY_ENTRIES = "lock_library_entries"
-    CHECK_SIGNED_REPORTS = "check_signed_reports"
-    EDIT_STYLES = "edit_styles"
+    MANAGE_SERVICE_CATALOG = "manage_service_catalog"
+    IMPORT_DATA = "import_data"
     ADMINISTER = "administer"  # users, roles, policies, keys, backups, settings
-    BREAK_CHECKOUTS = "break_checkouts"
     READ_AUDIT_LOG = "read_audit_log"
 
 
-_A, _M, _D, _T, _R, _U = (
-    Role.ADMINISTRATOR,
-    Role.MANAGER,
-    Role.REPORT_DESIGNER,
-    Role.TECHNICIAN,
-    Role.REVIEWER,
-    Role.AUDITOR,
-)
+_A, _T, _U = Role.ADMINISTRATOR, Role.TECHNICIAN, Role.AUDITOR
 
 GRANTS: dict[Capability, frozenset[Role]] = {
-    Capability.MANAGE_CUSTOMERS: frozenset({_A, _M}),
+    Capability.MANAGE_CUSTOMERS: frozenset({_A}),
+    Capability.EDIT_CUSTOMERS: frozenset({_A, _T}),
     Capability.DELETE_CUSTOMERS: frozenset({_A}),
-    Capability.MANAGE_PROJECTS: frozenset({_A, _M}),
-    Capability.CREATE_REPORTS: frozenset({_A, _T}),
-    Capability.FILL_IN_REPORTS: frozenset({_A, _T}),
-    Capability.REVIEW_AND_COUNTERSIGN: frozenset({_A, _R}),
-    Capability.BUILD_TEMPLATES: frozenset({_A, _D}),
-    Capability.EDIT_LIBRARY: frozenset({_A, _D, _T}),
-    Capability.LOCK_LIBRARY_ENTRIES: frozenset({_A}),
-    Capability.CHECK_SIGNED_REPORTS: frozenset(Role),
-    Capability.EDIT_STYLES: frozenset({_A, _D}),
+    Capability.MANAGE_SERVICE_CATALOG: frozenset({_A}),
+    Capability.IMPORT_DATA: frozenset({_A}),
     Capability.ADMINISTER: frozenset({_A}),
-    Capability.BREAK_CHECKOUTS: frozenset({_A}),
     Capability.READ_AUDIT_LOG: frozenset({_A, _U}),
 }
 

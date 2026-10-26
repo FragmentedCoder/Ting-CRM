@@ -45,7 +45,7 @@ def test_tables_whose_ids_reach_the_audit_log_never_reuse_an_id(engine) -> None:
     }
     assert autoincrement == {
         "users", "user_sessions", "mfa_factors", "customers", "customer_sites",
-        "customer_contacts", "projects", "jobs", "audit_stamps",
+        "customer_contacts", "jobs", "audit_stamps",
     }
     with engine.connect() as conn:
         for name in autoincrement:
@@ -80,7 +80,8 @@ def test_upgrading_keeps_existing_rows(data_dir, master_key_path) -> None:
 
 
 def test_existing_customers_and_projects_are_sealed_on_upgrade(data_dir, master_key_path) -> None:
-    """0009 moves names and dates already stored in the clear into the sealed values."""
+    """0009 moves names and dates already stored in the clear into the sealed values.
+    (Skjald's projects stay until 0014, so this stops at 0013.)"""
     from sqlalchemy.orm import Session
 
     from app.crypto.keys import generate_key, load_master_key, wrap_key
@@ -107,7 +108,7 @@ def test_existing_customers_and_projects_are_sealed_on_upgrade(data_dir, master_
             " '2026-10-24 12:00:00')"
         ))
 
-    upgrade(engine)
+    upgrade(engine, "0013")
 
     with Session(engine) as db:
         customer = db.get(Customer, 1)
@@ -127,7 +128,8 @@ def test_existing_customers_and_projects_are_sealed_on_upgrade(data_dir, master_
 def test_assignments_and_team_members_keep_what_people_can_be_on_upgrade(
     data_dir, master_key_path
 ) -> None:
-    """0011 records what each assignment and team member is there as, from roles."""
+    """0011 records what each assignment and team member is there as, from roles.
+    (Both go again in 0014, so this stops at 0013.)"""
     engine = make_engine(data_dir, master_key_path)
     upgrade(engine, "0010")
     at = "2026-10-24 12:00:00"
@@ -152,7 +154,7 @@ def test_assignments_and_team_members_keep_what_people_can_be_on_upgrade(
             conn.execute(text("INSERT INTO project_members (project_id, user_id, added_at)"
                               " VALUES (1, :u, :at)"), {"u": user_id, "at": at})
 
-    upgrade(engine)
+    upgrade(engine, "0013")
 
     with engine.connect() as conn:
         assigned = conn.execute(text("SELECT user_id, as_technician, as_reviewer"
@@ -162,4 +164,57 @@ def test_assignments_and_team_members_keep_what_people_can_be_on_upgrade(
                                     " ORDER BY user_id"))
         assert [tuple(row) for row in members] == [
             (1, "technician"), (2, "reviewer"), (3, "technician")]
+    engine.dispose()
+
+
+def test_skjalds_projects_and_roles_go_and_customers_and_people_stay(
+    data_dir, master_key_path
+) -> None:
+    """0014: projects, their counters, the report language and the Manager, Report
+    Designer and Reviewer roles go; customers, assignments, accounts and the other
+    roles stay, and nobody is given a role they didn't have."""
+    engine = make_engine(data_dir, master_key_path)
+    upgrade(engine, "0013")
+    at = "2026-10-24 12:00:00"
+    with engine.begin() as conn:
+        for user_id, name in ((1, "tor"), (2, "mona"), (3, "rikke")):
+            conn.execute(text(
+                "INSERT INTO users (id, username, display_name, is_active, failed_sign_ins,"
+                " created_at) VALUES (:i, :n, :n, 1, 0, :at)"), {"i": user_id, "n": name, "at": at})
+        for user_id, role in ((1, "technician"), (1, "auditor"), (2, "manager"),
+                              (3, "reviewer"), (3, "report_designer")):
+            conn.execute(text("INSERT INTO user_roles (user_id, role, granted_at)"
+                              " VALUES (:u, :r, :at)"), {"u": user_id, "r": role, "at": at})
+        conn.execute(text(
+            "INSERT INTO customers (id, wrapped_key, sealed, language, retention_months,"
+            " created_at) VALUES (1, x'00', x'00', 'en', 24, :at)"), {"at": at})
+        conn.execute(text(
+            "INSERT INTO customer_contacts (id, customer_id, sealed) VALUES (1, 1, x'00')"))
+        conn.execute(text(
+            "INSERT INTO projects (id, customer_id, number, sealed, classification, created_at,"
+            " contact_id) VALUES (1, 1, 'P-2026-10-001', x'00', 'TLP:RED', :at, 1)"), {"at": at})
+        for user_id, technician, reviewer in ((1, 1, 0), (3, 0, 1)):
+            conn.execute(text(
+                "INSERT INTO customer_assignments (customer_id, user_id, assigned_at,"
+                " as_technician, as_reviewer) VALUES (1, :u, :at, :t, :r)"),
+                {"u": user_id, "at": at, "t": technician, "r": reviewer})
+            conn.execute(text("INSERT INTO project_members (project_id, user_id, added_at)"
+                              " VALUES (1, :u, :at)"), {"u": user_id, "at": at})
+        conn.execute(text("INSERT INTO settings (key, value) VALUES"
+                          " ('project_counter/2026-10', '1'), ('policy', '{}')"))
+
+    upgrade(engine)
+
+    with engine.connect() as conn:
+        tables = {row[0] for row in conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type = 'table'"))}
+        assert not tables & {"projects", "project_members", "project_sites"}
+        assert conn.execute(text("SELECT id, retention_months FROM customers")).all() == [(1, 24)]
+        assert conn.execute(text("SELECT count(*) FROM customer_contacts")).scalar() == 1
+        assert conn.execute(text("SELECT user_id FROM customer_assignments ORDER BY user_id")
+                            ).scalars().all() == [1, 3]
+        assert conn.execute(text("SELECT count(*) FROM users")).scalar() == 3
+        roles = conn.execute(text("SELECT user_id, role FROM user_roles ORDER BY user_id, role"))
+        assert [tuple(row) for row in roles] == [(1, "auditor"), (1, "technician")]
+        assert conn.execute(text("SELECT key FROM settings")).scalars().all() == ["policy"]
     engine.dispose()

@@ -47,11 +47,11 @@ def test_a_new_user_gets_a_random_temporary_password_that_expires(
 ) -> None:
     _, headers = admin
     body = client.post(USERS, headers=headers, json={
-        "username": "bjorn", "display_name": "Bjørn Havn", "roles": ["technician", "reviewer"],
+        "username": "bjorn", "display_name": "Bjørn Havn", "roles": ["technician", "auditor"],
     }).json()
 
     assert re.fullmatch(r"([a-z2-9]{4}-){3}[a-z2-9]{4}", body["temporary_password"])
-    assert body["user"]["roles"] == ["reviewer", "technician"]
+    assert body["user"]["roles"] == ["auditor", "technician"]
     assert body["user"]["password_change_required"]
     expires = body["expires_at"].replace("Z", "+00:00")
     assert expires.startswith((frozen_clock.now + timedelta(days=7)).date().isoformat())
@@ -110,18 +110,18 @@ def test_details_roles_and_status_can_be_changed(client, admin, bjorn, session) 
     _, headers = admin
     user_id, _ = bjorn
     updated = client.patch(f"{USERS}/{user_id}", headers=headers, json={
-        "display_name": "Bjørn Havnsø", "email": "", "roles": ["reviewer", "auditor"],
+        "display_name": "Bjørn Havnsø", "email": "", "roles": ["administrator", "auditor"],
         "is_active": False,
     }).json()
     assert updated["display_name"] == "Bjørn Havnsø"
     assert updated["email"] is None
-    assert updated["roles"] == ["auditor", "reviewer"]
+    assert updated["roles"] == ["administrator", "auditor"]
     assert updated["is_active"] is False
     about_bjorn = list(session.scalars(
         select(AuditEntry.action).where(AuditEntry.target_id == str(user_id))
     ))
     session.commit()
-    # technician at creation, then reviewer and auditor granted, technician revoked
+    # technician at creation, then administrator and auditor granted, technician revoked
     assert about_bjorn.count("auth.role.granted") == 3
     assert about_bjorn.count("auth.role.revoked") == 1
     assert "admin.user_updated" in about_bjorn
