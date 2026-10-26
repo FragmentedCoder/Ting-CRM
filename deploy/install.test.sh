@@ -74,7 +74,7 @@ check "  and runs" grep -q "keys rotate" <("${WORK}/bin/ting" help)
 
 # Built from this checkout, Þing calls itself what git calls the commit (docker
 # stands in, saying which version the build was told).
-# shellcheck disable=SC2317 # called by compose
+# shellcheck disable=SC2317,SC2329 # called by compose
 docker() { printf '%s' "${TING_VERSION}"; }
 check "a build from a checkout is told what git calls the commit" \
 	test "$(compose up -d --build)" = "$(git -C "${DEPLOY_DIR}/.." describe --tags --always)"
@@ -82,7 +82,7 @@ unset -f docker
 
 # Which release is newest, with GitHub's answers made up: curl stands in, answering
 # /releases/latest with LATEST and the list of releases with LISTED ("status tag").
-# shellcheck disable=SC2317 # called by newest_release
+# shellcheck disable=SC2317,SC2329 # called by newest_release
 curl() {
 	local out="" url="" answer
 	while [[ $# -gt 0 ]]; do

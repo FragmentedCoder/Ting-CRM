@@ -46,7 +46,7 @@ printf 'v1.2.3\n' >"${WORK}/repo/deploy/VERSION"
 check "installed from a release, the version is the release's" test "$(version)" = "Þing v1.2.3"
 check "  and update knows it" from_release
 # docker stands in, saying which version a build would be told.
-# shellcheck disable=SC2317 # called by compose
+# shellcheck disable=SC2317,SC2329 # called by compose
 docker() { printf '%s' "${TING_VERSION}"; }
 check "  and builds nothing, so tells no version to a build" test -z "$(compose ps)"
 rm "${WORK}/repo/deploy/VERSION"
@@ -62,7 +62,7 @@ mkdir -p "${WORK}/data"
 : >"${WORK}/data/ting.db"
 archive() { tar -C "${WORK}/data" -czf - ./ting.db; }
 refused() { ! copy_data_to "$1" 2>/dev/null && test ! -e "$1"; }
-# shellcheck disable=SC2317 # called by compose
+# shellcheck disable=SC2317,SC2329 # called by compose
 docker() {
 	echo "$*" >>"${WORK}/calls"
 	case " $* " in
@@ -74,17 +74,17 @@ copied() { copy_data_to "$1" 2>/dev/null; }
 check "the data's copy is kept when it's the archive" copied "${WORK}/copy.tar.gz"
 check "  the tools image built first, apart" grep -qE "build .*tools" <(head -1 "${WORK}/calls")
 check "  its build log kept out of the copy" grep -qx './ting.db' <(tar -tzf "${WORK}/copy.tar.gz")
-# shellcheck disable=SC2317
+# shellcheck disable=SC2317,SC2329
 docker() { case " $* " in *" run "*) printf '#1 [internal] load build definition\n' && archive ;; esac; }
 check "a copy with anything else in it is refused" refused "${WORK}/noisy.tar.gz"
-# shellcheck disable=SC2317
+# shellcheck disable=SC2317,SC2329
 docker() { case " $* " in *" run "*) tar -C "${WORK}" -czf - ./calls ;; esac; }
 check "a copy without the database is refused" refused "${WORK}/empty.tar.gz"
 unset -f docker
 
 # Which release is newest, with GitHub's answers made up: curl stands in, answering
 # /releases/latest with LATEST and the list of releases with LISTED ("status tag").
-# shellcheck disable=SC2317 # called by newest_release
+# shellcheck disable=SC2317,SC2329 # called by newest_release
 curl() {
 	local out="" url="" answer
 	while [[ $# -gt 0 ]]; do
