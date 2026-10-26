@@ -11,7 +11,7 @@
 The *þing* (thing) was the Norse assembly: free people met in a ring of standing stones to settle disputes, make agreements and hear the law spoken. Þing is where everything about a customer is gathered, agreed and remembered.
 
 > [!NOTE]
-> **Status: Phase 0 of the road to 1.0.** Þing starts from the platform of its sister product [Skjald](https://github.com/FragmentedCoder/Skjald-Reporting): install, setup wizard, sign-in with MFA, roles, customers, encryption keys, the audit log and backups already run. The CRM itself (agreements, coverage, systems, timeline) comes in Phases 2 and 3. Don't trust it with real customer data before 1.0.
+> **Status: Phase 1 of the road to 1.0.** Þing starts from the platform of its sister product [Skjald](https://github.com/FragmentedCoder/Skjald-Reporting): install, setup wizard, sign-in with MFA, Þing's roles (Administrator, Technician, Auditor), customers with their sites and contacts, encryption keys, the audit log and backups already run. The CRM itself (agreements, coverage, systems, timeline) comes in Phases 2 and 3. Don't trust it with real customer data before 1.0.
 
 ## What it will do
 
@@ -41,7 +41,7 @@ On the server, `sudo ting help` lists what the web UI can't do: status, logs, ba
 | Step | Scope |
 | --- | --- |
 | Phase 0 | Repository from Skjald's platform, renamed and rebranded; CI and signed builds; documentation and brand |
-| Phase 1 | The platform made Þing's: Skjald's projects and report roles removed, Þing's roles (Administrator, Technician, Auditor) and assignments, retention per customer |
+| Phase 1 | The platform made Þing's: Skjald's projects and report roles removed, Þing's roles (Administrator, Technician, Auditor) and plain assignments |
 | Phase 2 | Core CRM: customers, sites, contacts; service catalog; agreements, lines and coverage rules; systems with RDM references; timeline and tasks; global search; customer page; home |
 | Phase 3 | Compliance, coverage check, CSV/Excel import, "systems no agreement pays for" and renewal warnings |
 | 1.0 | Release gate: one-command install, ASVS Level 2 test plan passes, restore test green, the fictional demo company's data imports and works end to end |

@@ -2,7 +2,7 @@
 
 This document describes how Þing is designed. It is the reference for contributors and is updated as the design changes.
 
-Þing is a sister product to [Skjald](https://github.com/FragmentedCoder/Skjald-Reporting), the report builder, and started from Skjald's platform at commit `a768d1b` (its Phase 1: installer, setup wizard, sign-in with MFA, roles, customers, keys, audit log, backups). The repository keeps Skjald's history, so platform fixes can move across. The two are separate products: Þing has its own repository, database, users and install, and shares no accounts or data with Skjald. The sections on the security model, deployment and releases describe that inherited platform as it runs today; [Inherited from Skjald](#inherited-from-skjald) lists what Phase 1 still changes. Phase 0 is in progress; see the roadmap at the end.
+Þing is a sister product to [Skjald](https://github.com/FragmentedCoder/Skjald-Reporting), the report builder, and started from Skjald's platform at commit `a768d1b` (its Phase 1: installer, setup wizard, sign-in with MFA, roles, customers, keys, audit log, backups). The repository keeps Skjald's history, so platform fixes can move across. The two are separate products: Þing has its own repository, database, users and install, and shares no accounts or data with Skjald. The sections on the security model, deployment and releases describe that inherited platform as it runs today; [Inherited from Skjald](#inherited-from-skjald) says what Phase 1 changed. Phase 1 is in progress; see the roadmap at the end.
 
 ## Principles
 
@@ -116,7 +116,11 @@ The app shell comes from Skjald: a side menu with Home and All customers first, 
 
 Access to customer data is assignment-based: Administrators see every customer, technicians see the customers they're assigned to, and a customer someone may not see answers 404, like one that doesn't exist, with the refusal logged. Routes ask for a capability (such as "administer" or "read the audit log"), never a role; `backend/app/roles.py` holds the one table of which roles grant which capability, and a test checks it against this table. A person can hold several roles, and every grant is logged with who made it.
 
-The platform still has Skjald's roles today (Manager, Report Designer, Technician, Reviewer, Auditor, Administrator); Phase 1 replaces them with these.
+Who changes what about a customer:
+
+- **Administrators** add customers, choose which technicians are assigned (only active technicians can be), set how long a customer's records are kept and its logo, and delete customers (the name typed, and a fresh confirmation that it's them).
+- **Technicians** change the details, sites and contacts of the customers they're assigned to. A request to change retention is refused for them and logged, like any refusal.
+- **Auditors** see every customer's name, and nothing more of it, so they can follow the audit log, which names customers by ID.
 
 ### Administration
 
@@ -242,7 +246,7 @@ install.sh   the installer (the one-line install's; deploy/install.sh links to i
 | Step | Scope |
 | --- | --- |
 | Phase 0 | Repository from Skjald's platform, renamed and rebranded; CI and signed builds; README, CLAUDE.md, CONTRIBUTING, SECURITY, licence; this document; `docs/brand/` |
-| Phase 1 | The platform made Þing's: Skjald's projects, classification and report roles removed (see below); Þing's roles and assignments; retention per customer |
+| Phase 1 | The platform made Þing's: Skjald's projects, classification and report roles removed (see below); Þing's roles and plain assignments; technicians keep their customers' details up to date |
 | Phase 2 | Core CRM: customers, sites, contacts; service catalog; agreements, lines and coverage rules; systems with RDM references and the "paid by" link; timeline and tasks; global search; customer page; home |
 | Phase 3 | Compliance tab and its reminders, coverage check, CSV/Excel import, "systems no agreement pays for" and renewal warnings |
 | 1.0 | Release gate: one-command install, ASVS Level 2 test plan passes, restore test green, imported sample data from the fictional demo company works end to end |
@@ -250,12 +254,14 @@ install.sh   the installer (the one-line install's; deploy/install.sh links to i
 
 ## Inherited from Skjald
 
-Þing's platform is Skjald's Phase 1, renamed. These parts are Skjald's and change in Phase 1:
+Þing's platform is Skjald's Phase 1, renamed. Phase 1 took out what was Skjald's alone:
 
-- **Projects** (numbers, responsible technician, reviewer, team, archiving) and their **Traffic Light Protocol classification**: Þing has no projects. Its own records (agreements, systems, timeline) arrive in Phase 2. The project tables go in a migration that drops them, never one that rebuilds a table.
-- **Roles:** Manager, Report Designer and Reviewer go; assignments lose the technician/reviewer capacity and become a plain assignment.
-- **Wording** that still speaks of reports, report designers or signing: business details "for reports" in Your account and Branding, the email test message, and similar.
-- **The sign-in scene** shows a horn blower over a fjord, and Þing's brand rules out horns. A Þing scene (standing stones by a fjord) replaces it.
+- **Projects** (numbers, responsible technician, reviewer, team, archiving) and their **Traffic Light Protocol classification**: Þing has no projects; its own records (agreements, systems, timeline) arrive in Phase 2. Migration 0014 drops the project tables and Skjald's report language per customer in place, never by rebuilding a table, and a test checks customers, contacts, assignments and accounts survive it.
+- **Roles:** Manager, Report Designer and Reviewer are gone, and 0014 takes them from anyone who held them; nobody gets a role they didn't have. Assignments are plain: a technician is assigned to a customer or isn't.
+- **Wording** about reports, templates and signing: profile details are now what colleagues see, and the company name is what goes in emails and the recovery kit.
+- **The sign-in scene** showed a horn blower and a longship; the fjord now has a ring of standing stones on the headland instead, in the scene's own greys (the mark itself is never used as decoration).
+
+Still to come: retention is recorded per customer, but deleting a former customer's records when it runs out needs the customer's status (prospect, active, former), which arrives with the CRM in Phase 2. Home lists the customers someone works with until tasks, deadlines and renewals join it.
 
 Skjald's spikes (expression language, PDF signing, builder prototype) aren't needed and were left out. Its [SQLCipher spike](https://github.com/FragmentedCoder/Skjald-Reporting/tree/main/spikes/sqlcipher) chose `sqlcipher3-binary` and raw 256-bit keys, which Þing uses unchanged.
 
