@@ -79,7 +79,7 @@ jobs:
           done
 
       - name: SBOM of the app image
-        uses: anchore/sbom-action@v0.24.2
+        uses: anchore/sbom-action@v0.24.3
         with:
           image: ${{ env.APP_REF }}
           format: spdx-json
@@ -88,7 +88,7 @@ jobs:
           upload-release-assets: false
 
       - name: SBOM of the Caddy image
-        uses: anchore/sbom-action@v0.24.2
+        uses: anchore/sbom-action@v0.24.3
         with:
           image: ${{ env.CADDY_REF }}
           format: spdx-json
