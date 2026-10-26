@@ -231,5 +231,5 @@ def export_csv(
     return StreamingResponse(
         _csv_rows(engine_of(db), filters.clauses, last_seq),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="skjald-audit-{day}.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="ting-audit-{day}.csv"'},
     )

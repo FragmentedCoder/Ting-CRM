@@ -39,12 +39,20 @@ def test_long_lowercase_passphrases_are_fine_with_no_composition_rules() -> None
         ("kort", "at least 12"),
         ("x" * 257, "at most 256"),
         ("astrid-elsker-fjorde", "username"),
-        ("Mit Skjald password 1", "product name"),
+        ("Mit Þing password 1", "product name"),
+        ("mit þing-kodeord 1", "product name"),
+        ("ting2026 er godt nok", "product name"),
+        ("hver THING sit sted", "product name"),
     ],
 )
 def test_passwords_that_break_the_rules_are_refused(password: str, message: str) -> None:
     with pytest.raises(PasswordRejected, match=message):
         check_password(password, POLICY, username="astrid")
+
+
+def test_ting_and_thing_inside_other_words_are_fine() -> None:
+    check_password("meeting room settings", POLICY, username="astrid")
+    check_password("something nothing anything", POLICY, username="astrid")
 
 
 def test_the_minimum_length_follows_the_policy() -> None:

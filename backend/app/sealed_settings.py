@@ -25,7 +25,7 @@ def _key() -> bytes:
 
 
 def _bound(name: str) -> bytes:
-    return f"skjald/setting/{name}".encode()
+    return f"ting/setting/{name}".encode()
 
 
 def save_secrets(db: Session, name: str, values: dict[str, Any]) -> None:

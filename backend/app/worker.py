@@ -27,7 +27,7 @@ from app.migrate import is_current
 from app.policy import Setting
 from app.settings import settings
 
-log = logging.getLogger("skjald.worker")
+log = logging.getLogger("ting.worker")
 
 HEARTBEAT = "worker/heartbeat"
 # When it last stopped cleanly (docker compose stop): a beat before that is history.
@@ -80,7 +80,7 @@ def main() -> None:
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     if rotation.pending(settings.master_key_path):
         log.error("A master key rotation didn't finish. Finish it on the server with: "
-                  "skjald keys rotate")
+                  "ting keys rotate")
         raise SystemExit(1)
     engine = get_engine()
     while not is_current(engine):

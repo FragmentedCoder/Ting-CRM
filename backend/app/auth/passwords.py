@@ -6,6 +6,7 @@ they push people towards predictable patterns. Length and context checks only.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 
 from argon2 import PasswordHasher
@@ -43,7 +44,11 @@ def needs_rehash(password_hash: str) -> bool:
     return _hasher.check_needs_rehash(password_hash)
 
 
-_DUMMY_HASH = _hasher.hash("never a valid Skjald password")
+_DUMMY_HASH = _hasher.hash("never a valid Þing password")
+
+# "þing" anywhere, but "ting" and "thing" only as words of their own: inside other
+# words ("meeting", "something") they say nothing about the product.
+_PRODUCT_NAME = re.compile(r"þing|(?<![^\W\d_])th?ing(?![^\W\d_])")
 
 
 def burn_verify_time(password: str) -> None:
@@ -59,6 +64,6 @@ def check_password(password: str, policy: SecurityPolicy, *, username: str) -> N
     if len(normalized) > MAX_PASSWORD_LENGTH:
         raise PasswordRejected(f"Use at most {MAX_PASSWORD_LENGTH} characters.")
     lowered = normalized.casefold()
-    for word in (username.casefold(), "skjald"):
-        if len(word) >= 3 and word in lowered:
-            raise PasswordRejected("Don't use your username or the product name in your password.")
+    username = username.casefold()
+    if (len(username) >= 3 and username in lowered) or _PRODUCT_NAME.search(lowered):
+        raise PasswordRejected("Don't use your username or the product name in your password.")

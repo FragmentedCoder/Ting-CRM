@@ -49,10 +49,10 @@ def test_only_five_hex_characters_of_the_hash_leave_the_server(breach_service) -
     assert DIGEST[5:] not in str(request.url)
 
 
-def test_the_request_asks_for_padded_replies_and_names_skjald() -> None:
+def test_the_request_asks_for_padded_replies_and_names_ting() -> None:
     with real_client() as client:
         assert client.headers["Add-Padding"] == "true"
-        assert client.headers["User-Agent"].startswith("Skjald")
+        assert client.headers["User-Agent"].startswith("Ting-CRM")
         assert client.timeout.read == pwned.TIMEOUT_SECONDS
 
 

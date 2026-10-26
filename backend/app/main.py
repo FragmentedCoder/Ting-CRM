@@ -20,7 +20,7 @@ from app.auth import mfa_routes
 from app.auth import routes as auth_routes
 from app.auth.dependencies import SAFE_METHODS
 
-app = FastAPI(title="Skjald", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="Þing", docs_url=None, redoc_url=None, openapi_url=None)
 
 
 @app.middleware("http")

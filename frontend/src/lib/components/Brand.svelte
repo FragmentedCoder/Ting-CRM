@@ -2,7 +2,7 @@
   import { branding } from "#lib/branding.svelte.js";
   import Mark from "./Mark.svelte";
 
-  // The company's logo and site name when an Administrator set them, else Skjald's;
+  // The company's logo and site name when an Administrator set them, else Þing's;
   // under the name the tag line, and the version when given.
   let {
     size = 32,
@@ -24,7 +24,7 @@
     {#if (tagline && look.tagline) || version}
       <span class="under small muted">
         {#if tagline && look.tagline}<span class="tagline" title={look.tagline}>{look.tagline}</span>{/if}
-        {#if version}<span class="version" title="Skjald {version}">{version}</span>{/if}
+        {#if version}<span class="version" title="Þing {version}">{version}</span>{/if}
       </span>
     {/if}
   </span>
@@ -57,7 +57,7 @@
   .wordmark {
     font: var(--type-subheading);
   }
-  /* The tag line, and beside it which Skjald this is; the tag line gives way. */
+  /* The tag line, and beside it which Þing this is; the tag line gives way. */
   .under {
     display: flex;
     align-items: baseline;

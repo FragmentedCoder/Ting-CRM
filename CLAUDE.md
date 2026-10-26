@@ -1,6 +1,6 @@
-# Working on Skjald
+# Working on Þing
 
-Skjald is a self-hosted report builder that stores sensitive customer data. Read `docs/architecture.md` before changing the design, and keep it current when the design changes.
+Þing is a self-hosted report builder that stores sensitive customer data. Read `docs/architecture.md` before changing the design, and keep it current when the design changes.
 
 ## Workflow
 

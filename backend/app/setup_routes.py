@@ -98,7 +98,7 @@ class RecoveryKit(BaseModel):
 
 def require_setup_token(request: Request, db: DB) -> None:
     if setup_complete(db):
-        raise HTTPException(status.HTTP_410_GONE, "Skjald is already set up.")
+        raise HTTPException(status.HTTP_410_GONE, "Þing is already set up.")
     ip = client_ip(request)
     if too_many_failures_from(db, ip, TOKEN_REJECTED, limit=TOKEN_MAX_FAILURES):
         raise HTTPException(
@@ -110,7 +110,7 @@ def require_setup_token(request: Request, db: DB) -> None:
         db.commit()
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
-            "That setup token isn't right. Use the newest one Skjald printed.",
+            "That setup token isn't right. Use the newest one Þing printed.",
         )
 
 
@@ -196,7 +196,7 @@ def create_administrator(
     except BreachCheckUnavailable as exc:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Skjald couldn't reach the breach check service (api.pwnedpasswords.com) to "
+            "Þing couldn't reach the breach check service (api.pwnedpasswords.com) to "
             "check the password.",
         ) from exc
 

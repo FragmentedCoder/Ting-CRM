@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Skjald does not work as expected.
+description: Something in Þing does not work as expected.
 labels: ["bug"]
 body:
   - type: markdown
@@ -27,7 +27,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Skjald version or commit
+      label: Þing version or commit
     validations:
       required: true
   - type: textarea
@@ -39,5 +39,5 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Output of `docker compose logs app worker caddy`, run in the folder with Skjald's docker-compose.yml, with anything sensitive removed.
+      description: Output of `docker compose logs app worker caddy`, run in the folder with Þing's docker-compose.yml, with anything sensitive removed.
       render: text

@@ -22,10 +22,10 @@
     <p>A good password here:</p>
     <ul>
       <li>has at least {rules.min_length} characters. Spaces are fine, so a few unrelated words make a passphrase that's easy to remember and hard to guess;</li>
-      <li>doesn't contain {whose} username or “skjald”;</li>
+      <li>doesn't contain {whose} username or the product name (“Þing”, or “ting” or “thing” as a word);</li>
       {#if rules.breach_check}
         <li>
-          hasn't appeared in a known data breach. Skjald checks with Have I Been Pwned, and only
+          hasn't appeared in a known data breach. Þing checks with Have I Been Pwned, and only
           the first 5 characters of a scrambled copy of the password leave the server.
         </li>
       {/if}

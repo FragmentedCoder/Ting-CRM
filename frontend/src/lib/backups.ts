@@ -75,8 +75,8 @@ export const KINDS: { kind: TargetKind; name: string; about: string }[] = [
 export function newTarget(kind: TargetKind): TargetForm {
   return {
     id: null, kind, secret: "", secretSet: false,
-    smb_host: "", smb_share: "", smb_path: "skjald", smb_username: "", smb_domain: "",
-    s3_endpoint: "", s3_bucket: "", s3_path: "skjald", s3_region: "", s3_access_key_id: "",
+    smb_host: "", smb_share: "", smb_path: "ting", smb_username: "", smb_domain: "",
+    s3_endpoint: "", s3_bucket: "", s3_path: "ting", s3_region: "", s3_access_key_id: "",
   };
 }
 

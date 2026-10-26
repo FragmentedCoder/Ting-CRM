@@ -32,7 +32,7 @@ jobs:
       - name: Install
         run: pip install .[dev]
       # The backup tests run restic itself against a local repository: the version the
-      # app image has (Ubuntu 24.04's 0.16 lacks the exit codes Skjald reads), pinned to
+      # app image has (Ubuntu 24.04's 0.16 lacks the exit codes Þing reads), pinned to
       # the SHA-256 in restic's signed checksum list (key CF8F18F2844575973F79D4E191A6868BD3F7A907).
       - name: Install restic
         env:
@@ -85,13 +85,13 @@ jobs:
       - uses: actions/checkout@v7
       # ShellCheck comes with the runner image.
       - name: Lint the shell scripts
-        run: shellcheck -x install.sh deploy/*.sh deploy/skjald frontend/e2e/run.sh
+        run: shellcheck -x install.sh deploy/*.sh deploy/ting frontend/e2e/run.sh
       - name: Lint the workflows
         run: docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12 -color=false
       - name: Test the installer's functions
         run: deploy/install.test.sh
-      - name: Test the skjald command's own logic
-        run: deploy/skjald.test.sh
+      - name: Test the ting command's own logic
+        run: deploy/ting.test.sh
       - name: Test the release's compose file
         run: python3 deploy/release-compose.test.py
 
@@ -103,17 +103,17 @@ jobs:
       - uses: actions/checkout@v7
       - name: Throwaway master key (as install.sh makes it)
         run: |
-          sudo install -d -o 10001 -g 10001 -m 0700 /etc/skjald
-          sudo sh -c 'head -c 32 /dev/urandom > /etc/skjald/master.key'
-          sudo chown 10001:10001 /etc/skjald/master.key
-          sudo chmod 0600 /etc/skjald/master.key
+          sudo install -d -o 10001 -g 10001 -m 0700 /etc/ting
+          sudo sh -c 'head -c 32 /dev/urandom > /etc/ting/master.key'
+          sudo chown 10001:10001 /etc/ting/master.key
+          sudo chmod 0600 /etc/ting/master.key
       - name: Run Playwright against Caddy, the app and its database
         run: frontend/e2e/run.sh
       # The images the browser tests ran: high and critical vulnerabilities with a fix
       # released fail the check.
       - name: Scan the images for known vulnerabilities
         run: |
-          for image in skjald-e2e-app skjald-e2e-caddy; do
+          for image in ting-e2e-app ting-e2e-caddy; do
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
               aquasec/trivy:0.75.0 image --quiet --scanners vuln --severity HIGH,CRITICAL \
               --ignore-unfixed --exit-code 1 "$image"

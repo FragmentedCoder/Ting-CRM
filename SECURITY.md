@@ -1,6 +1,6 @@
 # Security policy
 
-Skjald stores sensitive customer data, so security reports are very welcome.
+Þing stores sensitive customer data, so security reports are very welcome.
 
 ## Reporting a vulnerability
 
@@ -12,7 +12,7 @@ Report it privately through GitHub instead: open the repository's **Security** t
 - the steps to reproduce,
 - what an attacker could achieve.
 
-Reports are acknowledged as soon as possible. Skjald is maintained by volunteers, so please allow reasonable time for a fix before you disclose the issue publicly.
+Reports are acknowledged as soon as possible. Þing is maintained by volunteers, so please allow reasonable time for a fix before you disclose the issue publicly.
 
 ## Supported versions
 
@@ -20,6 +20,6 @@ There is no release yet. From 1.0, security fixes go to the latest minor release
 
 ## Scope
 
-In scope: the Skjald application, the Bifrost delivery gateway, the installer and the published container images.
+In scope: the Þing application, the Bifrost delivery gateway, the installer and the published container images.
 
-Out of scope: vulnerabilities in third-party dependencies (please report them upstream; tell us if Skjald is affected) and deployments that change the default security settings.
+Out of scope: vulnerabilities in third-party dependencies (please report them upstream; tell us if Þing is affected) and deployments that change the default security settings.

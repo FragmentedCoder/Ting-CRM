@@ -134,7 +134,7 @@
   <section class="section" aria-labelledby="logo-title">
     <h2 class="section-title" id="logo-title">Logo</h2>
     <p class="small muted">
-      A PNG, JPEG, WebP or GIF up to 2 MB. Skjald scales it to fit 512 × 512 pixels and removes
+      A PNG, JPEG, WebP or GIF up to 2 MB. Þing scales it to fit 512 × 512 pixels and removes
       any hidden data. A wide logo on a transparent background works best.
     </p>
     <input bind:this={fileInput} id="logo-file" class="visually-hidden" type="file"
@@ -148,7 +148,7 @@
       {#if branding.current.logo_url}
         <button class="button button-secondary" type="button" disabled={busy}
           onclick={() => run(() => api<Branding>("DELETE", "/admin/branding/logo"), "Logo removed.")}>
-          Use Skjald's mark instead
+          Use Þing's mark instead
         </button>
       {/if}
     </div>

@@ -1,11 +1,11 @@
-"""HTTPS: which certificate Caddy serves for Skjald's address (and the admin
+"""HTTPS: which certificate Caddy serves for Þing's address (and the admin
 panel's allowlist, the other setting the app hands Caddy).
 
 Three ways, chosen in the setup wizard or Admin -> Certificate:
 
 - Caddy's own certificate authority (the default). Each computer that uses
-  Skjald trusts it once its root certificate is installed; Caddy serves that
-  at /skjald-root.crt.
+  Þing trusts it once its root certificate is installed; Caddy serves that
+  at /ting-root.crt.
 - The organisation's own certificate: a PEM chain and its key, checked here to
   match each other, be valid now and cover the address.
 - Let's Encrypt: checked over the internet on port 443, or, for a server the
@@ -45,7 +45,7 @@ from app.settings import settings
 
 TLS_SETTING = "tls/settings"
 # Where Caddy finds them (the same volume, mounted read-only there).
-CADDY_DIR = "/etc/caddy/skjald"
+CADDY_DIR = "/etc/caddy/ting"
 
 Mode = Literal["internal", "own", "acme"]
 # How Let's Encrypt checks the address: over the internet on port 443, or through
@@ -243,7 +243,7 @@ def write_admin_allowlist(enabled: bool, networks: tuple[str, ...]) -> None:
     ranges = " ".join(str(ipaddress.ip_network(net, strict=False)) for net in networks)
     outside = f"\tnot client_ip {ranges}\n" if ranges else ""
     _write(folder / ALLOWLIST_FILE, (
-        "# The admin panel's allowlist, written by Skjald (Admin -> Security).\n"
+        "# The admin panel's allowlist, written by Þing (Admin -> Security).\n"
         "@outside_admin_allowlist {\n"
         "\tpath /api/admin /api/admin/*\n"
         f"{outside}"

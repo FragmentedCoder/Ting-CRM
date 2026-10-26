@@ -1,6 +1,6 @@
 """Keys kept in the data folder, wrapped by the master key.
 
-They travel safely in backups: without /etc/skjald/master.key they decrypt nothing.
+They travel safely in backups: without /etc/ting/master.key they decrypt nothing.
 """
 
 from __future__ import annotations
@@ -10,9 +10,9 @@ from pathlib import Path
 
 from app.crypto.keys import generate_key, load_master_key, unwrap_key, wrap_key
 
-DATABASE_KEY_CONTEXT = b"skjald/database-key"
-BACKUP_KEY_CONTEXT = b"skjald/backup-key"
-CONFIG_KEY_CONTEXT = b"skjald/config-key"
+DATABASE_KEY_CONTEXT = b"ting/database-key"
+BACKUP_KEY_CONTEXT = b"ting/backup-key"
+CONFIG_KEY_CONTEXT = b"ting/config-key"
 
 
 def load_or_create_wrapped_key(

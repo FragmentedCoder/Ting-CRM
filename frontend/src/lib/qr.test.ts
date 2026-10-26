@@ -4,7 +4,7 @@ import { groupSecret, qrPath, QUIET_ZONE } from "./qr";
 
 describe("qrPath", () => {
   it("draws one square per dark module, inside a quiet zone", () => {
-    const text = "otpauth://totp/Skjald:astrid?secret=JBSWY3DPEHPK3PXP&issuer=Skjald";
+    const text = "otpauth://totp/%C3%9Eing:astrid?secret=JBSWY3DPEHPK3PXP&issuer=%C3%9Eing";
     const { data, size } = encode(text, { ecc: "M", border: 0 });
     const qr = qrPath(text);
 

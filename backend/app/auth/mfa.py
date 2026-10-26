@@ -21,7 +21,7 @@ from app.roles import Role, roles_of
 from app.users import User
 
 TOTP_PERIOD_SECONDS = 30
-TOTP_ISSUER = "Skjald"
+TOTP_ISSUER = "Þing"
 RECOVERY_CODE_COUNT = 10
 # No 0/o, 1/l/i: codes get read off paper.
 RECOVERY_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"

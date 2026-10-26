@@ -151,7 +151,7 @@ def test_a_rotation_stopped_before_committing_is_undone(stocked, engine, data_di
     assert rotation.resume(data_dir, master_key_path) is None
 
 
-def test_skjald_wont_start_with_a_rotation_unfinished(stocked, engine, data_dir,
+def test_ting_wont_start_with_a_rotation_unfinished(stocked, engine, data_dir,
                                                       master_key_path, monkeypatch) -> None:
     import subprocess
     import sys
@@ -164,13 +164,13 @@ def test_skjald_wont_start_with_a_rotation_unfinished(stocked, engine, data_dir,
     monkeypatch.setattr(rotation, "_finish", power_cut)
     with pytest.raises(SystemExit):
         rotation.rotate(data_dir, master_key_path)
-    env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "SKJALD_DATA_DIR": str(data_dir),
-           "SKJALD_MASTER_KEY_PATH": str(master_key_path)}
+    env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "TING_DATA_DIR": str(data_dir),
+           "TING_MASTER_KEY_PATH": str(master_key_path)}
     for module in ("app.migrate", "app.worker"):
         started = subprocess.run([sys.executable, "-m", module], capture_output=True, text=True,
                                  timeout=60, env=env)
         assert started.returncode == 1, module
-        assert "skjald keys rotate" in started.stdout + started.stderr, module
+        assert "ting keys rotate" in started.stdout + started.stderr, module
 
 
 def test_a_master_key_that_doesnt_open_the_data_is_refused(stocked, engine, data_dir,

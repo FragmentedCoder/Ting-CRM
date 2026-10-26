@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The mail server Skjald sends through: the admin panel's Email page and the setup
+  // The mail server Þing sends through: the admin panel's Email page and the setup
   // wizard. The password is sent once and never comes back.
   import { SECURITY, type MailServer } from "#lib/mail.js";
 
@@ -46,12 +46,12 @@
   </div>
   <div class="field">
     <label for="mail-from">Mail comes from</label>
-    <input id="mail-from" class="input" type="email" required placeholder="skjald@example.com"
+    <input id="mail-from" class="input" type="email" required placeholder="ting@example.com"
       bind:value={server.from_address} />
   </div>
   <div class="field">
     <label for="mail-name">Sender name (optional)</label>
-    <input id="mail-name" class="input" placeholder="Skjald" bind:value={server.from_name} />
+    <input id="mail-name" class="input" placeholder="Þing" bind:value={server.from_name} />
   </div>
 </div>
 {#if server.security === "none"}

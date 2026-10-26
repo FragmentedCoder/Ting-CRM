@@ -24,16 +24,16 @@ from app.auth.mfa import MfaFactor, confirmed_factors
 from app.auth.sessions import UserSession
 from app.settings import settings
 
-RP_NAME = "Skjald"
+RP_NAME = "Þing"
 CHALLENGE_LIFETIME = timedelta(minutes=5)
 _KNOWN_TRANSPORTS = {t.value for t in AuthenticatorTransport}
 
 
 def relying_party() -> tuple[str, str]:
-    """(RP ID, origin) from SKJALD_ADDRESS; passkeys only work at that exact address."""
+    """(RP ID, origin) from TING_ADDRESS; passkeys only work at that exact address."""
     parts = urlsplit(settings.address)
     if not parts.hostname:
-        raise RuntimeError(f"SKJALD_ADDRESS has no host name: {settings.address!r}")
+        raise RuntimeError(f"TING_ADDRESS has no host name: {settings.address!r}")
     return parts.hostname, f"{parts.scheme}://{parts.netloc}"
 
 

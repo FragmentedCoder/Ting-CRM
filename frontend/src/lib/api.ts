@@ -2,7 +2,7 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
-    // Why the server refused, when it says (X-Skjald-Reason): "session_timed_out",
+    // Why the server refused, when it says (X-Ting-Reason): "session_timed_out",
     // "mfa_required", "step_up_required" and so on. The message is for people.
     readonly reason: string | null = null,
   ) {
@@ -11,7 +11,7 @@ export class ApiError extends Error {
 }
 
 const FALLBACK = "Something went wrong. Try again.";
-const REASON_HEADER = "X-Skjald-Reason";
+const REASON_HEADER = "X-Ting-Reason";
 
 // Kept in memory only, never in localStorage: a script injected into the page
 // could read storage, and the token is cheap to fetch again from /api/auth/session.
@@ -61,7 +61,7 @@ export async function api<T>(
       credentials: "same-origin",
     });
   } catch {
-    throw new ApiError(0, "Skjald could not be reached. Check your connection and try again.");
+    throw new ApiError(0, "Þing could not be reached. Check your connection and try again.");
   }
   if (response.status === 204) return undefined as T;
   const data: unknown = await response.json().catch(() => null);

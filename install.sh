@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# Skjald installer: check the host, install Docker Engine, put the master key in
-# place, write Skjald's address, then start Skjald and print the setup token for
+# Þing installer: check the host, install Docker Engine, put the master key in
+# place, write Þing's address, then start Þing and print the setup token for
 # the web wizard.
 #
-#   curl -fsSL https://raw.githubusercontent.com/FragmentedCoder/Skjald-Reporting/main/install.sh | sudo bash
-#   sudo bash install.sh [--address https://skjald.example.internal]
+#   curl -fsSL https://raw.githubusercontent.com/FragmentedCoder/Ting-CRM/main/install.sh | sudo bash
+#   sudo bash install.sh [--address https://ting.example.internal]
 #   sudo bash install.sh --restore-master-key    (a new server, from the recovery kit)
 #
-# From a release it downloads the release's files into /opt/skjald, checks them and
+# From a release it downloads the release's files into /opt/ting, checks them and
 # every image against the release workflow's signatures, and pulls the images;
 # from a checkout of the repository it builds them. Run it again any time: what's
-# in place is kept. --restore-master-key stops before starting Skjald, so a backup
+# in place is kept. --restore-master-key stops before starting Þing, so a backup
 # can be restored first.
 set -euo pipefail
 
 DEPLOY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]:-.}")" && pwd)
 # Run as the repository's install.sh: the checkout's deploy folder is beside it.
 if [[ -f "${DEPLOY_DIR}/deploy/docker-compose.yml" ]]; then DEPLOY_DIR="${DEPLOY_DIR}/deploy"; fi
-SKJALD_HOME="${SKJALD_HOME:-/opt/skjald}"
-SKJALD_ETC="${SKJALD_ETC:-/etc/skjald}"
+TING_HOME="${TING_HOME:-/opt/ting}"
+TING_ETC="${TING_ETC:-/etc/ting}"
 ENV_FILE="${ENV_FILE:-}"
 BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 MIN_CPU=4
@@ -29,17 +29,17 @@ APP_UID=10001
 
 # Releases: where they come from, and who signs them. A release's own installer
 # carries its version here (the release workflow writes it); from a checkout it's
-# empty and Skjald is built there, and from main's install.sh it's the newest.
-SKJALD_REPOSITORY="${SKJALD_REPOSITORY:-FragmentedCoder/Skjald-Reporting}"
-SKJALD_RELEASE=${SKJALD_RELEASE:-}
-SKJALD_RELEASE_URL="${SKJALD_RELEASE_URL:-https://github.com/${SKJALD_REPOSITORY}/releases/download}"
+# empty and Þing is built there, and from main's install.sh it's the newest.
+TING_REPOSITORY="${TING_REPOSITORY:-FragmentedCoder/Ting-CRM}"
+TING_RELEASE=${TING_RELEASE:-}
+TING_RELEASE_URL="${TING_RELEASE_URL:-https://github.com/${TING_REPOSITORY}/releases/download}"
 # Images re-signed with an organisation's own key are checked against it instead
 # (the key alone: such signatures aren't in the public transparency log).
-SKJALD_COSIGN_KEY="${SKJALD_COSIGN_KEY:-}"
+TING_COSIGN_KEY="${TING_COSIGN_KEY:-}"
 # As the release names them (no leading dot: GitHub renames such files), and as
-# they're kept in Skjald's folder.
-RELEASE_ASSETS="docker-compose.yml install.sh skjald env.example"
-RELEASE_FILES="docker-compose.yml install.sh skjald .env.example"
+# they're kept in Þing's folder.
+RELEASE_ASSETS="docker-compose.yml install.sh ting env.example"
+RELEASE_FILES="docker-compose.yml install.sh ting .env.example"
 COSIGN_VERSION=v3.1.3
 COSIGN_SHA256_AMD64=4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71
 COSIGN_SHA256_ARM64=c5d324e091826b0d7a78eb16fef316450b4eb9aaec045611c08ba06f5e73220a
@@ -84,7 +84,7 @@ check_os() {
 	# shellcheck source=/dev/null
 	. /etc/os-release
 	if [[ "${ID:-}" != "ubuntu" ]]; then
-		die "Skjald targets Ubuntu Server LTS; found ID=${ID:-unknown}."
+		die "Þing targets Ubuntu Server LTS; found ID=${ID:-unknown}."
 	fi
 	log "OS: ${PRETTY_NAME:-Ubuntu}"
 }
@@ -97,7 +97,7 @@ check_resources() {
 
 	log "Resources: ${cpu} vCPU, ${ram_mb} MB RAM, ${disk_gb} GB free on /."
 
-	if [[ "${cpu}" -lt "${MIN_CPU}" ]]; then warn "Fewer than ${MIN_CPU} vCPU; Skjald will be slow under load."; fi
+	if [[ "${cpu}" -lt "${MIN_CPU}" ]]; then warn "Fewer than ${MIN_CPU} vCPU; Þing will be slow under load."; fi
 	if [[ "${ram_mb}" -lt "${MIN_RAM_MB}" ]]; then warn "Less than ~8 GB RAM; ClamAV alone needs about 2 GB."; fi
 	if [[ "${disk_gb}" -lt "${MIN_DISK_GB}" ]]; then warn "Less than ${MIN_DISK_GB} GB free; grow the disk before storing real data."; fi
 }
@@ -120,13 +120,13 @@ install_docker() {
 }
 
 create_directories() {
-	install -d -m 0750 "${SKJALD_HOME}"
+	install -d -m 0750 "${TING_HOME}"
 	# Owned by the app container's non-root UID, not actual root: the app
 	# reads the master key directly, and it never runs as root (see
 	# docs/architecture.md's hardening section).
-	install -d -m 0700 "${SKJALD_ETC}"
-	chown "${APP_UID}:${APP_UID}" "${SKJALD_ETC}" # an existing folder too
-	log "${SKJALD_HOME} and ${SKJALD_ETC} are in place."
+	install -d -m 0700 "${TING_ETC}"
+	chown "${APP_UID}:${APP_UID}" "${TING_ETC}" # an existing folder too
+	log "${TING_HOME} and ${TING_ETC} are in place."
 }
 
 # Write a key file only the app's user can read, whole or not at all.
@@ -139,7 +139,7 @@ write_key_file() {
 }
 
 generate_master_key() {
-	local key_file="${SKJALD_ETC}/master.key" fresh
+	local key_file="${TING_ETC}/master.key" fresh
 	if [[ -f "${key_file}" ]]; then
 		log "Master key already exists; leaving it alone."
 		return
@@ -172,7 +172,7 @@ kit_to_key() {
 
 # Put the kit's master key in place, from KIT_MASTER_KEY or typed (not shown).
 restore_master_key() {
-	local key_file="${SKJALD_ETC}/master.key" text="${KIT_MASTER_KEY:-}" decoded problem
+	local key_file="${TING_ETC}/master.key" text="${KIT_MASTER_KEY:-}" decoded problem
 	if [[ -z "${text}" ]]; then
 		text=$(ask "Master key from the recovery kit: " secret)
 	fi
@@ -199,27 +199,27 @@ valid_address() {
 	[[ "$1" =~ ^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?$ ]]
 }
 
-# Skjald's address goes in .env (passkeys are tied to it, so it's asked for once).
+# Þing's address goes in .env (passkeys are tied to it, so it's asked for once).
 configure_address() {
 	local address=$1 env
 	env=$(env_file)
-	if [[ -f "${env}" ]] && grep -q '^SKJALD_ADDRESS=' "${env}"; then
-		log "Using the address in ${env}: $(sed -n 's/^SKJALD_ADDRESS=//p' "${env}")"
+	if [[ -f "${env}" ]] && grep -q '^TING_ADDRESS=' "${env}"; then
+		log "Using the address in ${env}: $(sed -n 's/^TING_ADDRESS=//p' "${env}")"
 		return
 	fi
 	if [[ -z "${address}" ]]; then
 		local suggested
 		suggested="https://$(hostname -f 2>/dev/null || hostname)"
-		address=$(ask "Skjald's address, as people will type it [${suggested}]: ")
+		address=$(ask "Þing's address, as people will type it [${suggested}]: ")
 		address=${address:-${suggested}}
 	fi
-	valid_address "${address}" || die "The address must look like https://skjald.example.internal (a port may follow)."
-	sed "s|^SKJALD_ADDRESS=.*|SKJALD_ADDRESS=${address}|" "${DEPLOY_DIR}/.env.example" >"${env}"
+	valid_address "${address}" || die "The address must look like https://ting.example.internal (a port may follow)."
+	sed "s|^TING_ADDRESS=.*|TING_ADDRESS=${address}|" "${DEPLOY_DIR}/.env.example" >"${env}"
 	if [[ "${address}" =~ :([0-9]+)$ ]]; then
-		printf 'SKJALD_HTTPS_PORT=%s\n' "${BASH_REMATCH[1]}" >>"${env}"
+		printf 'TING_HTTPS_PORT=%s\n' "${BASH_REMATCH[1]}" >>"${env}"
 	fi
-	if [[ "${SKJALD_ETC}" != /etc/skjald ]]; then
-		printf 'SKJALD_ETC=%s\n' "${SKJALD_ETC}" >>"${env}"
+	if [[ "${TING_ETC}" != /etc/ting ]]; then
+		printf 'TING_ETC=%s\n' "${TING_ETC}" >>"${env}"
 	fi
 	log "Wrote ${env} with the address ${address}."
 }
@@ -238,7 +238,7 @@ install_cosign() {
 	arm64) sum=${COSIGN_SHA256_ARM64} ;;
 	*) die "No cosign build is pinned for ${arch}." ;;
 	esac
-	log "Installing cosign ${COSIGN_VERSION}, which checks Skjald's signatures."
+	log "Installing cosign ${COSIGN_VERSION}, which checks Þing's signatures."
 	download=$(mktemp)
 	curl -fsSLo "${download}" "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-${arch}"
 	echo "${sum}  ${download}" | sha256sum -c --quiet - || die "The cosign download doesn't match its pinned checksum."
@@ -249,11 +249,11 @@ install_cosign() {
 # Who signs a release: the repository's release workflow, for that very tag.
 signer() {
 	local version=$1
-	if [[ -n "${SKJALD_COSIGN_KEY}" ]]; then
-		printf '%s\n' --key "${SKJALD_COSIGN_KEY}" --insecure-ignore-tlog=true
+	if [[ -n "${TING_COSIGN_KEY}" ]]; then
+		printf '%s\n' --key "${TING_COSIGN_KEY}" --insecure-ignore-tlog=true
 	else
 		printf '%s\n' --certificate-identity \
-			"https://github.com/${SKJALD_REPOSITORY}/.github/workflows/release.yml@refs/tags/${version}" \
+			"https://github.com/${TING_REPOSITORY}/.github/workflows/release.yml@refs/tags/${version}" \
 			--certificate-oidc-issuer https://token.actions.githubusercontent.com
 	fi
 }
@@ -261,7 +261,7 @@ signer() {
 # The newest full release; while there's none yet, the newest pre-release. Nothing
 # when GitHub doesn't answer plainly: never a pre-release for a release unseen.
 newest_release() {
-	local releases="https://api.github.com/repos/${SKJALD_REPOSITORY}/releases" answer status
+	local releases="https://api.github.com/repos/${TING_REPOSITORY}/releases" answer status
 	answer=$(mktemp)
 	status=$(curl -sSL -o "${answer}" -w '%{http_code}' "${releases}/latest") || status=000
 	if [[ "${status}" == 404 ]]; then
@@ -280,19 +280,19 @@ fetch_release() {
 	mapfile -t signed < <(signer "${version}")
 	install -d -m 0750 "${into}"
 	for name in ${RELEASE_ASSETS} SHA256SUMS SHA256SUMS.sigstore.json; do
-		curl -fsSLo "${into}/${name}" "${SKJALD_RELEASE_URL}/${version}/${name}" ||
-			die "Couldn't download ${name} of Skjald ${version}."
+		curl -fsSLo "${into}/${name}" "${TING_RELEASE_URL}/${version}/${name}" ||
+			die "Couldn't download ${name} of Þing ${version}."
 	done
 	cosign verify-blob --bundle "${into}/SHA256SUMS.sigstore.json" "${signed[@]}" \
 		"${into}/SHA256SUMS" >/dev/null 2>&1 ||
-		die "Skjald ${version}'s checksums aren't signed by its release workflow: nothing was changed."
+		die "Þing ${version}'s checksums aren't signed by its release workflow: nothing was changed."
 	for name in ${RELEASE_ASSETS}; do
-		grep -q " ${name}\$" "${into}/SHA256SUMS" || die "Skjald ${version}'s checksums leave out ${name}."
+		grep -q " ${name}\$" "${into}/SHA256SUMS" || die "Þing ${version}'s checksums leave out ${name}."
 	done
-	(cd "${into}" && grep -E ' (docker-compose\.yml|install\.sh|skjald|env\.example)$' SHA256SUMS |
-		sha256sum -c --quiet -) || die "A file of Skjald ${version} doesn't match its signed checksum."
+	(cd "${into}" && grep -E ' (docker-compose\.yml|install\.sh|ting|env\.example)$' SHA256SUMS |
+		sha256sum -c --quiet -) || die "A file of Þing ${version} doesn't match its signed checksum."
 	mv "${into}/env.example" "${into}/.env.example"
-	chmod 0755 "${into}/install.sh" "${into}/skjald"
+	chmod 0755 "${into}/install.sh" "${into}/ting"
 	printf '%s\n' "${version}" >"${into}/VERSION"
 }
 
@@ -301,92 +301,92 @@ verify_images() {
 	local compose_file=$1 version=$2 ref signed
 	mapfile -t signed < <(signer "${version}")
 	# None named would pass every check below: a release always runs images.
-	grep -q '^ *image: ' "${compose_file}" || die "Skjald ${version}'s compose file names no images."
-	! grep -q '^ *build:' "${compose_file}" || die "Skjald ${version}'s compose file builds images instead."
+	grep -q '^ *image: ' "${compose_file}" || die "Þing ${version}'s compose file names no images."
+	! grep -q '^ *build:' "${compose_file}" || die "Þing ${version}'s compose file builds images instead."
 	while read -r ref; do
 		[[ "${ref}" == *@sha256:* ]] || die "${ref} isn't pinned by digest."
 		cosign verify "${signed[@]}" "${ref}" >/dev/null 2>&1 ||
-			die "The image ${ref} isn't signed for Skjald ${version}: nothing was started."
+			die "The image ${ref} isn't signed for Þing ${version}: nothing was started."
 	done < <(sed -n 's/^ *image: *//p' "${compose_file}" | sort -u)
-	log "Every image of Skjald ${version} is signed for it."
+	log "Every image of Þing ${version} is signed for it."
 }
 
-# The release's files into Skjald's folder (its .env stays), and run from there.
+# The release's files into Þing's folder (its .env stays), and run from there.
 install_release() {
-	local version=${SKJALD_RELEASE:-} staging name mode
+	local version=${TING_RELEASE:-} staging name mode
 	if [[ -z "${version}" ]]; then
 		version=$(newest_release)
-		[[ -n "${version}" ]] || die "No Skjald release found to install: GitHub didn't answer, or there's none yet."
+		[[ -n "${version}" ]] || die "No Þing release found to install: GitHub didn't answer, or there's none yet."
 	fi
-	if [[ "${version}" == *-* ]]; then warn "Skjald ${version} is a pre-release: for trying out, not for real data."; fi
+	if [[ "${version}" == *-* ]]; then warn "Þing ${version} is a pre-release: for trying out, not for real data."; fi
 	install_cosign
 	staging=$(mktemp -d)
 	fetch_release "${version}" "${staging}"
 	verify_images "${staging}/docker-compose.yml" "${version}"
-	install -d -m 0750 "${SKJALD_HOME}"
+	install -d -m 0750 "${TING_HOME}"
 	for name in ${RELEASE_FILES} VERSION; do
 		mode=0640
-		if [[ "${name}" == install.sh || "${name}" == skjald ]]; then mode=0755; fi
-		install -m "${mode}" "${staging}/${name}" "${SKJALD_HOME}/${name}"
+		if [[ "${name}" == install.sh || "${name}" == ting ]]; then mode=0755; fi
+		install -m "${mode}" "${staging}/${name}" "${TING_HOME}/${name}"
 	done
 	rm -rf "${staging}"
-	DEPLOY_DIR=${SKJALD_HOME}
-	log "Skjald ${version} is in ${SKJALD_HOME}."
+	DEPLOY_DIR=${TING_HOME}
+	log "Þing ${version} is in ${TING_HOME}."
 }
 
-# The skjald command, for what the web UI can't do (`skjald help`).
+# The ting command, for what the web UI can't do (`ting help`).
 link_command() {
-	ln -sfn "${DEPLOY_DIR}/skjald" "${BIN_DIR}/skjald"
-	log "Linked ${BIN_DIR}/skjald; run skjald help to see what it does."
+	ln -sfn "${DEPLOY_DIR}/ting" "${BIN_DIR}/ting"
+	log "Linked ${BIN_DIR}/ting; run ting help to see what it does."
 }
 
 compose() {
-	# Built from a checkout, Skjald calls itself what git calls the commit.
+	# Built from a checkout, Þing calls itself what git calls the commit.
 	local repo version=""
 	if from_checkout; then
 		repo=$(dirname "${DEPLOY_DIR}")
 		version=$(git -c safe.directory="${repo}" -C "${repo}" describe --tags --always 2>/dev/null) || true
 	fi
-	SKJALD_VERSION=${version} docker compose --project-directory "${DEPLOY_DIR}" \
+	TING_VERSION=${version} docker compose --project-directory "${DEPLOY_DIR}" \
 		-f "${DEPLOY_DIR}/docker-compose.yml" "$@"
 }
 
 start_stack() {
 	local address host port
-	address=$(sed -n 's/^SKJALD_ADDRESS=//p' "$(env_file)")
+	address=$(sed -n 's/^TING_ADDRESS=//p' "$(env_file)")
 	host=$(sed -E 's|^https://([^:/]+).*|\1|' <<<"${address}")
 	port=$(sed -nE 's|^https://[^:/]+:([0-9]+)$|\1|p' <<<"${address}")
 	port=${port:-443}
 
 	if from_checkout; then
-		log "Building and starting Skjald (the first build takes a few minutes)."
+		log "Building and starting Þing (the first build takes a few minutes)."
 		compose up -d --build
 	else
-		log "Pulling and starting Skjald."
+		log "Pulling and starting Þing."
 		compose pull --quiet
 		compose up -d
 	fi
-	log "Waiting for Skjald to answer at ${address}."
+	log "Waiting for Þing to answer at ${address}."
 	for _ in $(seq 120); do
 		# Through Caddy on this server, whatever the name resolves to here.
 		if curl -fsk --resolve "${host}:${port}:127.0.0.1" -o /dev/null "${address}/api/health"; then
-			log "Skjald is up."
+			log "Þing is up."
 			local said
 			said=$(compose exec -T app python -m app.setup)
 			if grep -q "Setup token" <<<"${said}"; then
 				printf '%s\n' "${said}"
 				log "Open ${address}/setup and enter the setup token above."
-				log "Until you choose another certificate in the wizard, Skjald's own authority signs"
-				log "it: install ${address}/skjald-root.crt as a trusted root on each computer."
+				log "Until you choose another certificate in the wizard, Þing's own authority signs"
+				log "it: install ${address}/ting-root.crt as a trusted root on each computer."
 			else
-				log "Skjald is set up already, at ${address}."
+				log "Þing is set up already, at ${address}."
 			fi
-			log "skjald status shows how it is, and skjald help what else it does."
+			log "ting status shows how it is, and ting help what else it does."
 			return
 		fi
 		sleep 2
 	done
-	die "Skjald didn't answer within four minutes. See: skjald logs app caddy"
+	die "Þing didn't answer within four minutes. See: ting logs app caddy"
 }
 
 main() {
@@ -406,7 +406,7 @@ main() {
 			restore=true
 			shift
 			;;
-		# skjald update: a release's files into a folder, checked, images and all.
+		# ting update: a release's files into a folder, checked, images and all.
 		--fetch)
 			[[ $# -eq 3 ]] || die "Usage: install.sh --fetch VERSION FOLDER"
 			install_cosign
@@ -423,7 +423,7 @@ main() {
 	done
 	[[ "${EUID}" -eq 0 ]] || die "Run this installer as root (sudo)."
 	if [[ -n "${address}" ]]; then
-		valid_address "${address}" || die "The address must look like https://skjald.example.internal (a port may follow)."
+		valid_address "${address}" || die "The address must look like https://ting.example.internal (a port may follow)."
 	fi
 
 	check_os
@@ -441,7 +441,7 @@ main() {
 
 	if [[ "${restore}" == true ]]; then
 		log "Next, restore a backup with the recovery kit's backup key:"
-		log "  skjald restore"
+		log "  ting restore"
 		return
 	fi
 	start_stack

@@ -1,17 +1,17 @@
 <p align="center">
-  <img src="docs/brand/skjald-mark.svg" width="96" height="96" alt="Skjald">
+  <img src="docs/brand/ting-mark.svg" width="96" height="96" alt="Þing">
 </p>
 
-<h1 align="center">Skjald</h1>
+<h1 align="center">Þing</h1>
 
 <p align="center"><em>Reports worth keeping.</em></p>
 
-Skjald is a self-hosted, template-driven report builder for IT, MSP and security work: security incident reports, storage device destruction certificates, vulnerability assessments and similar. A technician picks a customer project and a template, answers the template's questions, reviews the generated PDF, signs it and delivers it to the customer.
+Þing is a self-hosted, template-driven report builder for IT, MSP and security work: security incident reports, storage device destruction certificates, vulnerability assessments and similar. A technician picks a customer project and a template, answers the template's questions, reviews the generated PDF, signs it and delivers it to the customer.
 
-A *skald* (Danish *skjald*) was the Norse poet who turned events into a lasting record. Skjald does the same for technical work.
+A *skald* (Danish *ting*) was the Norse poet who turned events into a lasting record. Þing does the same for technical work.
 
 > [!NOTE]
-> **Status: Phase 1 of the road to 1.0.** The platform runs: install, setup wizard, sign-in with MFA, roles, customers and projects, encryption keys, the audit log and backups. Templates and reports come in Phases 2 and 3, so Skjald can't make a report yet. Don't trust it with real customer data before 1.0. Watch the repository to hear about the first release.
+> **Status: Phase 1 of the road to 1.0.** The platform runs: install, setup wizard, sign-in with MFA, roles, customers and projects, encryption keys, the audit log and backups. Templates and reports come in Phases 2 and 3, so Þing can't make a report yet. Don't trust it with real customer data before 1.0. Watch the repository to hear about the first release.
 
 ## What it will do
 
@@ -20,7 +20,7 @@ A *skald* (Danish *skjald*) was the Norse poet who turned events into a lasting 
 - **Signed reports** — PDF/A output with PAdES signatures, trusted timestamps and long-term validation. Technician, reviewer and company signatures, set per template.
 - **Delivery** — download, email, password-protected PDF, or an expiring secure link with an access code.
 - **Security first** — per-customer encryption keys, MFA for every account, need-to-know access and a tamper-evident audit log.
-- **Templates as files** — export, import and share templates as single `.skjald` files.
+- **Templates as files** — export, import and share templates as single `.ting` files.
 - **Easy to run** — one command installs it on an Ubuntu VM with Docker Compose. Updates take a backup first and roll back on failure; backups are encrypted and restore-tested.
 
 ## Try it
@@ -28,20 +28,20 @@ A *skald* (Danish *skjald*) was the Norse poet who turned events into a lasting 
 On an Ubuntu Server LTS VM (4 vCPU, 8 GB RAM, 100 GB disk); until the first full release it installs the newest pre-release, which is for trying out, not for real data:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/FragmentedCoder/Skjald-Reporting/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/FragmentedCoder/Ting-CRM/main/install.sh | sudo bash
 ```
 
-The installer installs Docker Engine if needed, generates the master key, downloads the release and checks its files and every image against the release's signatures, starts Skjald, and prints a one-time setup token. Open the address followed by `/setup` and the wizard takes it from there: the company, the first Administrator with MFA, the recovery kit, backups, email and the certificate. Until you choose another certificate, Skjald's own authority signs it: install `https://<address>/skjald-root.crt` as a trusted root on each computer that uses it. Each release's notes show how to check the installer with cosign before running it.
+The installer installs Docker Engine if needed, generates the master key, downloads the release and checks its files and every image against the release's signatures, starts Þing, and prints a one-time setup token. Open the address followed by `/setup` and the wizard takes it from there: the company, the first Administrator with MFA, the recovery kit, backups, email and the certificate. Until you choose another certificate, Þing's own authority signs it: install `https://<address>/ting-root.crt` as a trusted root on each computer that uses it. Each release's notes show how to check the installer with cosign before running it.
 
 To try the newest code, install from a checkout instead: it builds the images there.
 
 ```sh
-git clone https://github.com/FragmentedCoder/Skjald-Reporting.git
-cd Skjald-Reporting
-sudo ./install.sh --address https://skjald.example.internal
+git clone https://github.com/FragmentedCoder/Ting-CRM.git
+cd Ting-CRM
+sudo ./install.sh --address https://ting.example.internal
 ```
 
-On the server, `sudo skjald help` lists what the web UI can't do: status, logs, backups and restores, updates, and replacing the master key.
+On the server, `sudo ting help` lists what the web UI can't do: status, logs, backups and restores, updates, and replacing the master key.
 
 ## Roadmap
 
@@ -65,4 +65,4 @@ Ideas, questions and bug reports are welcome — see [CONTRIBUTING.md](CONTRIBUT
 
 ## Licence
 
-Skjald is licensed under the [GNU Affero General Public License v3.0](LICENSE). You may use, study, change and share it. If you share a modified version, or run one as a service for others, you must publish its source under the same licence.
+Þing is licensed under the [GNU Affero General Public License v3.0](LICENSE). You may use, study, change and share it. If you share a modified version, or run one as a service for others, you must publish its source under the same licence.

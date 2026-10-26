@@ -17,7 +17,7 @@
   } from "#lib/tls.js";
   import { toast } from "#lib/toast.svelte.js";
 
-  // Which certificate Skjald serves. Caddy takes a change within a few seconds;
+  // Which certificate Þing serves. Caddy takes a change within a few seconds;
   // the page then asks again to show what's served.
   let status = $state<TlsStatus | null>(null);
   let choice = $state<TlsChoice | null>(null);
@@ -63,7 +63,7 @@
 <div class="page-header">
   <div>
     <h1 class="title">Certificate</h1>
-    <p class="small muted">The certificate browsers see at {status?.host ?? "Skjald's address"}.</p>
+    <p class="small muted">The certificate browsers see at {status?.host ?? "Þing's address"}.</p>
   </div>
 </div>
 
@@ -91,10 +91,10 @@
     </dl>
     {#if status.root_url}
       <p class="small">
-        Each computer that uses Skjald trusts this authority once its root certificate is
+        Each computer that uses Þing trusts this authority once its root certificate is
         installed (on Windows, in Trusted Root Certification Authorities).
         <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a file Caddy serves, not a page -->
-        <a href={status.root_url} download="skjald-root.crt">Download the root certificate</a>
+        <a href={status.root_url} download="ting-root.crt">Download the root certificate</a>
       </p>
     {/if}
   </section>
@@ -107,7 +107,7 @@
       <button class="button button-primary" type="submit" disabled={busy}>Save</button>
     </div>
     <p class="small muted">
-      Saving asks you to confirm it's you. If Skjald can't be reached after a change, run this
+      Saving asks you to confirm it's you. If Þing can't be reached after a change, run this
       on the server to go back to its own authority:
     </p>
     <Command command={RESET_COMMAND} />

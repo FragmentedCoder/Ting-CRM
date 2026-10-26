@@ -9,7 +9,7 @@ export default defineConfig({
   workers: 1, // the tests share one server and one database
   reporter: [["list"]],
   use: {
-    baseURL: process.env.SKJALD_URL ?? "https://localhost",
+    baseURL: process.env.TING_URL ?? "https://localhost",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     ...devices["Desktop Chrome"],

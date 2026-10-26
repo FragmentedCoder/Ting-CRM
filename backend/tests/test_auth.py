@@ -231,7 +231,7 @@ def test_a_password_alone_does_not_open_protected_routes(
     response = client.get(full_session_route)
     assert response.status_code == 403
     assert "multifactor" in response.json()["detail"]
-    assert response.headers["X-Skjald-Reason"] == "mfa_required"
+    assert response.headers["X-Ting-Reason"] == "mfa_required"
 
 
 def test_a_new_session_never_reuses_an_old_ones_id(client, make_user, session) -> None:
@@ -271,7 +271,7 @@ def test_the_status_check_does_not_keep_a_session_alive(
     frozen_clock.advance(minutes=11)
     ended = client.get("/api/auth/session/status")
     assert ended.status_code == 401
-    assert ended.headers["X-Skjald-Reason"] == "session_timed_out"
+    assert ended.headers["X-Ting-Reason"] == "session_timed_out"
     assert "30 minutes without activity" in ended.json()["detail"]
 
 
@@ -284,9 +284,9 @@ def test_the_sign_in_allowlist_keeps_other_addresses_out(client, make_user, sess
     # The test client's address is "testclient", outside every range.
     signed_in = client.get("/api/auth/session")
     assert signed_in.status_code == 401
-    assert signed_in.headers["X-Skjald-Reason"] == "session_network"
+    assert signed_in.headers["X-Ting-Reason"] == "session_network"
     refused = _sign_in(client)
-    assert refused.status_code == 403 and refused.headers["X-Skjald-Reason"] == "network"
+    assert refused.status_code == 403 and refused.headers["X-Ting-Reason"] == "network"
     assert len(_audit(session, "auth.sign_in.refused_network")) == 1
 
 

@@ -122,7 +122,7 @@
           <label for="display-name">Display name</label>
           <input id="display-name" class="input" required maxlength="200"
             bind:value={form.display_name} />
-          <span class="hint">How Skjald shows them, such as “Bjørn Havn”.</span>
+          <span class="hint">How Þing shows them, such as “Bjørn Havn”.</span>
         </div>
         <div class="grid">
           {#each PROFILE_FIELDS as field (field.key)}

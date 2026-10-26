@@ -1,6 +1,6 @@
 <script lang="ts">
   // The Ansuz mark from docs/brand. In dark mode it gets the white inner frame
-  // (skjald-mark-framed.svg) so the tile edge reads against dark surfaces.
+  // (ting-mark-framed.svg) so the tile edge reads against dark surfaces.
   let { size = 48 }: { size?: number } = $props();
 </script>
 

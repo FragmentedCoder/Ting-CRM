@@ -158,7 +158,7 @@ with Session(get_engine()) as db:
 """
     done = subprocess.run(
         [sys.executable, "-c", script], capture_output=True, text=True, timeout=120,
-        env={"PATH": "/usr/local/bin:/usr/bin:/bin", "SKJALD_DATA_DIR": str(data_dir),
-             "SKJALD_MASTER_KEY_PATH": str(master_key_path)})
+        env={"PATH": "/usr/local/bin:/usr/bin:/bin", "TING_DATA_DIR": str(data_dir),
+             "TING_MASTER_KEY_PATH": str(master_key_path)})
     assert done.returncode == 0, done.stderr[-2000:]
     assert done.stdout.strip() in {"done", "queued", "failed"}

@@ -71,12 +71,12 @@ def test_nothing_is_queued_without_a_worker(server, session, capsys) -> None:
     assert session.scalar(select(jobs.Job)) is None
 
 
-def test_the_console_names_the_skjald_command_on_the_backups_page(server, the_worker, client,
+def test_the_console_names_the_ting_command_on_the_backups_page(server, the_worker, client,
                                                                  admin) -> None:
     jobs.HANDLERS["backup"] = lambda db, job: {"snapshot": "0b37addf"}
     console.main(["backup"])
     runs = client.get("/api/admin/backups", headers=admin[1]).json()["runs"]
-    assert runs[0]["requested_by"] == "The skjald command"
+    assert runs[0]["requested_by"] == "The ting command"
 
 
 def test_rotating_from_the_console_prints_the_new_key_for_the_kit(
@@ -95,19 +95,19 @@ def test_rotating_from_the_console_prints_the_new_key_for_the_kit(
     assert "until the backups made before now have aged out, after 90 days" in out
 
 
-def test_rotating_waits_for_skjald_to_stop(server, session, capsys, frozen_clock,
+def test_rotating_waits_for_ting_to_stop(server, session, capsys, frozen_clock,
                                            master_key_path) -> None:
     worker.beat(session, frozen_clock.now)
     session.commit()
     old = master_key_path.read_bytes()
     assert console.main(["rotate-master-key"]) == 1
-    assert "stop Skjald first" in capsys.readouterr().err
+    assert "stop Þing first" in capsys.readouterr().err
     assert master_key_path.read_bytes() == old
 
 
 def test_a_worker_that_stopped_cleanly_isnt_running(server, session, capsys, frozen_clock,
                                                    data_dir, master_key_path) -> None:
-    """skjald keys rotate stops the worker a moment before: its last beat is recent,
+    """ting keys rotate stops the worker a moment before: its last beat is recent,
     but it said it stopped after it."""
     worker.beat(session, frozen_clock.now)
     frozen_clock.advance(seconds=20)

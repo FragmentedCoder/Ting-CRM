@@ -26,12 +26,12 @@ needs_restic = pytest.mark.skipif(shutil.which("restic") is None, reason="restic
 
 def test_each_kind_of_target_is_a_restic_repository() -> None:
     assert backups.repository(Target()) == "/backups/restic"
-    smb = Target(kind="smb", smb_host="nas.local", smb_share="backup", smb_path="/skjald/",
-                 smb_username="skjald")
-    assert backups.repository(smb) == "rclone:skjaldsmb:backup/skjald"
+    smb = Target(kind="smb", smb_host="nas.local", smb_share="backup", smb_path="/ting/",
+                 smb_username="ting")
+    assert backups.repository(smb) == "rclone:tingsmb:backup/ting"
     s3 = Target(kind="s3", s3_endpoint="https://s3.example.com/", s3_bucket="vault",
                 s3_access_key_id="AKIA")
-    assert backups.repository(s3) == "s3:https://s3.example.com/vault/skjald"
+    assert backups.repository(s3) == "s3:https://s3.example.com/vault/ting"
 
 
 def test_secrets_go_to_restic_as_environment_never_as_arguments() -> None:
@@ -70,7 +70,7 @@ def test_a_target_says_what_it_still_needs() -> None:
 
 
 NAS = Target(id="smb", kind="smb", smb_host="nas.local", smb_share="backup",
-             smb_username="skjald")
+             smb_username="ting")
 
 
 def test_the_nightly_backup_is_due_from_its_hour_for_each_target(frozen_clock, session) -> None:
@@ -114,7 +114,7 @@ def test_a_single_target_saved_before_is_read_as_the_first(session, data_dir) ->
 
     session.merge(Setting(key=backups.OLD_TARGET_SETTING, value=json.dumps({
         "kind": "smb", "hour": 4, "keep_days": 30, "smb_host": "nas.local",
-        "smb_share": "backup", "smb_username": "skjald"})))
+        "smb_share": "backup", "smb_username": "ting"})))
     save_secrets(session, backups.SECRETS, {"smb_password": "nas-secret"})
     session.commit()
     plan = backups.load_plan(session)
@@ -194,7 +194,7 @@ def test_a_tampered_copy_fails_the_restore_check(local_repository, session, data
     assert backups.check_restored(folder)["audit_entries"] == 1
 
     key = load_or_create_database_key(data_dir, master_key_path)
-    copy = sqlcipher3.connect(str(folder / "skjald.db"))
+    copy = sqlcipher3.connect(str(folder / "ting.db"))
     copy.execute(f"PRAGMA key = \"x'{key.hex()}'\"")
     # Someone with the file and the key can drop the triggers that keep the log
     # append-only; the hash chain still shows the change.
@@ -233,7 +233,7 @@ def test_changing_where_backups_go_needs_a_fresh_confirmation(client, as_admin,
                                                               session) -> None:
     both = {"hour": 3, "targets": [{"id": "local", "kind": "local"}, S3]}
     refused = client.put(BACKUPS, headers=as_admin, json=both)
-    assert refused.headers["X-Skjald-Reason"] == "step_up_required"
+    assert refused.headers["X-Ting-Reason"] == "step_up_required"
     assert "where backups go" in refused.json()["detail"]
     client.post("/api/auth/confirm-password", headers=as_admin, json={"password": PASSWORD})
     saved = client.put(BACKUPS, headers=as_admin, json=both)
@@ -241,7 +241,7 @@ def test_changing_where_backups_go_needs_a_fresh_confirmation(client, as_admin,
     local, s3 = saved.json()["targets"]
     assert (local["target"]["id"], s3["target"]["id"]) == ("local", "s3")
     assert s3["secret_set"] and "s3cret" not in saved.text
-    assert s3["repository"] == "s3:https://s3.example.com/vault/skjald"
+    assert s3["repository"] == "s3:https://s3.example.com/vault/ting"
     # The hour alone changes without asking again, and the secret is kept.
     later = client.put(BACKUPS, headers=as_admin, json={"hour": 4, "targets": [
         {"id": "local", "kind": "local"}, {**S3, "id": "s3", "s3_secret_access_key": None}]})
@@ -249,7 +249,7 @@ def test_changing_where_backups_go_needs_a_fresh_confirmation(client, as_admin,
     # Removing a target is a change to where backups go.
     removed = client.put(BACKUPS, headers=as_admin, json={"hour": 4, "targets": [
         {"id": "local", "kind": "local"}]})
-    assert removed.headers["X-Skjald-Reason"] == "step_up_required"
+    assert removed.headers["X-Ting-Reason"] == "step_up_required"
     logged = session.scalars(select(AuditEntry.details).where(
         AuditEntry.action == "backup.settings_changed")).all()
     assert logged == ['{"hour":3,"keep_days":90,"targets":["local","s3"]}',
@@ -338,11 +338,11 @@ def test_a_restore_puts_the_backup_back_and_keeps_what_was_there(
     make_user("after")
     session.commit()
     session.close()
-    engine.dispose()  # Skjald is stopped
+    engine.dispose()  # Þing is stopped
 
     key_text = backups.password(load_or_create_backup_key(data_dir, master_key_path))
     found = restore(backups.environment(Target(), {}, key_text), "latest", data_dir)
-    assert Path(found["kept"], "skjald.db").exists()
+    assert Path(found["kept"], "ting.db").exists()
     restored = make_engine(data_dir, master_key_path)
     with Session(restored) as db:
         usernames = set(db.scalars(select(User.username)))
@@ -373,7 +373,7 @@ def test_a_restore_keeps_recovery_codes_as_they_are_now_and_is_recorded(
     ingrids = issue_recovery_codes(session, ingrid.id)
     issue_recovery_codes(session, bodil.id)
     mail.save_server(session, mail.MailServer(host="smtp.nordlys.example",
-                                              from_address="skjald@nordlys.example"))
+                                              from_address="ting@nordlys.example"))
     session.commit()
     assert run(session, "backup").state == "done"
     # Since the backup: Ingrid used a code, Bodil made new ones.
@@ -381,7 +381,7 @@ def test_a_restore_keeps_recovery_codes_as_they_are_now_and_is_recorded(
     bodils_new = issue_recovery_codes(session, bodil.id)
     session.commit()
     session.close()
-    engine.dispose()  # Skjald is stopped
+    engine.dispose()  # Þing is stopped
 
     key_text = backups.password(load_or_create_backup_key(data_dir, master_key_path))
     found = restore(backups.environment(Target(), {}, key_text), "latest", data_dir)
@@ -396,7 +396,7 @@ def test_a_restore_keeps_recovery_codes_as_they_are_now_and_is_recorded(
         assert '"recovery_codes":"carried_over"' in logged.details
         assert verify(db).ok
         [notice] = [j.data() for j in db.scalars(select(jobs.Job).where(jobs.Job.kind == "mail"))]
-        assert notice["subject"] == "Skjald was restored from a backup"
+        assert notice["subject"] == "Þing was restored from a backup"
         assert notice["to"] == ["ingrid@nordlys.example"]
         assert "used ones stay used" in notice["body"]
         db.rollback()
@@ -449,7 +449,7 @@ def test_a_restore_without_readable_data_says_codes_are_as_backed_up(
     assert run(session, "backup").state == "done"
     session.close()
     engine.dispose()
-    (data_dir / "skjald.db").write_bytes(b"not a database")  # the disk went
+    (data_dir / "ting.db").write_bytes(b"not a database")  # the disk went
     key_text = backups.password(load_or_create_backup_key(data_dir, master_key_path))
     monkeypatch.setattr(restore_module, "_target_environment",
                         lambda key, repository, target: backups.environment(Target(), {},
@@ -520,7 +520,7 @@ def test_a_damaged_copy_fails_the_integrity_check(local_repository, session, tmp
     folder = tmp_path / "copy"
     schema = session.execute(text("SELECT version_num FROM alembic_version")).scalar()
     backups._stage(folder, {"schema": schema, "audit_entries": 200})
-    database = folder / "skjald.db"
+    database = folder / "ting.db"
     data = bytearray(database.read_bytes())
     data[-2000:-1000] = bytes(1000)  # a page near the end, zeroed
     database.write_bytes(bytes(data))

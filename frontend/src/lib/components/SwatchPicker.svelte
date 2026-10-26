@@ -4,7 +4,7 @@
 
   // Pick one colour from a short, contrast-checked list. With `siteName`, a first
   // option follows the site's colour (bound as ""). With `custom` (the site's
-  // colours only), any colour can be picked too; Skjald shows the shades it will
+  // colours only), any colour can be picked too; Þing shows the shades it will
   // use so it stays readable.
   let {
     legend,
@@ -89,7 +89,7 @@
         {#if own.light === picked && own.dark === picked}
           Used as it is, in light and dark mode.
         {:else}
-          To stay readable, Skjald uses
+          To stay readable, Þing uses
           <span class="mono">{own.light}</span> in light mode and
           <span class="mono">{own.dark}</span> in dark mode: the nearest shades of it that
           pass the contrast check.

@@ -104,7 +104,7 @@
     {:else if plan.targets.length === 1}
       <p class="alert alert-warning">
         Backups kept on this server don't survive losing it. Add an SMB share or S3-compatible
-        storage as well, or point SKJALD_BACKUP_DIR at a separate disk.
+        storage as well, or point TING_BACKUP_DIR at a separate disk.
       </p>
     {/if}
 
@@ -143,7 +143,7 @@
     </div>
   </div>
   <p class="small muted">
-    Every place gets each backup. Older snapshots are deleted: a customer deleted in Skjald
+    Every place gets each backup. Older snapshots are deleted: a customer deleted in Þing
     stays in older snapshots until they age out, and after {plan.keep_days} days no backup
     holds anything of them.
   </p>

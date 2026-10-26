@@ -98,7 +98,7 @@ describe("the idle warning", () => {
 describe("an ended session", () => {
   const told = () => toasts.filter((t) => t.key === "session").map((t) => t.text);
 
-  it("is explained to someone using Skjald when it ends", async () => {
+  it("is explained to someone using Þing when it ends", async () => {
     useSession(signedIn(LATER));
     await sessionEnded("An administrator signed you out.", "session_by_admin");
     expect(told()).toEqual(["An administrator signed you out."]);
@@ -118,7 +118,7 @@ describe("an ended session", () => {
     expect(session.current).toBeNull();
   });
 
-  it("isn't, opening Skjald again later after it ran out", async () => {
+  it("isn't, opening Þing again later after it ran out", async () => {
     for (const reason of ["session_ended", "session_timed_out", "session_expired"]) {
       await sessionEnded("Your session has ended. Sign in again to continue.", reason);
     }

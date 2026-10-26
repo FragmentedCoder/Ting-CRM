@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# skjald: Skjald's command on the server, for what the web UI can't do. The
-# installer links it as /usr/local/bin/skjald; it runs Docker Compose in the
-# deploy folder it lives in. Run `skjald help` for the commands.
+# ting: Þing's command on the server, for what the web UI can't do. The
+# installer links it as /usr/local/bin/ting; it runs Docker Compose in the
+# deploy folder it lives in. Run `ting help` for the commands.
 set -euo pipefail
 
-DEPLOY_DIR=${SKJALD_DEPLOY_DIR:-$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)}
+DEPLOY_DIR=${TING_DEPLOY_DIR:-$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)}
 REPO_DIR=$(dirname "${DEPLOY_DIR}")
-SKJALD_HOME="${SKJALD_HOME:-/opt/skjald}"
+TING_HOME="${TING_HOME:-/opt/ting}"
 # Copies of the data from before each update, to roll back to; the newest few stay.
-ROLLBACK_DIR="${SKJALD_HOME}/rollback"
+ROLLBACK_DIR="${TING_HOME}/rollback"
 KEEP_ROLLBACKS=3
-# How long Skjald may take to answer after starting.
-START_SECONDS=${SKJALD_START_SECONDS:-300}
+# How long Þing may take to answer after starting.
+START_SECONDS=${TING_START_SECONDS:-300}
 
 log() { printf '==> %s\n' "$1"; }
 warn() { printf 'WARNING: %s\n' "$1" >&2; }
@@ -22,35 +22,35 @@ die() {
 
 usage() {
 	cat <<'EOF'
-Usage: skjald <command>
+Usage: ting <command>
 
   status                  what runs, and every health check
   logs [service] [-f]     the logs of app, worker and caddy (or one of them)
-  start | stop | restart  start or stop Skjald
+  start | stop | restart  start or stop Þing
   backup                  back up now, and wait for it
   restore-test            restore the newest backup into a scratch folder and check it
   restore [--snapshot ID] [--repository R]
                           restore a backup (asks for the recovery kit's backup key;
-                          Skjald is stopped meanwhile)
+                          Þing is stopped meanwhile)
   update [--ref REF] [--no-backup]
                           update to the newest release (or REF), its files and images
                           checked against their signatures; from a checkout, to the
                           newest commit of its branch. A backup first, and a roll back
                           if the new version doesn't come up
-  keys rotate             replace the master key (Skjald stops for a moment)
+  keys rotate             replace the master key (Þing stops for a moment)
   admin reset-allowlist   switch off both IP allowlists, when they lock everyone out
-  admin reset-certificate go back to Skjald's own certificate authority
+  admin reset-certificate go back to Þing's own certificate authority
   setup-token             print a new setup token, while setup is pending
   help                    this
 EOF
 }
 
 compose() {
-	# Built from a checkout, Skjald calls itself what git calls the commit: worked
+	# Built from a checkout, Þing calls itself what git calls the commit: worked
 	# out each time, as an update changes the commit.
 	local version=""
 	if ! from_release; then version=$(git_read describe --tags --always 2>/dev/null) || true; fi
-	SKJALD_VERSION=${version} docker compose --project-directory "${DEPLOY_DIR}" \
+	TING_VERSION=${version} docker compose --project-directory "${DEPLOY_DIR}" \
 		-f "${DEPLOY_DIR}/docker-compose.yml" "$@"
 }
 
@@ -59,7 +59,7 @@ running() {
 }
 
 require_running() {
-	running app || die "Skjald isn't running: start it with skjald start."
+	running app || die "Þing isn't running: start it with ting start."
 }
 
 console() {
@@ -69,7 +69,7 @@ console() {
 # The address from .env, and the port Caddy answers on.
 address() {
 	local value
-	value=$(sed -n 's/^SKJALD_ADDRESS=//p' "${DEPLOY_DIR}/.env" 2>/dev/null | tail -1)
+	value=$(sed -n 's/^TING_ADDRESS=//p' "${DEPLOY_DIR}/.env" 2>/dev/null | tail -1)
 	printf '%s' "${value:-https://localhost}"
 }
 
@@ -86,7 +86,7 @@ wait_until_up() {
 	local waited=0
 	until answers; do
 		if ((waited >= START_SECONDS)); then
-			warn "Skjald didn't answer at $(address) within ${START_SECONDS} seconds."
+			warn "Þing didn't answer at $(address) within ${START_SECONDS} seconds."
 			return 1
 		fi
 		sleep 2
@@ -112,10 +112,10 @@ short() { git_read rev-parse --short "$1"; }
 
 version() {
 	if [[ -f "${DEPLOY_DIR}/VERSION" ]]; then
-		printf 'Skjald %s' "$(cat "${DEPLOY_DIR}/VERSION")"
+		printf 'Þing %s' "$(cat "${DEPLOY_DIR}/VERSION")"
 		return
 	fi
-	printf 'Skjald %s (%s)' "$(git_read describe --always --dirty --tags 2>/dev/null || echo unknown)" \
+	printf 'Þing %s (%s)' "$(git_read describe --always --dirty --tags 2>/dev/null || echo unknown)" \
 		"$(git_read log -1 --format=%cd --date=short 2>/dev/null || echo '?')"
 }
 
@@ -129,10 +129,10 @@ cmd_status() {
 
 cmd_start() {
 	compose up -d
-	wait_until_up && log "Skjald is up at $(address)."
+	wait_until_up && log "Þing is up at $(address)."
 }
 
-# The data, copied aside with Skjald stopped, and put back.
+# The data, copied aside with Þing stopped, and put back.
 copy_data_to() {
 	# The tools image on its own first: built by compose run, its build log would
 	# land in the copy, ahead of the archive.
@@ -142,7 +142,7 @@ copy_data_to() {
 		compose run --rm --no-deps -T tools tar -C /data -czf - . >"$1.part"
 	) || return 1
 	# A copy to roll back to that can't be read, or lacks the database, is none.
-	gzip -t "$1.part" 2>/dev/null && tar -tzf "$1.part" | grep -qx './skjald.db' || return 1
+	gzip -t "$1.part" 2>/dev/null && tar -tzf "$1.part" | grep -qx './ting.db' || return 1
 	mv "$1.part" "$1"
 }
 
@@ -151,40 +151,40 @@ put_data_back_from() {
 }
 
 cmd_restore() {
-	log "Stopping Skjald for the restore."
+	log "Stopping Þing for the restore."
 	compose stop app worker
 	local code=0
-	compose run --rm --no-deps -e SKJALD_COMMAND=1 worker python -m app.restore "$@" || code=$?
-	log "Starting Skjald again."
+	compose run --rm --no-deps -e TING_COMMAND=1 worker python -m app.restore "$@" || code=$?
+	log "Starting Þing again."
 	compose up -d
 	wait_until_up || true
 	return "${code}"
 }
 
 cmd_keys() {
-	[[ "${1:-}" == rotate && $# -eq 1 ]] || die "Usage: skjald keys rotate"
-	log "Stopping Skjald to rotate the master key."
+	[[ "${1:-}" == rotate && $# -eq 1 ]] || die "Usage: ting keys rotate"
+	log "Stopping Þing to rotate the master key."
 	compose stop app worker
 	local code=0
 	# --build: the tools image must be the code that's running, not one from before an update.
 	compose run --rm --no-deps --build tools python -m app.console rotate-master-key || code=$?
-	log "Starting Skjald again."
+	log "Starting Þing again."
 	compose up -d
-	wait_until_up || die "Skjald doesn't answer after the rotation: see skjald logs."
+	wait_until_up || die "Þing doesn't answer after the rotation: see ting logs."
 	if [[ ${code} -eq 0 ]]; then
 		log "Backing up under the new master key."
-		console backup || warn "The backup didn't work; run skjald backup once it's fixed."
+		console backup || warn "The backup didn't work; run ting backup once it's fixed."
 	fi
 	return "${code}"
 }
 
-# Installed from a release (in /opt/skjald, with its VERSION), or run from a checkout.
+# Installed from a release (in /opt/ting, with its VERSION), or run from a checkout.
 from_release() { [[ -f "${DEPLOY_DIR}/VERSION" ]]; }
 
 # The newest full release; while there's none yet, the newest pre-release. Nothing
 # when GitHub doesn't answer plainly: never a pre-release for a release unseen.
 newest_release() {
-	local releases="https://api.github.com/repos/${SKJALD_REPOSITORY:-FragmentedCoder/Skjald-Reporting}/releases" answer status
+	local releases="https://api.github.com/repos/${TING_REPOSITORY:-FragmentedCoder/Ting-CRM}/releases" answer status
 	answer=$(mktemp)
 	status=$(curl -sSL -o "${answer}" -w '%{http_code}' "${releases}/latest") || status=000
 	if [[ "${status}" == 404 ]]; then
@@ -196,17 +196,17 @@ newest_release() {
 	rm -f "${answer}"
 }
 
-RELEASE_FILES="docker-compose.yml install.sh skjald .env.example VERSION"
+RELEASE_FILES="docker-compose.yml install.sh ting .env.example VERSION"
 
 cmd_update() {
 	# Bash reads a script as it runs it, and the update changes this one: run a copy.
-	if [[ -z "${SKJALD_RUNNING_COPY:-}" ]]; then
+	if [[ -z "${TING_RUNNING_COPY:-}" ]]; then
 		local running_copy
 		running_copy=$(mktemp)
 		cp "$(readlink -f "${BASH_SOURCE[0]}")" "${running_copy}"
-		SKJALD_RUNNING_COPY=${running_copy} SKJALD_DEPLOY_DIR=${DEPLOY_DIR} exec bash "${running_copy}" update "$@"
+		TING_RUNNING_COPY=${running_copy} TING_DEPLOY_DIR=${DEPLOY_DIR} exec bash "${running_copy}" update "$@"
 	fi
-	trap 'rm -f "${SKJALD_RUNNING_COPY}"' EXIT
+	trap 'rm -f "${TING_RUNNING_COPY}"' EXIT
 	local ref="" backup=true
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -229,16 +229,16 @@ cmd_update() {
 	if from_release; then
 		old=$(cat "${DEPLOY_DIR}/VERSION")
 		target=${ref:-$(newest_release)}
-		[[ -n "${target}" ]] || die "No Skjald release found to update to: GitHub didn't answer, or there's none yet."
+		[[ -n "${target}" ]] || die "No Þing release found to update to: GitHub didn't answer, or there's none yet."
 		if [[ "${target}" == "${old}" ]]; then
-			log "Already up to date: Skjald ${old}."
+			log "Already up to date: Þing ${old}."
 			return 0
 		fi
-		log "Updating from Skjald ${old} to ${target}."
+		log "Updating from Þing ${old} to ${target}."
 		# Fetched and checked by the installed installer: a release never vouches for itself.
 		staging=$(mktemp -d)
 		bash "${DEPLOY_DIR}/install.sh" --fetch "${target}" "${staging}" ||
-			die "Not updated: Skjald ${target} couldn't be fetched and checked."
+			die "Not updated: Þing ${target} couldn't be fetched and checked."
 	else
 		[[ -z "$(git_read status --porcelain)" ]] || die "${REPO_DIR} has changes of its own; commit or remove them first."
 		old=$(git_read rev-parse HEAD)
@@ -261,7 +261,7 @@ cmd_update() {
 		require_running
 		console backup || die "Not updated: the backup before it didn't work. If backups are switched off, update with --no-backup (the copy to roll back to is kept either way)."
 	fi
-	log "Stopping Skjald, and copying its data aside."
+	log "Stopping Þing, and copying its data aside."
 	compose stop app worker
 	local copy name before=""
 	if from_release; then
@@ -272,7 +272,7 @@ cmd_update() {
 	if ! copy_data_to "${copy}"; then
 		rm -f "${copy}.part"
 		compose up -d
-		die "Not updated: the data couldn't be copied aside (is there room in ${ROLLBACK_DIR}?). Skjald is started again as it was."
+		die "Not updated: the data couldn't be copied aside (is there room in ${ROLLBACK_DIR}?). Þing is started again as it was."
 	fi
 
 	# The new version in place.
@@ -282,7 +282,7 @@ cmd_update() {
 		install -d -m 0700 "${before}"
 		for name in ${RELEASE_FILES}; do cp -p "${DEPLOY_DIR}/${name}" "${before}/${name}"; done
 		for name in ${RELEASE_FILES}; do install -m 0640 "${staging}/${name}" "${DEPLOY_DIR}/${name}"; done
-		chmod 0755 "${DEPLOY_DIR}/install.sh" "${DEPLOY_DIR}/skjald"
+		chmod 0755 "${DEPLOY_DIR}/install.sh" "${DEPLOY_DIR}/ting"
 		rm -rf "${staging}"
 	elif [[ -n "${ref}" ]]; then
 		git_owner checkout --quiet --detach "${target}"
@@ -310,7 +310,7 @@ cmd_update() {
 	fi
 	put_data_back_from "${copy}"
 	start_new
-	wait_until_up || die "Rolled back, but Skjald still doesn't answer: see skjald logs."
+	wait_until_up || die "Rolled back, but Þing still doesn't answer: see ting logs."
 	die "Not updated: rolled back to $(version), with the data from before the update."
 }
 
@@ -352,7 +352,7 @@ main() {
 			require_running
 			console "$1"
 			;;
-		*) die "Usage: skjald admin reset-allowlist | reset-certificate" ;;
+		*) die "Usage: ting admin reset-allowlist | reset-certificate" ;;
 		esac
 		;;
 	setup-token)
@@ -367,7 +367,7 @@ main() {
 	esac
 }
 
-# Sourced by deploy/skjald.test.sh, which tests the functions on their own.
+# Sourced by deploy/ting.test.sh, which tests the functions on their own.
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
 	main "$@"
 fi

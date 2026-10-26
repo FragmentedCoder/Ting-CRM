@@ -27,7 +27,7 @@ def logo(fmt="PNG") -> bytes:
 
 def test_branding_starts_with_the_defaults_and_needs_no_sign_in(client) -> None:
     assert client.get("/api/branding").json() == {
-        "site_name": "Skjald", "tagline": "Reports worth keeping.", "company_name": None,
+        "site_name": "Þing", "tagline": "Reports worth keeping.", "company_name": None,
         "logo_url": None, "primary_colour": "fjord", "accent_colour": "rav",
         "enforce_colours": False,
     }
@@ -36,14 +36,14 @@ def test_branding_starts_with_the_defaults_and_needs_no_sign_in(client) -> None:
 def test_an_administrator_can_set_and_enforce_the_colours(client, admin, session) -> None:
     _, headers = admin
     saved = client.put("/api/admin/branding", headers=headers, json={
-        "site_name": "Skjald", "company_name": "Nordlys IT ApS", "primary_colour": "pine",
+        "site_name": "Þing", "company_name": "Nordlys IT ApS", "primary_colour": "pine",
         "accent_colour": "sky", "enforce_colours": True,
     }).json()
     assert (saved["primary_colour"], saved["accent_colour"], saved["enforce_colours"]) == (
         "pine", "sky", True
     )
     unknown = client.put("/api/admin/branding", headers=headers, json={
-        "site_name": "Skjald", "company_name": "Nordlys IT ApS", "primary_colour": "neon",
+        "site_name": "Þing", "company_name": "Nordlys IT ApS", "primary_colour": "neon",
     })
     assert unknown.status_code == 422
 
@@ -51,14 +51,14 @@ def test_an_administrator_can_set_and_enforce_the_colours(client, admin, session
 def test_an_administrator_can_pick_any_colour_for_the_site(client, admin) -> None:
     _, headers = admin
     saved = client.put("/api/admin/branding", headers=headers, json={
-        "site_name": "Skjald", "company_name": "Nordlys IT ApS", "primary_colour": "#ff8800",
+        "site_name": "Þing", "company_name": "Nordlys IT ApS", "primary_colour": "#ff8800",
         "accent_colour": "#1a2B3c",
     }).json()
     assert (saved["primary_colour"], saved["accent_colour"]) == ("#FF8800", "#1A2B3C")
     assert client.get("/api/branding").json()["primary_colour"] == "#FF8800"
     for bad in ("#ff880", "#ff88000", "ff8800", "#gg8800", "url(x)"):
         refused = client.put("/api/admin/branding", headers=headers, json={
-            "site_name": "Skjald", "company_name": "Nordlys IT ApS", "primary_colour": bad,
+            "site_name": "Þing", "company_name": "Nordlys IT ApS", "primary_colour": bad,
         })
         assert refused.status_code == 422, bad
 
@@ -140,7 +140,7 @@ def test_the_health_page_checks_everything_that_matters(client, admin, reachable
     assert checks["audit_chain"]["detail"].startswith("Chain intact")
     assert checks["breach_check"]["status"] == "ok" and reachable == [1]
     assert health["versions"]["schema_version"] == "0013"
-    assert health["versions"]["skjald"].endswith("-dev")
+    assert health["versions"]["ting"].endswith("-dev")
     assert health["versions"]["sqlcipher"]
     assert any(p["name"] == "fastapi" for p in health["packages"])
     assert health["usage"]["users"] == 1 and health["usage"]["sessions"] == 1
@@ -213,4 +213,4 @@ def test_the_worker_check_says_whether_it_runs(frozen_clock, session) -> None:
     session.merge(Setting(key=worker.STOPPED, value=frozen_clock.now.isoformat()))
     session.commit()
     stopped = _run_worker(session)
-    assert stopped.status == "problem" and "Start it with skjald start" in stopped.detail
+    assert stopped.status == "problem" and "Start it with ting start" in stopped.detail

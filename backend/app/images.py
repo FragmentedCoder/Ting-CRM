@@ -26,7 +26,7 @@ Image.MAX_IMAGE_PIXELS = 40_000_000
 
 
 class ImageRejected(ValueError):
-    """The upload isn't an image Skjald will store; the message is fit to show."""
+    """The upload isn't an image Þing will store; the message is fit to show."""
 
 
 class StoredImage(Base):
@@ -50,7 +50,7 @@ def clean_image(raw: bytes, *, max_size: tuple[int, int]) -> bytes:
             # Turn it the way the camera meant before the EXIF data is dropped.
             image = ImageOps.exif_transpose(opened).convert("RGBA")
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError) as exc:
-        raise ImageRejected("That file isn't an image Skjald can use.") from exc
+        raise ImageRejected("That file isn't an image Þing can use.") from exc
     image.thumbnail(max_size)
     out = io.BytesIO()
     image.save(out, format="PNG", optimize=True)

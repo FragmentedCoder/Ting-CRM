@@ -10,7 +10,7 @@ from app.crypto.keys import (
     wrap_key,
 )
 
-CONTEXT = b"skjald/test-key"
+CONTEXT = b"ting/test-key"
 
 
 def test_generate_key_is_32_bytes_and_random() -> None:
@@ -41,9 +41,9 @@ def test_unwrap_rejects_the_wrong_master_key() -> None:
 
 def test_a_key_wrapped_for_one_customer_does_not_open_for_another() -> None:
     master_key = generate_key()
-    wrapped = wrap_key(master_key, generate_key(), context=b"skjald/customer-key/1")
+    wrapped = wrap_key(master_key, generate_key(), context=b"ting/customer-key/1")
     with pytest.raises(InvalidTag):
-        unwrap_key(master_key, wrapped, context=b"skjald/customer-key/2")
+        unwrap_key(master_key, wrapped, context=b"ting/customer-key/2")
 
 
 def test_recovery_kit_text_round_trips_and_forgives_typing() -> None:

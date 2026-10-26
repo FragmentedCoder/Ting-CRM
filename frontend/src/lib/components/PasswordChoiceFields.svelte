@@ -11,7 +11,7 @@
   <label class="check">
     <input type="radio" name="{uid}-mode" value="random" bind:group={choice.mode} />
     <span>
-      <span class="check-title">Let Skjald make a one-time password</span>
+      <span class="check-title">Let Þing make a one-time password</span>
       <span class="small muted">
         Random and shown once. It works for 7 days, and they choose their own when they sign in.
       </span>

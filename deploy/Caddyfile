@@ -2,9 +2,9 @@
 	auto_https disable_redirects
 }
 
-{$SKJALD_ADDRESS:https://localhost} {
+{$TING_ADDRESS:https://localhost} {
 	# Caddy's own certificate authority, the organisation's certificate, or Let's
-	# Encrypt: chosen in Skjald (Admin -> Certificate), put here by caddy-start.sh.
+	# Encrypt: chosen in Þing (Admin -> Certificate), put here by caddy-start.sh.
 	import /etc/caddy/active-tls.caddy
 
 	header {
@@ -40,11 +40,11 @@
 
 	# The root certificate of Caddy's own authority, for computers to trust. Only
 	# that one file: the folder also holds the authority's keys.
-	handle /skjald-root.crt {
+	handle /ting-root.crt {
 		root * /data/caddy/pki/authorities/local
 		rewrite * /root.crt
 		header Content-Type application/x-x509-ca-cert
-		header Content-Disposition "attachment; filename=\"skjald-root.crt\""
+		header Content-Disposition "attachment; filename=\"ting-root.crt\""
 		file_server
 	}
 

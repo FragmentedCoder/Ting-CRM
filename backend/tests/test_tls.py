@@ -48,31 +48,31 @@ def tls_dir(monkeypatch, tmp_path, data_dir):
     folder = tmp_path / "tls"
     monkeypatch.setattr(settings, "tls_dir", str(folder))
     monkeypatch.setattr(settings, "data_dir", str(data_dir))
-    monkeypatch.setattr(settings, "address", "https://skjald.nordlys.example.com")
+    monkeypatch.setattr(settings, "address", "https://ting.nordlys.example.com")
     monkeypatch.setattr(tls, "served_certificate", lambda: None)
     return folder
 
 
 def test_a_certificate_without_a_common_name_is_named_by_its_first_name() -> None:
-    chain, key = make_certificate("skjald.nordlys.example.com", common=False)
-    described = tls.check_certificate(chain, key, "skjald.nordlys.example.com", NOW)
-    assert described.subject == "skjald.nordlys.example.com"
+    chain, key = make_certificate("ting.nordlys.example.com", common=False)
+    described = tls.check_certificate(chain, key, "ting.nordlys.example.com", NOW)
+    assert described.subject == "ting.nordlys.example.com"
 
 
 def test_a_matching_certificate_for_the_address_is_described() -> None:
-    chain, key = make_certificate("skjald.nordlys.example.com", "alt.nordlys.example")
-    described = tls.check_certificate(chain, key, "skjald.nordlys.example.com", NOW)
-    assert described.subject == "skjald.nordlys.example.com"
-    assert described.names == ["skjald.nordlys.example.com", "alt.nordlys.example"]
+    chain, key = make_certificate("ting.nordlys.example.com", "alt.nordlys.example")
+    described = tls.check_certificate(chain, key, "ting.nordlys.example.com", NOW)
+    assert described.subject == "ting.nordlys.example.com"
+    assert described.names == ["ting.nordlys.example.com", "alt.nordlys.example"]
     assert described.not_after == NOW + timedelta(days=90)
 
 
 @pytest.mark.parametrize(("name", "host", "covers"), [
-    ("*.nordlys.example.com", "skjald.nordlys.example.com", True),
-    ("*.nordlys.example.com", "a.skjald.nordlys.example.com", False),
+    ("*.nordlys.example.com", "ting.nordlys.example.com", True),
+    ("*.nordlys.example.com", "a.ting.nordlys.example.com", False),
     ("*.nordlys.example.com", "nordlys.example.com", False),
-    ("SKJALD.nordlys.example.com", "skjald.nordlys.example.com", True),
-    ("skjald.nordlys.example.com", "skjald.nordlys.example.com.evil", False),
+    ("TING.nordlys.example.com", "ting.nordlys.example.com", True),
+    ("ting.nordlys.example.com", "ting.nordlys.example.com.evil", False),
 ])
 def test_wildcards_cover_one_level(name, host, covers) -> None:
     assert tls._covers(name, host) is covers
@@ -80,34 +80,34 @@ def test_wildcards_cover_one_level(name, host, covers) -> None:
 
 @pytest.mark.parametrize(("certificate", "said"), [
     (lambda: make_certificate("other.example"), "is for other.example, not"),
-    (lambda: make_certificate("skjald.nordlys.example.com", days=-1, starts=-30), "has expired"),
-    (lambda: make_certificate("skjald.nordlys.example.com", starts=2), "isn't valid yet"),
+    (lambda: make_certificate("ting.nordlys.example.com", days=-1, starts=-30), "has expired"),
+    (lambda: make_certificate("ting.nordlys.example.com", starts=2), "isn't valid yet"),
     (lambda: make_certificate(), "is for x, not"),
 ])
 def test_a_certificate_that_wont_do_is_refused_plainly(certificate, said) -> None:
     chain, key = certificate()
     with pytest.raises(TlsError, match=said):
-        tls.check_certificate(chain, key, "skjald.nordlys.example.com", NOW)
+        tls.check_certificate(chain, key, "ting.nordlys.example.com", NOW)
 
 
 def test_a_key_from_another_certificate_is_refused() -> None:
-    chain, _ = make_certificate("skjald.nordlys.example.com")
-    _, other_key = make_certificate("skjald.nordlys.example.com")
+    chain, _ = make_certificate("ting.nordlys.example.com")
+    _, other_key = make_certificate("ting.nordlys.example.com")
     with pytest.raises(TlsError, match="isn't this certificate's key"):
-        tls.check_certificate(chain, other_key, "skjald.nordlys.example.com", NOW)
+        tls.check_certificate(chain, other_key, "ting.nordlys.example.com", NOW)
 
 
 def test_what_isnt_pem_is_refused() -> None:
-    chain, key = make_certificate("skjald.nordlys.example.com")
+    chain, key = make_certificate("ting.nordlys.example.com")
     with pytest.raises(TlsError, match="isn't a certificate"):
-        tls.check_certificate("hello", key, "skjald.nordlys.example.com", NOW)
+        tls.check_certificate("hello", key, "ting.nordlys.example.com", NOW)
     with pytest.raises(TlsError, match="isn't an unencrypted private key"):
-        tls.check_certificate(chain, "hello", "skjald.nordlys.example.com", NOW)
+        tls.check_certificate(chain, "hello", "ting.nordlys.example.com", NOW)
     locked = ec.generate_private_key(ec.SECP256R1()).private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
         serialization.BestAvailableEncryption(b"secret")).decode()
     with pytest.raises(TlsError, match="isn't an unencrypted private key"):
-        tls.check_certificate(chain, locked, "skjald.nordlys.example.com", NOW)
+        tls.check_certificate(chain, locked, "ting.nordlys.example.com", NOW)
 
 
 def test_caddy_is_told_each_way(tls_dir) -> None:
@@ -115,19 +115,19 @@ def test_caddy_is_told_each_way(tls_dir) -> None:
     assert (tls_dir / "tls.caddy").read_text() == "tls internal\n"
     tls.write_for_caddy(TlsSettings(mode="acme", acme_email="it@nordlys.example"))
     assert (tls_dir / "tls.caddy").read_text() == "tls it@nordlys.example\n"
-    chain, key = make_certificate("skjald.nordlys.example.com")
+    chain, key = make_certificate("ting.nordlys.example.com")
     tls.write_for_caddy(TlsSettings(mode="own"), chain, key)
     assert (tls_dir / "tls.caddy").read_text() == (
-        "tls /etc/caddy/skjald/cert.pem /etc/caddy/skjald/key.pem\n")
+        "tls /etc/caddy/ting/cert.pem /etc/caddy/ting/key.pem\n")
     assert (tls_dir / "cert.pem").read_text() == chain
     assert (tls_dir / "key.pem").stat().st_mode & 0o777 == 0o600
     assert not list(tls_dir.glob(".*.tmp"))
 
 
 @pytest.mark.parametrize(("name", "public"), [
-    ("skjald.nordlys.example.com", True), ("reports.example.org", True),
-    ("skjald.nordlys.internal", False), ("skjald.local", False), ("localhost", False),
-    ("skjald", False), ("10.0.0.5", False), ("skjald.test", False), ("::1", False),
+    ("ting.nordlys.example.com", True), ("reports.example.org", True),
+    ("ting.nordlys.internal", False), ("ting.local", False), ("localhost", False),
+    ("ting", False), ("10.0.0.5", False), ("ting.test", False), ("::1", False),
 ])
 def test_lets_encrypt_is_only_for_names_on_the_internet(name, public) -> None:
     assert tls.public_name(name) is public
@@ -169,20 +169,20 @@ def test_uploading_a_certificate_needs_a_fresh_confirmation(client, admin, tls_d
                                                            session) -> None:
     _, headers = admin
     status = client.get(TLS, headers=headers).json()
-    assert status["settings"]["mode"] == "internal" and status["root_url"] == "/skjald-root.crt"
-    chain, key = make_certificate("skjald.nordlys.example.com", days=400, starts=-400)
+    assert status["settings"]["mode"] == "internal" and status["root_url"] == "/ting-root.crt"
+    chain, key = make_certificate("ting.nordlys.example.com", days=400, starts=-400)
     upload = {"mode": "own", "certificate_pem": chain, "key_pem": key}
     refused = client.put(TLS, headers=headers, json=upload)
-    assert refused.headers["X-Skjald-Reason"] == "step_up_required"
+    assert refused.headers["X-Ting-Reason"] == "step_up_required"
     assert not (tls_dir / "key.pem").exists()
     client.post("/api/auth/confirm-password", headers=headers, json={"password": PASSWORD})
     saved = client.put(TLS, headers=headers, json=upload)
     assert saved.status_code == 200, saved.text
-    assert saved.json()["settings"]["certificate"]["subject"] == "skjald.nordlys.example.com"
+    assert saved.json()["settings"]["certificate"]["subject"] == "ting.nordlys.example.com"
     assert saved.json()["root_url"] is None and "PRIVATE KEY" not in saved.text
     assert (tls_dir / "key.pem").read_text() == key
     logged = session.scalar(select(AuditEntry.details).where(AuditEntry.action == "tls.changed"))
-    assert json.loads(logged)["certificate"] == "skjald.nordlys.example.com"
+    assert json.loads(logged)["certificate"] == "ting.nordlys.example.com"
     assert "PRIVATE" not in logged
 
 
@@ -194,7 +194,7 @@ def test_a_certificate_for_another_address_is_refused(client, admin, tls_dir) ->
                          json={"mode": "own", "certificate_pem": chain, "key_pem": key})
     assert refused.status_code == 400
     assert refused.json()["detail"] == (
-        "The certificate is for intranet.nordlys.example, not skjald.nordlys.example.com.")
+        "The certificate is for intranet.nordlys.example, not ting.nordlys.example.com.")
     # Refused before the confirmation is used up.
     acme = client.put(TLS, headers=headers,
                       json={"mode": "acme", "acme_email": "it@nordlys.example"})
@@ -206,18 +206,18 @@ def test_own_mode_without_an_upload_keeps_the_one_uploaded(client, admin, tls_di
     _, headers = admin
     client.post("/api/auth/confirm-password", headers=headers, json={"password": PASSWORD})
     assert client.put(TLS, headers=headers, json={"mode": "own"}).status_code == 400
-    chain, key = make_certificate("skjald.nordlys.example.com", days=400, starts=-400)
+    chain, key = make_certificate("ting.nordlys.example.com", days=400, starts=-400)
     client.put(TLS, headers=headers, json={"mode": "own", "certificate_pem": chain,
                                             "key_pem": key})
     client.post("/api/auth/confirm-password", headers=headers, json={"password": PASSWORD})
     kept = client.put(TLS, headers=headers, json={"mode": "own"})
-    assert kept.json()["settings"]["certificate"]["subject"] == "skjald.nordlys.example.com"
+    assert kept.json()["settings"]["certificate"]["subject"] == "ting.nordlys.example.com"
 
 
 def test_lets_encrypt_is_refused_for_a_private_address(client, admin, tls_dir,
                                                        monkeypatch) -> None:
     _, headers = admin
-    monkeypatch.setattr(settings, "address", "https://skjald.nordlys.internal")
+    monkeypatch.setattr(settings, "address", "https://ting.nordlys.internal")
     client.post("/api/auth/confirm-password", headers=headers, json={"password": PASSWORD})
     refused = client.put(TLS, headers=headers, json={"mode": "acme"})
     assert refused.status_code == 400 and "isn't one" in refused.json()["detail"]
@@ -315,11 +315,11 @@ def test_caddy_is_told_the_cloudflare_dns_challenge(tls_dir) -> None:
 def test_caddy_is_told_the_rfc2136_dns_challenge(tls_dir, server, written) -> None:
     tls.write_for_caddy(
         TlsSettings(mode="acme", challenge="dns", dns_provider="rfc2136", rfc2136_server=server,
-                    rfc2136_key_name="skjald-acme.", rfc2136_key_alg="hmac-sha512"),
+                    rfc2136_key_name="ting-acme.", rfc2136_key_alg="hmac-sha512"),
         secrets={"rfc2136_key": TSIG})
     assert (tls_dir / "tls.caddy").read_text() == (
         "tls {\n\tdns rfc2136 {\n"
-        '\t\tkey_name "skjald-acme."\n\t\tkey_alg "hmac-sha512"\n'
+        '\t\tkey_name "ting-acme."\n\t\tkey_alg "hmac-sha512"\n'
         f'\t\tkey "{TSIG}"\n\t\tserver "{written}"\n\t}}\n}}\n')
 
 
@@ -367,7 +367,7 @@ def test_the_app_writes_the_dns_challenge_as_it_starts(tls_dir, engine, session,
     monkeypatch.setattr(db_module, "get_engine", lambda: engine)
     tls.save_tls(session, TlsSettings(mode="acme", challenge="dns", dns_provider="rfc2136",
                                       rfc2136_server="ns1.nordlys.example",
-                                      rfc2136_key_name="skjald"))
+                                      rfc2136_key_name="ting"))
     save_secrets(session, tls.SECRETS, {"rfc2136_key": TSIG})
     session.commit()
     tls.main()

@@ -157,7 +157,7 @@ def test_managers_see_every_customer_but_neither_delete_one_nor_reach_the_admin_
     client.post("/api/auth/confirm-password", headers=as_mona, json={"password": PASSWORD})
     refused = client.request("DELETE", f"{CUSTOMERS}/{nordlys['id']}", headers=as_mona,
                              json={"confirm_name": "Nordlys IT ApS"})
-    assert refused.status_code == 403 and refused.headers["X-Skjald-Reason"] == "forbidden"
+    assert refused.status_code == 403 and refused.headers["X-Ting-Reason"] == "forbidden"
     assert client.get(f"{CUSTOMERS}/{nordlys['id']}", headers=as_mona).status_code == 200
     assert client.get("/api/admin/users", headers=as_mona).status_code == 403
     assert client.get("/api/audit", headers=as_mona).status_code == 403
@@ -171,10 +171,10 @@ def test_a_customer_gets_its_own_key_bound_to_it(client, admin, nordlys, session
     session.commit()
     master = load_master_key(settings.master_key_path)
     key = unwrap_key(master, customer.wrapped_key,
-                     context=f"skjald/customer-key/{customer.id}".encode())
+                     context=f"ting/customer-key/{customer.id}".encode())
     assert len(key) == 32
     with pytest.raises(InvalidTag):  # moved onto another customer, it won't open
-        unwrap_key(master, customer.wrapped_key, context=b"skjald/customer-key/999")
+        unwrap_key(master, customer.wrapped_key, context=b"ting/customer-key/999")
 
 
 def test_everything_about_a_customer_is_sealed_with_its_key(
@@ -281,7 +281,7 @@ def test_deleting_a_customer_takes_its_key_and_everything_with_it(
     assert wrong.status_code == 400
     unconfirmed = client.request("DELETE", f"{CUSTOMERS}/{cid}", headers=headers,
                                  json={"confirm_name": "Nordlys IT ApS"})
-    assert unconfirmed.headers["X-Skjald-Reason"] == "step_up_required"
+    assert unconfirmed.headers["X-Ting-Reason"] == "step_up_required"
 
     client.post("/api/auth/confirm-password", headers=headers, json={"password": PASSWORD})
     gone = client.request("DELETE", f"{CUSTOMERS}/{cid}", headers=headers,

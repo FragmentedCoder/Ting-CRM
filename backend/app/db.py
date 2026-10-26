@@ -15,7 +15,7 @@ from sqlalchemy.types import TypeDecorator
 from app.crypto.key_files import load_or_create_database_key
 from app.settings import settings
 
-READ_ONLY = "skjald_read_only"
+READ_ONLY = "ting_read_only"
 
 
 class Base(DeclarativeBase):
@@ -66,7 +66,7 @@ def make_engine(
         master_key_path if master_key_path is not None else settings.master_key_path
     )
     resolved_data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = resolved_data_dir / "skjald.db"
+    db_path = resolved_data_dir / "ting.db"
     key = load_or_create_database_key(resolved_data_dir, resolved_master_key_path)
     # module=sqlcipher3: without it SQLAlchemy assumes the stdlib sqlite3 module and
     # passes sqlcipher3's exceptions through unwrapped, so catching

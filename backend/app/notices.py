@@ -1,4 +1,4 @@
-"""Emails Skjald sends Administrators on its own: each break-glass sign-in, each
+"""Emails Þing sends Administrators on its own: each break-glass sign-in, each
 restore test, and backups that keep failing.
 
 They go to every active Administrator with an email address. Each is queued as a
@@ -21,7 +21,7 @@ from app.sealed_settings import load_secrets
 from app.settings import settings
 from app.users import User
 
-SIGN_OFF = "\n\nSkjald, at {address}\n"
+SIGN_OFF = "\n\nÞing, at {address}\n"
 
 
 def recipients(db: Session) -> list[str]:

@@ -130,7 +130,7 @@ class UserDetail(UserSummary):
 
 
 class PasswordChoice(BaseModel):
-    # Leave out to have Skjald make a random one-time password.
+    # Leave out to have Þing make a random one-time password.
     password: str | None = Field(default=None, min_length=1, max_length=1024)
     # A password the administrator chose is still replaced at first sign-in unless
     # they untick this; ASVS 6.4 expects initial passwords to be temporary.
@@ -150,7 +150,7 @@ class UserUpdate(ProfileUpdate):
 
 class PasswordResult(BaseModel):
     user: UserDetail
-    # Only when Skjald made the password; one the administrator typed isn't echoed.
+    # Only when Þing made the password; one the administrator typed isn't echoed.
     temporary_password: str | None
     expires_at: datetime | None
 
@@ -219,7 +219,7 @@ def _not_yourself(admin: UserSession, user: User, what: str) -> None:
 
 
 def _password_for(db: Session, choice: PasswordChoice, username: str) -> tuple[NewPassword, bool]:
-    """The password to set, and whether Skjald made it.
+    """The password to set, and whether Þing made it.
 
     Commits first: the checks hash and may call out to the network.
     """
@@ -234,8 +234,8 @@ def _password_for(db: Session, choice: PasswordChoice, username: str) -> tuple[N
     except BreachCheckUnavailable as exc:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Skjald couldn't check that password against known data breaches. Try again, or "
-            "let Skjald make a random one.",
+            "Þing couldn't check that password against known data breaches. Try again, or "
+            "let Þing make a random one.",
         ) from exc
 
 

@@ -5,7 +5,7 @@ import { expiry, tlsBody, type Certificate, type TlsChoice } from "./tls.js";
 const NOW = Date.parse("2026-10-25T12:00:00Z");
 
 function certificate(notAfter: string): Certificate {
-  return { subject: "skjald.example.com", names: [], issuer: "Test CA", not_after: notAfter };
+  return { subject: "ting.example.com", names: [], issuer: "Test CA", not_after: notAfter };
 }
 
 describe("expiry", () => {
@@ -43,7 +43,7 @@ describe("tlsBody", () => {
 
 describe("mailBody", () => {
   const server: MailServer = { host: "smtp.example.com", port: 587, security: "starttls",
-    username: "skjald", from_address: "skjald@example.com", from_name: "" };
+    username: "ting", from_address: "ting@example.com", from_name: "" };
 
   it("keeps the saved password unless a new one is typed", () => {
     expect(mailBody(server, "").password).toBeNull();

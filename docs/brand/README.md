@@ -1,6 +1,6 @@
-# Skjald brand
+# Þing brand
 
-The source for Skjald's look: colours for light and dark mode, type, spacing, radii and the logo. `tokens.json` holds every value; the frontend builds its CSS variables from it.
+The source for Þing's look: colours for light and dark mode, type, spacing, radii and the logo. `tokens.json` holds every value; the frontend builds its CSS variables from it.
 
 ## Personality
 
@@ -12,9 +12,9 @@ The mark is the Ansuz rune (ᚨ) — Odin's rune of speech, message and poetry, 
 
 | File | Use |
 | --- | --- |
-| `skjald-mark.svg` | Default mark on light backgrounds; app icon |
-| `skjald-mark-framed.svg` | On dark backgrounds; a white inner frame makes the tile edge read |
-| `skjald-favicon.svg` | 16–32 px; heavier rune stroke |
+| `ting-mark.svg` | Default mark on light backgrounds; app icon |
+| `ting-mark-framed.svg` | On dark backgrounds; a white inner frame makes the tile edge read |
+| `ting-favicon.svg` | 16–32 px; heavier rune stroke |
 
 Minimum size 16 px; clear space of 25% of the tile width on every side. Do not recolour, rotate or outline the rune, and never replace it with the S-rune (ᛋ, Sowilo), which has extremist associations.
 
@@ -32,7 +32,7 @@ Minimum size 16 px; clear space of 25% of the tile width on every side. Do not r
 - **IBM Plex Sans** — all interface and report body text (400, 500, 600).
 - **IBM Plex Mono** — serial numbers, IP addresses, hashes and log excerpts.
 
-All three are licensed under the SIL Open Font License and are bundled with Skjald, so nothing loads from a font CDN at runtime.
+All three are licensed under the SIL Open Font License and are bundled with Þing, so nothing loads from a font CDN at runtime.
 
 ## Layout
 

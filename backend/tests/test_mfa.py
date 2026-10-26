@@ -73,8 +73,8 @@ def test_setting_up_an_authenticator_app_finishes_sign_in(
     old_token, old_csrf = first.cookies[COOKIE_NAME], first.json()["csrf_token"]
 
     enrolment = post(client, f"{MFA}/totp/enrol").json()
-    assert enrolment["otpauth_uri"].startswith("otpauth://totp/Skjald:astrid?")
-    assert "issuer=Skjald" in enrolment["otpauth_uri"]
+    assert enrolment["otpauth_uri"].startswith("otpauth://totp/%C3%9Eing:astrid?")
+    assert "issuer=%C3%9Eing" in enrolment["otpauth_uri"]
 
     code = code_at(enrolment["secret"], frozen_clock.now)
     response = post(client, f"{MFA}/totp/confirm", {"code": code, "label": "Work phone"})
@@ -125,9 +125,9 @@ def test_a_returning_user_signs_in_with_the_app(frozen_clock, client, enrolled) 
 def test_the_version_is_shown_only_once_signed_in(
     frozen_clock, client, enrolled, monkeypatch
 ) -> None:
-    monkeypatch.setenv("SKJALD_VERSION", "v1.2.3")
+    monkeypatch.setenv("TING_VERSION", "v1.2.3")
     secret, _ = enrolled
-    # A password alone doesn't say which Skjald this is.
+    # A password alone doesn't say which Þing this is.
     assert sign_in(client).json()["version"] is None
     response = post(client, f"{MFA}/totp/verify", {"code": code_at(secret, frozen_clock.now)})
     assert response.json()["session"]["version"] == "v1.2.3"
@@ -135,12 +135,12 @@ def test_the_version_is_shown_only_once_signed_in(
 
 
 def test_a_build_without_a_version_says_it_is_a_development_build(monkeypatch) -> None:
-    from app.version import skjald_version
+    from app.version import ting_version
 
-    monkeypatch.delenv("SKJALD_VERSION", raising=False)
-    assert skjald_version().endswith("-dev")
-    monkeypatch.setenv("SKJALD_VERSION", " ")
-    assert skjald_version().endswith("-dev")
+    monkeypatch.delenv("TING_VERSION", raising=False)
+    assert ting_version().endswith("-dev")
+    monkeypatch.setenv("TING_VERSION", " ")
+    assert ting_version().endswith("-dev")
 
 
 def test_a_code_cannot_be_used_twice(frozen_clock, client, enrolled) -> None:
@@ -250,7 +250,7 @@ def test_a_passkey_can_be_set_up_and_used(client, make_user, passkey, session) -
     make_user()
     sign_in(client)
     options = post(client, f"{MFA}/passkey/registration-options").json()
-    assert options["rp"] == {"id": "testserver", "name": "Skjald"}
+    assert options["rp"] == {"id": "testserver", "name": "Þing"}
     assert options["user"]["name"] == "astrid"
 
     response = post(
@@ -277,7 +277,7 @@ def test_a_passkey_can_be_set_up_and_used(client, make_user, passkey, session) -
 def test_a_passkey_made_for_another_site_is_refused(client, make_user, passkey) -> None:
     make_user()
     sign_in(client)
-    phishing_page = SoftAuthenticator("testserver", "https://skjald.example.evil")
+    phishing_page = SoftAuthenticator("testserver", "https://ting.example.evil")
     assert register(client, phishing_page).status_code == 400
     assert client.get("/api/auth/session").json()["second_factor"] == "enrol"
 
@@ -379,7 +379,7 @@ def test_multifactor_confirms_it_is_you_for_security_changes(
     }
     csrf = {"X-CSRF-Token": client.get("/api/auth/session").json()["csrf_token"]}
     refused = client.put("/api/admin/security", headers=csrf, json=weaker)
-    assert refused.headers["X-Skjald-Reason"] == "step_up_required"
+    assert refused.headers["X-Ting-Reason"] == "step_up_required"
     # With a factor set up, the password alone won't do.
     assert post(client, "/api/auth/confirm-password", {"password": PASSWORD}).status_code == 409
 

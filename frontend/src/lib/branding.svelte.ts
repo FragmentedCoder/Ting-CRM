@@ -11,7 +11,7 @@ export interface Branding {
 }
 
 const DEFAULTS: Branding = {
-  site_name: "Skjald",
+  site_name: "Þing",
   tagline: "Reports worth keeping.",
   company_name: null,
   logo_url: null,

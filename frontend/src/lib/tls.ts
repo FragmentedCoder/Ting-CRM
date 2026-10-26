@@ -46,8 +46,8 @@ export interface TlsChoice extends DnsSettings {
 }
 
 export const MODES: { mode: TlsMode; name: string; about: string }[] = [
-  { mode: "internal", name: "Skjald's own certificate authority",
-    about: "Works at once, offline too. Each computer that uses Skjald installs its root certificate once." },
+  { mode: "internal", name: "Þing's own certificate authority",
+    about: "Works at once, offline too. Each computer that uses Þing installs its root certificate once." },
   { mode: "own", name: "Your organisation's certificate",
     about: "A certificate for this address from your own or a public authority, with its key, as PEM files." },
   { mode: "acme", name: "Let's Encrypt",
@@ -90,4 +90,4 @@ export function expiry(certificate: Certificate, now = Date.now()): string {
   return "expires within the hour";
 }
 
-export const RESET_COMMAND = "sudo skjald admin reset-certificate";
+export const RESET_COMMAND = "sudo ting admin reset-certificate";

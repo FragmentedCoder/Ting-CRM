@@ -59,7 +59,7 @@ def test_name_email_and_theme_can_be_changed(astrid, session) -> None:
     assert logged == ['{"fields":["display_name","email"]}']  # not the theme
 
 
-def test_how_skjald_looks_to_someone_isnt_logged(astrid, session) -> None:
+def test_how_ting_looks_to_someone_isnt_logged(astrid, session) -> None:
     browser, csrf = astrid
     before = actions(session)
     assert browser.patch("/api/account", headers=csrf, json={"theme": "light"}).status_code == 200
@@ -85,15 +85,15 @@ def test_changing_the_password_ends_other_sessions_and_rotates_this_one(
     browser, csrf = astrid
     other = new_client()
     sign_in(other)
-    old_cookie = browser.cookies.get("__Host-skjald_session")
+    old_cookie = browser.cookies.get("__Host-ting_session")
 
     changed = browser.post("/api/account/password", headers=csrf,
                            json={"current_password": PASSWORD, "new_password": NEW_PASSWORD})
     assert changed.status_code == 200
-    assert browser.cookies.get("__Host-skjald_session") != old_cookie
+    assert browser.cookies.get("__Host-ting_session") != old_cookie
     ended = other.get("/api/auth/session")
     assert ended.status_code == 401
-    assert ended.headers["X-Skjald-Reason"] == "session_password_changed"
+    assert ended.headers["X-Ting-Reason"] == "session_password_changed"
     assert sign_in(new_client(), NEW_PASSWORD).status_code == 200
     assert sign_in(new_client(), PASSWORD).status_code == 401
     assert "auth.password.changed" in actions(session)
@@ -149,7 +149,7 @@ def test_other_sessions_can_be_ended(astrid, new_client) -> None:
     sign_in(other)
     account = browser.post("/api/account/sessions/end-others", headers=csrf).json()
     assert [s["current"] for s in account["sessions"]] == [True]
-    assert other.get("/api/auth/session").headers["X-Skjald-Reason"] == "session_by_you"
+    assert other.get("/api/auth/session").headers["X-Ting-Reason"] == "session_by_you"
 
 
 def test_one_other_session_can_be_ended(astrid, new_client) -> None:
@@ -162,7 +162,7 @@ def test_one_other_session_can_be_ended(astrid, new_client) -> None:
     assert browser.post(f"/api/account/sessions/{mine}/end", headers=csrf).status_code == 404
     left = browser.post(f"/api/account/sessions/{theirs}/end", headers=csrf).json()
     assert [s["id"] for s in left["sessions"]] == [mine]
-    assert other.get("/api/auth/session").headers["X-Skjald-Reason"] == "session_by_you"
+    assert other.get("/api/auth/session").headers["X-Ting-Reason"] == "session_by_you"
 
 
 # Profile

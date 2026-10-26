@@ -14,8 +14,8 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=rclone /go/bin/rclone /usr/local/bin/rclone
 
-RUN groupadd --gid 10001 skjald \
- && useradd --uid 10001 --gid skjald --no-create-home --shell /usr/sbin/nologin skjald
+RUN groupadd --gid 10001 ting \
+ && useradd --uid 10001 --gid ting --no-create-home --shell /usr/sbin/nologin ting
 
 WORKDIR /app
 COPY pyproject.toml ./
@@ -27,15 +27,15 @@ RUN pip install --no-cache-dir . \
  && pip uninstall -y pip
 
 # /backups: where backups go when the target is this server (a volume, or a folder
-# on the host set by SKJALD_BACKUP_DIR). /tls: the TLS settings the app gives Caddy.
-RUN mkdir -p /data /backups /tls && chown skjald:skjald /data /backups /tls
+# on the host set by TING_BACKUP_DIR). /tls: the TLS settings the app gives Caddy.
+RUN mkdir -p /data /backups /tls && chown ting:ting /data /backups /tls
 
-# Which Skjald this is, shown to people signed in: the release's tag, or for a build
+# Which Þing this is, shown to people signed in: the release's tag, or for a build
 # from a checkout what git calls that commit. Last, so a new one rebuilds nothing.
-ARG SKJALD_VERSION=
-ENV SKJALD_VERSION=${SKJALD_VERSION}
+ARG TING_VERSION=
+ENV TING_VERSION=${TING_VERSION}
 
-USER skjald
+USER ting
 EXPOSE 8000
 
 # Trust X-Forwarded-For from any peer: the app port is published to nobody but Caddy

@@ -25,7 +25,7 @@ SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 CSRF_HEADER = "X-CSRF-Token"
 # Why a request was refused, for the frontend to act on (sign in again, finish
 # multifactor, confirm it's you); the detail text is for people.
-REASON_HEADER = "X-Skjald-Reason"
+REASON_HEADER = "X-Ting-Reason"
 STEP_UP_WINDOW = timedelta(minutes=5)
 # What the admin panel shows. Outside the admin IP allowlist the Administrator role
 # opens none of it.
