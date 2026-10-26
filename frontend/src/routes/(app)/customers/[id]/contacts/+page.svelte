@@ -10,8 +10,8 @@
   import type { Contact, CustomerDetail, Site } from "#lib/customers.js";
   import { toast } from "#lib/toast.svelte.js";
 
-  // The customer's people and places. Managers and Administrators change them; reports and
-  // projects pick from them.
+  // The customer's people and places. Administrators and the technicians assigned to
+  // the customer change them.
   const shared = sharedCustomer();
   const customer = $derived(shared.current);
   const base = $derived(`/customers/${customer?.id}`);
@@ -91,14 +91,14 @@
   <section class="section" aria-labelledby="contacts-title">
     <div class="heading-row">
       <h2 class="section-title" id="contacts-title">Contacts</h2>
-      {#if customer.may_manage}
+      {#if customer.may_edit}
         <button class="button button-secondary" type="button" onclick={() => editContact()}>
           <Plus size={16} aria-hidden="true" />Add contact
         </button>
       {/if}
     </div>
     <p class="small muted">
-      People at the customer; a project names the one it's for. Encrypted with the customer's key.
+      People at the customer. Encrypted with the customer's key.
     </p>
     {#if customer.contacts?.length}
       <ul class="cards">
@@ -106,7 +106,7 @@
           <li>
             <div class="card-head">
               <p class="check-title">{item.name}</p>
-              {#if customer.may_manage}
+              {#if customer.may_edit}
                 <RowMenu label="Actions for {item.name}" items={[
                   { label: "Change contact", icon: Pencil, run: () => editContact(item) },
                   { label: "Remove contact", icon: Trash, danger: true,
@@ -135,20 +135,20 @@
   <section class="section" aria-labelledby="sites-title">
     <div class="heading-row">
       <h2 class="section-title" id="sites-title">Sites</h2>
-      {#if customer.may_manage}
+      {#if customer.may_edit}
         <button class="button button-secondary" type="button" onclick={() => editSite()}>
           <Plus size={16} aria-hidden="true" />Add site
         </button>
       {/if}
     </div>
-    <p class="small muted">The customer's locations; a project names the ones it covers.</p>
+    <p class="small muted">The customer's locations.</p>
     {#if customer.sites?.length}
       <ul class="cards">
         {#each customer.sites as item (item.id)}
           <li>
             <div class="card-head">
               <p class="check-title">{item.name}</p>
-              {#if customer.may_manage}
+              {#if customer.may_edit}
                 <RowMenu label="Actions for {item.name}" items={[
                   { label: "Change site", icon: Pencil, run: () => editSite(item) },
                   { label: "Remove site", icon: Trash, danger: true,
@@ -219,9 +219,9 @@
 <Dialog bind:open={removeOpen} title="Remove {removing?.name ?? ''}">
   <p>
     {#if removing?.kind === "contacts"}
-      Projects with this contact will have none.
+      The contact is removed from this customer, and the change is logged.
     {:else}
-      Projects that cover this site will no longer list it.
+      The site is removed from this customer, and the change is logged.
     {/if}
   </p>
   {#snippet actions()}

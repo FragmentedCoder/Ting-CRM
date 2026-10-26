@@ -10,7 +10,7 @@
   import { toast } from "#lib/toast.svelte.js";
   import { refreshWorkspace } from "#lib/workspace.svelte.js";
 
-  let form = $state({ name: "", cvr: "", address: "", language: "da", retention_months: 12 });
+  let form = $state({ name: "", cvr: "", address: "", retention_months: 12 });
   let error = $state<string | null>(null);
   let busy = $state(false);
 

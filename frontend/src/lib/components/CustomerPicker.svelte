@@ -5,6 +5,7 @@
   import ChevronsUpDown from "@lucide/svelte/icons/chevrons-up-down";
   import Search from "@lucide/svelte/icons/search";
   import { onDestroy, tick } from "svelte";
+  import { formatCvr } from "#lib/customers.js";
   import { openCustomer, workspace } from "#lib/workspace.svelte.js";
 
   // The customer switcher at the top of the side menu: a button naming the open
@@ -100,9 +101,9 @@
             onclick={() => pick(customer.id)}>
             <span class="name">{customer.name}</span>
             {#if customer.visibility === "full"}
-              <span class="small muted">{customer.active_projects} active</span>
+              {#if customer.cvr}<span class="small muted mono">{formatCvr(customer.cvr)}</span>{/if}
             {:else}
-              <span class="small muted">{customer.visibility === "names" ? "Name only" : "Overview"}</span>
+              <span class="small muted">Overview</span>
             {/if}
           </button>
         </li>

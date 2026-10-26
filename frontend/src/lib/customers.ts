@@ -1,7 +1,7 @@
 import type { Role } from "./roles.js";
 
 /** How much of a customer someone sees (backend/app/customers.py). */
-export type Visibility = "full" | "metadata" | "names";
+export type Visibility = "full" | "metadata";
 
 export interface Site {
   id: number;
@@ -24,112 +24,30 @@ export interface Person {
   roles: Role[];
 }
 
-/** Someone assigned to a customer, and what as: technician, reviewer or both. */
-export interface Assigned extends Person {
-  assigned_as: Role[];
-}
-
 export interface CustomerSummary {
   id: number;
   name: string;
   visibility: Visibility;
   cvr: string | null;
-  active_projects: number | null;
-  archived_projects: number | null;
   people: number | null;
   logo_url: string | null;
 }
 
 export interface CustomerDetail extends CustomerSummary {
   address: string | null;
-  language: "da" | "en" | null;
   retention_months: number | null;
   created_at: string | null;
   sites: Site[] | null;
   contacts: Contact[] | null;
-  assigned: Assigned[] | null;
+  /** The technicians assigned to the customer. */
+  assigned: Person[] | null;
   may_manage: boolean;
-  may_delete: boolean;
-  may_manage_projects: boolean;
-  assignable: Person[] | null;
-}
-
-export interface Named {
-  id: number;
-  name: string;
-}
-
-export interface ProjectSummary {
-  id: number;
-  number: string;
-  name: string;
-  customer: Named;
-  responsible: Named | null;
-  reviewer: Named | null;
-  start_date: string | null;
-  end_date: string | null;
-  classification: Classification;
-  archived_at: string | null;
-}
-
-/** Someone on a project's team: its responsible technician, its reviewer or someone added. */
-export interface Member extends Named {
-  roles: Role[];
-  responsible: boolean;
-  reviewer: boolean;
-  // What they're on the project as.
-  as_role: Role;
-}
-
-export interface ProjectDetail extends ProjectSummary {
-  contact: Named | null;
-  sites: Named[];
-  team: Member[];
-  created_at: string;
   may_edit: boolean;
-  may_reopen: boolean;
-}
-
-export const LANGUAGES = [
-  { value: "da", name: "Danish" },
-  { value: "en", name: "English" },
-] as const;
-
-// Traffic Light Protocol 2.0: who a report may be shared with.
-export const CLASSIFICATIONS = [
-  { value: "TLP:CLEAR", hint: "Anyone may see it." },
-  { value: "TLP:GREEN", hint: "The customer's community, not public." },
-  { value: "TLP:AMBER", hint: "The customer's organisation and those who need it to protect it." },
-  { value: "TLP:AMBER+STRICT", hint: "The customer's organisation only." },
-  { value: "TLP:RED", hint: "Only administrators and the project's team." },
-] as const;
-
-export type Classification = (typeof CLASSIFICATIONS)[number]["value"];
-
-export const DEFAULT_CLASSIFICATION: Classification = "TLP:AMBER";
-
-/** The classification whose projects only administrators and the team see. */
-export const TEAM_ONLY = "TLP:RED";
-
-/** The tone of a classification's label: red for the most restricted. */
-export function classificationTone(value: string): "critical" | "warning" | "ok" | "neutral" {
-  if (value === TEAM_ONLY) return "critical";
-  if (value.startsWith("TLP:AMBER")) return "warning";
-  if (value === "TLP:GREEN") return "ok";
-  return "neutral";
+  may_delete: boolean;
+  assignable: Person[] | null;
 }
 
 /** "12 34 56 78": a CVR number in the groups people read it in. */
 export function formatCvr(cvr: string | null): string {
   return cvr ? cvr.replace(/(\d{2})(?=\d)/g, "$1 ") : "—";
-}
-
-/** The people assigned to a customer as technicians. */
-export function technicians(people: Assigned[] | null): Assigned[] {
-  return (people ?? []).filter((p) => p.assigned_as.includes("technician"));
-}
-
-/** The people assigned to a customer as reviewers. */
-export function reviewers(people: Assigned[] | null): Assigned[] {
-  return (people ?? []).filter((p) => p.assigned_as.includes("reviewer"));
 }

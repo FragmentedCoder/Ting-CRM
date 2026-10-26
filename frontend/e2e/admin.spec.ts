@@ -24,7 +24,7 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   const adminSecret = await setUpAuthenticatorApp(admin);
   await admin.getByRole("link", { name: "Admin", exact: true }).click();
 
-  // Users: the list, then adding Bjørn as a technician and reviewer.
+  // Users: the list, then adding Bjørn as a technician.
   await expect(admin.getByRole("heading", { name: "Users" })).toBeVisible();
   await expect(admin.getByRole("row", { name: /Ingrid Admin/ })).toContainText("Break-glass");
   await shot(admin, "1-users");
@@ -32,7 +32,6 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   await admin.getByLabel("Display name").fill("Bjørn Havn");
   await admin.getByLabel("Username").fill("bjorn");
   await admin.getByRole("checkbox", { name: /^Technician\b/ }).check();
-  await admin.getByRole("checkbox", { name: /^Reviewer\b/ }).check();
   await shot(admin, "2-add-user");
   await admin.getByRole("button", { name: "Add user" }).click();
   const temporary = (await admin.getByLabel("Temporary password").textContent()) ?? "";
@@ -57,7 +56,7 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   test.skip(!(await setUp.isVisible()), "the breach check service could not be reached");
 
   const bjornSecret = await setUpAuthenticatorApp(bjorn);
-  await expect(bjorn.getByText("Reviewer, Technician")).toBeVisible();
+  await expect(bjorn.getByText("Technician", { exact: true })).toBeVisible();
   await expect(bjorn.getByRole("link", { name: "Admin", exact: true })).toHaveCount(0);
   await bjorn.goto("/admin/users");
   await expect(bjorn.getByText("You don't have access to the admin panel.")).toBeVisible();
@@ -130,8 +129,8 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
 
   // Branding: a new site name and company name show at once.
   await adminMenu(admin, "Branding").click();
-  await admin.getByLabel("Site name").fill("Nordlys Rapport");
-  await admin.getByLabel("Tag line").fill("Rapporter fra fjorden.");
+  await admin.getByLabel("Site name").fill("Nordlys CRM");
+  await admin.getByLabel("Tag line").fill("Kunder ved fjorden.");
   await admin.getByLabel("Company name").fill("Nordlys IT A/S");
   await admin.getByRole("button", { name: "Save", exact: true }).click();
   await expect(toastWith(admin, "Branding saved.")).toBeVisible();
@@ -159,10 +158,10 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   // The menu's head: the name, the tag line under it, and which Þing this is
   // (a development build here).
   const menuHead = admin.getByRole("complementary", { name: "Side menu" }).locator(".side-head");
-  await expect(menuHead).toContainText("Nordlys Rapport");
-  await expect(menuHead).toContainText("Rapporter fra fjorden.");
+  await expect(menuHead).toContainText("Nordlys CRM");
+  await expect(menuHead).toContainText("Kunder ved fjorden.");
   await expect(menuHead).toContainText(/\d+\.\d+\.\d+-dev/);
-  await expect(admin).toHaveTitle(/Nordlys Rapport/);
+  await expect(admin).toHaveTitle(/Nordlys CRM/);
   await shot(admin, "9-branding");
 
   // Server health: every check runs, and the audit chain is intact; the daily

@@ -1,28 +1,16 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { api, sessionGone } from "#lib/api.js";
+  import { resolve } from "$app/paths";
   import { branding } from "#lib/branding.svelte.js";
-  import ProjectTable from "#lib/components/ProjectTable.svelte";
-  import type { ProjectSummary } from "#lib/customers.js";
+  import { formatCvr } from "#lib/customers.js";
   import { roleName } from "#lib/roles.js";
   import { can, session } from "#lib/session.svelte.js";
+  import { workspace } from "#lib/workspace.svelte.js";
 
+  // Where the day starts: the customers you work with. Tasks, notice deadlines and
+  // renewals join them once Þing keeps agreements.
   const info = $derived(session.current);
-  let projects = $state<ProjectSummary[] | null>(null);
-
-  // Yours first: the ones you're responsible for or review.
-  const yours = (p: ProjectSummary) =>
-    p.responsible?.id === info?.user.id || p.reviewer?.id === info?.user.id;
-  const mine = $derived(projects?.filter(yours) ?? []);
-  const others = $derived(projects?.filter((p) => !yours(p)) ?? []);
-
-  onMount(async () => {
-    try {
-      projects = await api<ProjectSummary[]>("GET", "/projects");
-    } catch (e) {
-      if (!sessionGone(e)) projects = [];
-    }
-  });
+  const customers = $derived(workspace.customers?.filter((c) => c.visibility === "full") ?? null);
+  const shown = $derived(customers?.slice(0, 8) ?? []);
 </script>
 
 <svelte:head><title>{branding.current.site_name}</title></svelte:head>
@@ -36,31 +24,33 @@
       {/if}
     </div>
 
-    {#if projects?.length}
-      {#if mine.length}
-        <section class="section" aria-labelledby="mine-title">
-          <h2 class="section-title" id="mine-title">Your projects</h2>
-          <p class="small muted">Active projects you're responsible for or review.</p>
-          <ProjectTable projects={mine} empty="" customer />
-        </section>
-      {/if}
-      {#if others.length}
-        <section class="section" aria-labelledby="others-title">
-          <h2 class="section-title" id="others-title">
-            {mine.length ? "Other active projects" : "Active projects"}
-          </h2>
-          <p class="small muted">For the customers you work with, newest first.</p>
-          <ProjectTable projects={others} empty="" customer />
-        </section>
-      {/if}
-    {:else if projects}
+    {#if customers?.length}
+      <section class="section" aria-labelledby="customers-title">
+        <h2 class="section-title" id="customers-title">
+          {can(info, "manage_customers") ? "Customers" : "Your customers"}
+        </h2>
+        <ul class="customers">
+          {#each shown as customer (customer.id)}
+            <li>
+              <a href={resolve("/(app)/customers/[id]", { id: String(customer.id) })}>{customer.name}</a>
+              {#if customer.cvr}<span class="small muted mono">{formatCvr(customer.cvr)}</span>{/if}
+            </li>
+          {/each}
+        </ul>
+        {#if customers.length > shown.length}
+          <a class="small" href={resolve("/(app)/customers")}>All {customers.length} customers</a>
+        {/if}
+      </section>
+    {:else if customers}
       <section class="empty">
-        <p>No active projects yet.</p>
+        <p>No customers yet.</p>
         <p class="small muted">
-          {#if can(info, "manage_projects")}
-            Add a customer, assign technicians and reviewers to it, and start its first project.
+          {#if can(info, "manage_customers")}
+            Add a customer, with its contacts and sites, and assign technicians to it.
+          {:else if can(info, "edit_customers")}
+            An administrator assigns you to the customers you work with.
           {:else if info.user.roles.length}
-            Projects for the customers you work with will appear here.
+            There's nothing here for your role.
           {:else}
             You don't have a role yet. Ask an administrator for one.
           {/if}
@@ -75,6 +65,20 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
+  }
+  .customers {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .customers li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
   }
   .empty {
     display: flex;

@@ -6,7 +6,7 @@
   import { api, ApiError, sessionGone } from "#lib/api.js";
   import { pageTitle } from "#lib/branding.svelte.js";
   import Pill from "#lib/components/Pill.svelte";
-  import type { CustomerSummary } from "#lib/customers.js";
+  import { formatCvr, type CustomerSummary } from "#lib/customers.js";
   import { can, session } from "#lib/session.svelte.js";
 
   const info = $derived(session.current);
@@ -44,10 +44,12 @@
       <h1 class="title">Customers</h1>
       <p class="small muted">
         {#if mayAdd}
-          Every customer. Each has its own encryption key, and technicians and reviewers see
-          only the customers they're assigned to.
-        {:else}
+          Every customer. Each has its own encryption key, and technicians see only the
+          customers they're assigned to.
+        {:else if can(info, "edit_customers")}
           The customers you work with. An administrator assigns you to customers.
+        {:else}
+          Every customer, as an overview for the audit log.
         {/if}
       </p>
     </div>
@@ -73,7 +75,7 @@
       <div class="section table-wrap customers">
         <table class="table">
           <thead>
-            <tr><th>Name</th><th>Projects</th><th class="roomy">Archived</th><th>People</th></tr>
+            <tr><th>Name</th><th class="roomy">CVR</th><th>People</th></tr>
           </thead>
           <tbody>
             {#each customers as customer (customer.id)}
@@ -83,12 +85,10 @@
                     {customer.name}
                   </a>
                   {#if customer.visibility !== "full"}
-                    <Pill tone="neutral"
-                      text={customer.visibility === "names" ? "Name only" : "Overview only"} />
+                    <Pill tone="neutral" text="Overview only" />
                   {/if}
                 </td>
-                <td>{customer.active_projects ?? "—"}</td>
-                <td class="roomy">{customer.archived_projects ?? "—"}</td>
+                <td class="roomy mono">{customer.visibility === "full" ? formatCvr(customer.cvr) : "—"}</td>
                 <td>{customer.people ?? "—"}</td>
               </tr>
             {/each}
@@ -97,8 +97,8 @@
       </div>
       {#if limited}
         <p class="small muted">
-          Your role shows some customers by name or overview only: enough to attach styles or
-          audit, without their contacts or projects.
+          Your role shows customers as an overview only: enough to audit, without their
+          details or contacts.
         </p>
       {/if}
     {:else}
@@ -119,7 +119,7 @@
 </main>
 
 <style>
-  /* Where the table is narrow, as on a phone, the archived count goes. */
+  /* Where the table is narrow, as on a phone, the CVR number goes. */
   .customers {
     container-type: inline-size;
   }
