@@ -35,7 +35,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(150), unique=True)
     display_name: Mapped[str] = mapped_column(String(200))
     email: Mapped[str | None] = mapped_column(String(254))
-    # Business details reports and templates can use. Nothing private.
+    # Work details colleagues see beside their name. Nothing private.
     first_name: Mapped[str | None] = mapped_column(String(100))
     middle_name: Mapped[str | None] = mapped_column(String(100))
     last_name: Mapped[str | None] = mapped_column(String(100))

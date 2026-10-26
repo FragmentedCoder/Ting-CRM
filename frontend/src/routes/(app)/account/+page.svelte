@@ -5,7 +5,6 @@
   import {
     PROFILE_FIELDS,
     profileForm,
-    variableFor,
     type Profile,
     type ProfileForm,
   } from "#lib/admin.js";
@@ -285,10 +284,7 @@
       <section class="section" aria-labelledby="profile-title">
         <h2 class="section-title" id="profile-title">Profile</h2>
         <p class="small muted">
-          Work details only, nothing private. Report templates can use them: each field shows its
-          name, such as <span class="mono">{variableFor("author", "first_name")}</span> for the
-          first name of whoever wrote a report (<span class="mono">reviewer</span> instead of
-          <span class="mono">author</span> gives the reviewer's).
+          Work details only, nothing private. Colleagues see them beside your name.
         </p>
         {@render message("profile")}
         <div class="picture">
@@ -318,7 +314,6 @@
                 bind:value={profile.display_name} />
               <span class="hint">
                 How Þing shows your name to others.
-                <span class="mono">{variableFor("author", "display_name")}</span>
               </span>
             </div>
             <div class="grid">
@@ -326,9 +321,7 @@
                 <div class="field">
                   <label for={field.key}>{field.label}</label>
                   <input id={field.key} class="input" type={field.type ?? "text"}
-                    autocomplete={field.autocomplete} aria-describedby="{field.key}-variable"
-                    bind:value={profile[field.key]} />
-                  <span class="hint mono" id="{field.key}-variable">{variableFor("author", field.key)}</span>
+                    autocomplete={field.autocomplete} bind:value={profile[field.key]} />
                 </div>
               {/each}
             </div>

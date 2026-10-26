@@ -18,7 +18,7 @@ export function isoTime(iso: string): string {
   return new Date(iso).toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-/** A project's dates: both, "From …" or "Until …" when only one is set, or a dash. */
+/** A period's dates (an agreement's, say): both, "From …" or "Until …" when only one is set, or a dash. */
 export function dateRange(start: string | null | undefined, end: string | null | undefined): string {
   if (start && end) return `${date(start)} – ${date(end)}`;
   if (start) return `From ${date(start)}`;

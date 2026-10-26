@@ -5,8 +5,8 @@ the connection is secured (STARTTLS on 587 by default, or TLS from the start on
 465; plain only for a relay on the same network), a user name and password,
 and who mail comes from. The password is sealed with the config key (see
 app/sealed_settings.py) and never sent back. Certificates are always checked.
-Reports and notifications will send through here; for now there's the test
-message that shows the settings work.
+Notices and, later, reminders send through here, and there's a test message that
+shows the settings work.
 """
 
 from __future__ import annotations
@@ -111,5 +111,5 @@ def send_test(db: Session, to: str, company: str | None) -> None:
     password = str(load_secrets(db, SECRETS).get("password", ""))
     db.commit()  # the network follows: hold no lock meanwhile
     send(server, password, to, f"Test from {company or 'Þing'}",
-         "This is a test message from Þing. Email is set up: reports and notices can be "
+         "This is a test message from Þing. Email is set up: notices and reminders can be "
          "sent from here.\n")
