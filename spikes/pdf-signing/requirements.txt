@@ -1,6 +1,0 @@
-weasyprint==70.0
-pyhanko[opentype]==0.38.0
-pyhanko-certvalidator==0.33.0
-fonttools==4.67.0
-brotli==1.2.1
-cryptography==50.0.2

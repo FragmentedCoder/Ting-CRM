@@ -1,2 +1,0 @@
-sqlcipher3-binary==0.6.0
-sqlalchemy==2.1.6
