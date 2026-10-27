@@ -3,7 +3,7 @@ import { newPasswordChoice, passwordFields, userStatus, type UserSummary } from 
 import { bytes, since } from "./format";
 
 describe("passwordFields", () => {
-  it("sends nothing for Skjald's random password", () => {
+  it("sends nothing for Þing's random password", () => {
     expect(passwordFields(newPasswordChoice())).toEqual({});
   });
 

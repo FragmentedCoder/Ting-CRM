@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Which certificate Skjald serves: the admin panel's Certificate page and the setup
+  // Which certificate Þing serves: the admin panel's Certificate page and the setup
   // wizard. Files are read here and sent once; the key never comes back.
   import Command from "./Command.svelte";
   import { KEY_ALGORITHMS, MODES, RESET_COMMAND, type Certificate, type TlsChoice } from "#lib/tls.js";
@@ -80,7 +80,7 @@
       <input type="radio" name="tls-challenge" value="dns" bind:group={choice.challenge} />
       <span>
         <span class="check-title">Through your DNS</span>
-        <span class="small muted">Skjald puts a record in your DNS for a moment. The server needn't be reachable.</span>
+        <span class="small muted">Þing puts a record in your DNS for a moment. The server needn't be reachable.</span>
       </span>
     </label>
   </fieldset>
@@ -136,7 +136,7 @@
     {choice.challenge === "dns"
       ? `${host} must be in public DNS, at the provider above.`
       : `${host} must be reachable from the internet on port 443.`}
-    If Let's Encrypt can't check it, there's no certificate and Skjald can't be opened{resetHint
+    If Let's Encrypt can't check it, there's no certificate and Þing can't be opened{resetHint
       ? ". Then, on the server, run:" : "."}
   </p>
   {#if resetHint}<Command command={RESET_COMMAND} />{/if}

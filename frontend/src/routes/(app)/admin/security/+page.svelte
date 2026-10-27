@@ -14,7 +14,7 @@
   import { withStepUp } from "#lib/stepUp.svelte.js";
   import { toast } from "#lib/toast.svelte.js";
 
-  const RESET_COMMAND = "sudo skjald admin reset-allowlist";
+  const RESET_COMMAND = "sudo ting admin reset-allowlist";
 
   let values = $state<SecuritySettings | null>(null);
   let lists = $state({ admin: "", login: "", adminOn: false, loginOn: false });
@@ -71,7 +71,7 @@
   <div>
     <h1 class="title">Security</h1>
     <p class="small muted">
-      Multifactor, passwords, lockout, sessions, and where Skjald can be used from. Changes
+      Multifactor, passwords, lockout, sessions, and where Þing can be used from. Changes
       apply straight away.
     </p>
   </div>
@@ -95,12 +95,12 @@
     <section class="section" aria-labelledby="network-title">
       <h2 class="section-title" id="network-title">Network access</h2>
       <p class="small muted">
-        Limit where Skjald can be used from, by IP address or range. Both lists stay off until
+        Limit where Þing can be used from, by IP address or range. Both lists stay off until
         you switch them on.
       </p>
       <p class="small muted" id="address-hint">
         One address or range per line, such as 10.20.0.0/24. Your address right now:
-        <span class="mono">{yourAddress ?? "unknown"}</span>. Skjald won't save a list that leaves
+        <span class="mono">{yourAddress ?? "unknown"}</span>. Þing won't save a list that leaves
         it out, so you can't lock yourself out.
       </p>
 

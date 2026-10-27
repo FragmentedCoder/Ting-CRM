@@ -90,7 +90,7 @@ def test_existing_customers_and_projects_are_sealed_on_upgrade(data_dir, master_
     engine = make_engine(data_dir, master_key_path)
     upgrade(engine, "0008")
     key = generate_key()
-    wrapped = wrap_key(load_master_key(master_key_path), key, context=b"skjald/customer-key/1")
+    wrapped = wrap_key(load_master_key(master_key_path), key, context=b"ting/customer-key/1")
     with engine.begin() as conn:
         conn.execute(text(
             "INSERT INTO customers (id, name, cvr, wrapped_key, sealed, language,"

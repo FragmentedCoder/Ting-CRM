@@ -16,12 +16,12 @@ def test_the_database_file_is_encrypted_at_rest(data_dir, master_key_path) -> No
         conn.commit()
     engine.dispose()
 
-    raw = (data_dir / "skjald.db").read_bytes()
+    raw = (data_dir / "ting.db").read_bytes()
     assert not raw.startswith(b"SQLite format 3")
     assert b"plaintext-marker" not in raw
 
     try:
-        plain = sqlite3.connect(str(data_dir / "skjald.db"))
+        plain = sqlite3.connect(str(data_dir / "ting.db"))
         plain.execute("SELECT count(*) FROM sqlite_master").fetchone()
         plain_sqlite_opened = True
     except sqlite3.DatabaseError:

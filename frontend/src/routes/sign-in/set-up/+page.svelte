@@ -33,7 +33,7 @@
 {#if info && codes === null}
   <AuthLayout
     heading="Set up multifactor"
-    intro="Your account needs more than a password: Skjald asks for one of these every time you sign in. Choose how you want to confirm it's you."
+    intro="Your account needs more than a password: Þing asks for one of these every time you sign in. Choose how you want to confirm it's you."
   >
     <SecondFactorSetup onDone={done} />
     {#snippet footer()}
@@ -47,7 +47,7 @@
   >
     <SaveSecrets
       text={recoveryCodesText(info.user.username, codes)}
-      filename="skjald-recovery-codes.txt"
+      filename="ting-recovery-codes.txt"
       confirmation="I have saved these codes somewhere safe"
       onContinue={() => goto(resolve("/(app)"))}
     >

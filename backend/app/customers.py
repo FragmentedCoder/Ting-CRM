@@ -111,11 +111,11 @@ class CustomerAssignment(Base):
 
 
 def customer_key_context(customer_id: int) -> bytes:
-    return f"skjald/customer-key/{customer_id}".encode()
+    return f"ting/customer-key/{customer_id}".encode()
 
 
 def bound_to(customer_id: int, kind: str, record_id: int) -> bytes:
-    return f"skjald/customer/{customer_id}/{kind}/{record_id}".encode()
+    return f"ting/customer/{customer_id}/{kind}/{record_id}".encode()
 
 
 class Sealer:

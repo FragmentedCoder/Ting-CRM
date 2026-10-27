@@ -205,7 +205,7 @@ def _refuse_password(exc: Exception) -> NoReturn:
     if isinstance(exc, BreachCheckUnavailable):
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Skjald couldn't check the new password against known data breaches. Try again "
+            "Þing couldn't check the new password against known data breaches. Try again "
             "in a moment, or ask an administrator.",
         ) from exc
     raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
@@ -295,7 +295,7 @@ def update_account(body: AccountUpdate, request: Request, record: FullSession, d
                    ) -> AccountInfo:
     user = record.user
     changed = apply_profile(user, body)
-    # How Skjald looks to someone (light or dark, colours, their picture) is theirs
+    # How Þing looks to someone (light or dark, colours, their picture) is theirs
     # alone and isn't logged; their name, email and other details are, since reports
     # and notices use them.
     if body.theme and body.theme != user.theme:

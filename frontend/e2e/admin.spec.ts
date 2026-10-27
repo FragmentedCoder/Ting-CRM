@@ -124,7 +124,7 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   await admin.getByLabel("Admin panel allowlist").fill("10.99.0.0/24");
   await admin.getByRole("button", { name: "Save settings" }).click();
   await expect(admin.getByRole("alert")).toContainText("lock you out");
-  await expect(admin.getByText("sudo skjald admin reset-allowlist")).toBeVisible();
+  await expect(admin.getByText("sudo ting admin reset-allowlist")).toBeVisible();
   await shot(admin, "8-security");
   await admin.reload();
 
@@ -144,7 +144,7 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   await primaryPicker.getByRole("radio", { name: "Custom" }).check();
   await admin.getByLabel("Your colour").fill("#ffd700");
   const gold = customSwatch("#FFD700", "primary");
-  await expect(primaryPicker).toContainText(`Skjald uses ${gold.light} in light mode`);
+  await expect(primaryPicker).toContainText(`Þing uses ${gold.light} in light mode`);
   await shot(admin, "9b-custom-colour");
   await admin.getByRole("button", { name: "Save colours" }).click();
   await expect(toastWith(admin, "Colours saved.")).toBeVisible();
@@ -156,7 +156,7 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   await expect
     .poll(() => admin.evaluate(() => document.documentElement.style.getPropertyValue("--link")))
     .toBe("");
-  // The menu's head: the name, the tag line under it, and which Skjald this is
+  // The menu's head: the name, the tag line under it, and which Þing this is
   // (a development build here).
   const menuHead = admin.getByRole("complementary", { name: "Side menu" }).locator(".side-head");
   await expect(menuHead).toContainText("Nordlys Rapport");

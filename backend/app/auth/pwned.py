@@ -12,7 +12,7 @@ import httpx
 
 RANGE_URL = "https://api.pwnedpasswords.com/range/{prefix}"
 TIMEOUT_SECONDS = 5.0
-USER_AGENT = "Skjald (+https://github.com/FragmentedCoder/skjald-reporting)"
+USER_AGENT = "Ting-CRM (+https://github.com/FragmentedCoder/Ting-CRM)"
 
 
 class BreachCheckUnavailable(RuntimeError):

@@ -1,4 +1,4 @@
-"""Email: the mail server Skjald sends through, and sending.
+"""Email: the mail server Þing sends through, and sending.
 
 Administrators set it in the setup wizard or Admin -> Email: the server, how
 the connection is secured (STARTTLS on 587 by default, or TLS from the start on
@@ -98,7 +98,7 @@ def send(server: MailServer, password: str, to: str, subject: str, body: str) ->
     except TimeoutError as exc:
         raise MailError(f"The mail server at {server.host}:{server.port} didn't answer.") from exc
     except socket.gaierror as exc:
-        raise MailError(f"Skjald can't find a mail server called {server.host}: check the "
+        raise MailError(f"Þing can't find a mail server called {server.host}: check the "
                         "name.") from exc
     except (OSError, smtplib.SMTPException) as exc:
         raise MailError(f"The mail server at {server.host}:{server.port} can't be reached "
@@ -110,6 +110,6 @@ def send_test(db: Session, to: str, company: str | None) -> None:
     server = load_server(db)
     password = str(load_secrets(db, SECRETS).get("password", ""))
     db.commit()  # the network follows: hold no lock meanwhile
-    send(server, password, to, f"Test from {company or 'Skjald'}",
-         "This is a test message from Skjald. Email is set up: reports and notices can be "
+    send(server, password, to, f"Test from {company or 'Þing'}",
+         "This is a test message from Þing. Email is set up: reports and notices can be "
          "sent from here.\n")

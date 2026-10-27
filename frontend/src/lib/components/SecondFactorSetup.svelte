@@ -81,7 +81,7 @@
     </button>
   </div>
 {:else if enrolment && qr}
-  <h2 class="step-title">Add Skjald to your authenticator app</h2>
+  <h2 class="step-title">Add Þing to your authenticator app</h2>
   <p class="muted">Scan the code with the app, then enter the 6-digit code it shows.</p>
   <svg
     class="qr"

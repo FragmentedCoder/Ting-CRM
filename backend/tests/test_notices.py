@@ -86,7 +86,7 @@ def test_a_notice_is_sent_to_each_once_even_if_sending_fails_halfway(
     assert job.state == "done", job.error
     assert sent_to == ["bodil@nordlys.example", "retry", "ingrid@nordlys.example"]
     body = smtp.sent[-1]["message"].get_content()
-    assert "Body" in body and "Skjald, at https://" in body
+    assert "Body" in body and "Þing, at https://" in body
 
 
 def test_a_break_glass_sign_in_tells_the_administrators(
@@ -101,7 +101,7 @@ def test_a_break_glass_sign_in_tells_the_administrators(
     signed_in = client.post(SIGN_IN, json={"username": "keeper", "password": PASSWORD})
     assert signed_in.status_code == 200
     [notice] = queued_mail(session)
-    assert notice["subject"] == "Break-glass sign-in to Skjald: keeper"
+    assert notice["subject"] == "Break-glass sign-in to Þing: keeper"
     assert "signed in to the break-glass account keeper" in notice["body"]
     assert notice["to"] == ["bodil@nordlys.example", "ingrid@nordlys.example"]
 
@@ -132,7 +132,7 @@ def test_each_restore_test_tells_the_administrators(session, administrators, mai
     jobs.run_one(session)
     assert job.state == "done", job.error
     [notice] = queued_mail(session)
-    assert notice["subject"] == "Skjald's restore test passed"
+    assert notice["subject"] == "Þing's restore test passed"
     assert "(0b37addf, made 2026-10-25T18:50Z)" in notice["body"]
     assert "1,234 audit log entries" in notice["body"]
 

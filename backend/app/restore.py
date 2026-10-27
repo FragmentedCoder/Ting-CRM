@@ -1,19 +1,19 @@
-"""Restore a backup: `python -m app.restore`, with Skjald stopped. `skjald restore`
-on the server stops Skjald, runs it in a worker container, and starts it again.
+"""Restore a backup: `python -m app.restore`, with Þing stopped. `ting restore`
+on the server stops Þing, runs it in a worker container, and starts it again.
 
 It asks for the backup key from the recovery kit, restores the snapshot (the
 newest unless --snapshot says otherwise) into a scratch folder and checks it as
 the weekly restore test does. Only then does it move the current data aside, into
 a folder named for the time (nothing is deleted), and put the restored copy in
 its place. On a new server, put the recovery kit's master key in
-/etc/skjald/master.key first (the installer does it with --restore-master-key).
+/etc/ting/master.key first (the installer does it with --restore-master-key).
 A backup made before the master key was rotated asks for the master key it was
 made under, and the restored copy is moved to the server's current one.
 
-The target comes from Skjald's own settings when the database still opens;
+The target comes from Þing's own settings when the database still opens;
 otherwise give --repository (such as /backups/restic, or an s3: or rclone:
 address), with the credentials restic and rclone read from the environment
-(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, RCLONE_CONFIG_SKJALDSMB_...).
+(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, RCLONE_CONFIG_TINGSMB_...).
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ from app.jobs import Job
 from app.settings import settings
 from app.users import User
 
-DATA_FILES = ("skjald.db", "skjald.db-wal", "skjald.db-shm", *KEY_FILES)
+DATA_FILES = ("ting.db", "ting.db-wal", "ting.db-shm", *KEY_FILES)
 
 
 def _settle_jobs(folder: Path) -> None:
@@ -79,7 +79,7 @@ def _carry_recovery_codes(restored: Path, data_dir: Path) -> dict[str, Any]:
     ones back. Carried over for everyone in both, matched by ID and username, from
     the data being replaced; when that can't be read, say what that means."""
     current = load_master_key(settings.master_key_path)
-    if not (data_dir / "skjald.db").exists() or not opens(data_dir, current):
+    if not (data_dir / "ting.db").exists() or not opens(data_dir, current):
         return {"recovery_codes": "as_backed_up"}
     try:
         engine = make_engine(data_dir, settings.master_key_path)
@@ -119,7 +119,7 @@ def _carry_recovery_codes(restored: Path, data_dir: Path) -> dict[str, Any]:
 
 def _record(restored: Path, snapshot: str, found: dict[str, Any]) -> None:
     """The restore, in the restored audit log, and to the Administrators by email (the
-    worker sends it once Skjald runs again)."""
+    worker sends it once Þing runs again)."""
     from app.notices import notify_administrators
 
     codes = ("Recovery codes are as they were just before the restore: used ones stay "
@@ -132,10 +132,10 @@ def _record(restored: Path, snapshot: str, found: dict[str, Any]) -> None:
             audit.append(db, "backup.restored", actor_name="console", details={
                 "snapshot": snapshot, "made_at": found.get("made_at"),
                 "recovery_codes": found["recovery_codes"]})
-            notify_administrators(db, "Skjald was restored from a backup", (
-                f"Skjald was restored on the server from the backup made "
+            notify_administrators(db, "Þing was restored from a backup", (
+                f"Þing was restored on the server from the backup made "
                 f"{str(found.get('made_at'))[:16]}Z (snapshot {snapshot}). Everything done "
-                f"since that backup is gone from Skjald; the data from before the restore "
+                f"since that backup is gone from Þing; the data from before the restore "
                 f"is kept on the server.\n\n{codes} Passwords and second factors are as they "
                 "were at the backup."))
             db.commit()
@@ -158,7 +158,7 @@ def restore(env: dict[str, str], snapshot: str, data_dir: Path,
         restic(env, "restore", snapshot, "--host", HOST, "--target", str(scratch))
         manifest = next(scratch.rglob("manifest.json"), None)
         if manifest is None:
-            raise BackupError("That snapshot has no manifest; it isn't Skjald's.")
+            raise BackupError("That snapshot has no manifest; it isn't Þing's.")
         restored = manifest.parent
         made_under = json.loads(manifest.read_text()).get("master_key_id")
         if older_key is not None and not opens(restored, load_master_key(settings.master_key_path)):
@@ -177,7 +177,7 @@ def restore(env: dict[str, str], snapshot: str, data_dir: Path,
         for name in DATA_FILES:
             if (data_dir / name).exists():
                 (data_dir / name).rename(kept / name)
-        for name in ("skjald.db", *KEY_FILES):
+        for name in ("ting.db", *KEY_FILES):
             if (restored / name).exists():
                 (restored / name).rename(data_dir / name)
     finally:
@@ -217,11 +217,11 @@ def _target_environment(key_text: str, repository: str | None,
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Restore Skjald from a backup.")
+    parser = argparse.ArgumentParser(description="Restore Þing from a backup.")
     parser.add_argument("--snapshot", default="latest", help="snapshot ID (default: latest)")
     parser.add_argument("--target", help="which backup target to restore from (default: the "
                                           "first one in Admin, Backups)")
-    parser.add_argument("--repository", help="restic repository, if Skjald's settings are gone")
+    parser.add_argument("--repository", help="restic repository, if Þing's settings are gone")
     parser.add_argument("--yes", action="store_true", help="don't ask before replacing data")
     args = parser.parse_args(argv)
 
@@ -237,12 +237,12 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
     except Exception as exc:  # noqa: BLE001 - the database may be the thing that's lost
-        print(f"Skjald's settings can't be read ({exc}); give --repository.", file=sys.stderr)
+        print(f"Þing's settings can't be read ({exc}); give --repository.", file=sys.stderr)
         return 2
     data_dir = Path(settings.data_dir)
     if not args.yes:
         print(f"This replaces the data in {data_dir} with snapshot {args.snapshot!r} from "
-              f"{env['RESTIC_REPOSITORY']}. The current data is kept beside it. Skjald must "
+              f"{env['RESTIC_REPOSITORY']}. The current data is kept beside it. Þing must "
               "be stopped.")
         if input("Type restore to go on: ").strip() != "restore":
             print("Nothing changed.")
@@ -276,9 +276,9 @@ def main(argv: list[str] | None = None) -> int:
               "read): any code used since works again. Ask people who used one to make new "
               "ones under Your account.")
     print("Passwords and second factors are as they were at the backup. The restore is in "
-          "the audit log, and the Administrators are emailed when Skjald runs again.")
-    if not os.environ.get("SKJALD_COMMAND"):  # skjald restore starts it again itself
-        print("Start Skjald again with: skjald start (or docker compose up -d)")
+          "the audit log, and the Administrators are emailed when Þing runs again.")
+    if not os.environ.get("TING_COMMAND"):  # ting restore starts it again itself
+        print("Start Þing again with: ting start (or docker compose up -d)")
     return 0
 
 

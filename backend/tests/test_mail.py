@@ -14,7 +14,7 @@ from tests.conftest import PASSWORD
 
 EMAIL = "/api/admin/email"
 SERVER = {"host": "smtp.nordlys.example", "port": 587, "security": "starttls",
-          "username": "skjald", "from_address": "skjald@nordlys.example",
+          "username": "ting", "from_address": "ting@nordlys.example",
           "from_name": "Nordlys IT"}
 
 
@@ -63,9 +63,9 @@ def test_a_message_goes_out_over_starttls_signed_in(smtp) -> None:
     [sent] = smtp.sent
     assert (sent["host"], sent["port"], sent["starttls"], sent["tls_from_start"]) == (
         "smtp.nordlys.example", 587, True, False)
-    assert sent["login"] == ("skjald", "pw")
+    assert sent["login"] == ("ting", "pw")
     message = sent["message"]
-    assert message["From"] == "Nordlys IT <skjald@nordlys.example>"
+    assert message["From"] == "Nordlys IT <ting@nordlys.example>"
     assert message["To"] == "ingrid@nordlys.example" and message["Subject"] == "Hello"
     assert message["Message-ID"].endswith("@nordlys.example>")
 
@@ -115,15 +115,15 @@ def test_changing_the_mail_server_needs_a_fresh_confirmation(client, admin, smtp
     _, headers = admin
     assert client.get(EMAIL, headers=headers).json()["password_set"] is False
     refused = client.put(EMAIL, headers=headers, json=SERVER | {"password": "mail-secret"})
-    assert refused.headers["X-Skjald-Reason"] == "step_up_required"
+    assert refused.headers["X-Ting-Reason"] == "step_up_required"
     assert "sends email" in refused.json()["detail"]
     client.post("/api/auth/confirm-password", headers=headers, json={"password": PASSWORD})
     saved = client.put(EMAIL, headers=headers, json=SERVER | {"password": "mail-secret"})
     assert saved.status_code == 200 and saved.json()["password_set"]
     assert "mail-secret" not in saved.text
     # Who mail comes from changes without asking again; the password is kept.
-    renamed = client.put(EMAIL, headers=headers, json=SERVER | {"from_name": "Skjald"})
-    assert renamed.status_code == 200 and renamed.json()["server"]["from_name"] == "Skjald"
+    renamed = client.put(EMAIL, headers=headers, json=SERVER | {"from_name": "Þing"})
+    assert renamed.status_code == 200 and renamed.json()["server"]["from_name"] == "Þing"
     assert client.get(EMAIL, headers=headers).json()["password_set"]
     logged = session.scalars(select(AuditEntry.details).where(
         AuditEntry.action == "mail.settings_changed")).all()
@@ -136,7 +136,7 @@ def test_the_test_message_uses_what_is_saved(client, admin, smtp, session) -> No
     client.put(EMAIL, headers=headers, json=SERVER | {"password": "mail-secret"})
     sent = client.post(f"{EMAIL}/test", headers=headers, json={"to": "ingrid@nordlys.example"})
     assert sent.status_code == 204
-    assert smtp.sent[0]["login"] == ("skjald", "mail-secret")
+    assert smtp.sent[0]["login"] == ("ting", "mail-secret")
     smtp.fail = smtplib.SMTPAuthenticationError(535, b"no")
     failed = client.post(f"{EMAIL}/test", headers=headers, json={"to": "ingrid@nordlys.example"})
     assert failed.status_code == 400 and "refused the user name" in failed.json()["detail"]

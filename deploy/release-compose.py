@@ -12,8 +12,8 @@ import sys
 
 APP_BUILD = (
     "    build:\n      context: ../backend\n      args:\n"
-    "        # What the build calls itself: set by the installer and the skjald command.\n"
-    "        SKJALD_VERSION: ${SKJALD_VERSION:-}\n"
+    "        # What the build calls itself: set by the installer and the ting command.\n"
+    "        TING_VERSION: ${TING_VERSION:-}\n"
 )
 CADDY_BUILD = "    build:\n      context: ..\n      dockerfile: deploy/caddy.Dockerfile\n"
 # registry[:port]/path@sha256:digest
@@ -31,7 +31,7 @@ def release_compose(text: str, app_ref: str, caddy_ref: str) -> str:
     text = text.replace(APP_BUILD, f"    image: {app_ref}\n")
     if "build:" in text:
         raise SystemExit("A build block is left in docker-compose.yml.")
-    header = ("# Skjald's compose file for this release: the images are pinned by digest, and\n"
+    header = ("# Þing's compose file for this release: the images are pinned by digest, and\n"
               "# the installer checks their signatures. Settings go in .env beside it.\n")
     return header + text
 

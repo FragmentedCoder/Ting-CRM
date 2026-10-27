@@ -2,7 +2,7 @@
 
 Each check is its own request, so the page fills in as they finish. The slow
 ones (the database's integrity check, re-hashing the audit chain, the call to
-Have I Been Pwned) run outside any write transaction, so the rest of Skjald
+Have I Been Pwned) run outside any write transaction, so the rest of Þing
 carries on meanwhile.
 """
 
@@ -38,7 +38,7 @@ from app.policy import load_policy
 from app.settings import settings
 from app.setup import setup_completed_at
 from app.users import User
-from app.version import skjald_version
+from app.version import ting_version
 
 router = APIRouter(prefix="/admin")
 
@@ -70,7 +70,7 @@ class Usage(BaseModel):
 
 
 class Versions(BaseModel):
-    skjald: str
+    ting: str
     python: str
     sqlite: str
     sqlcipher: str
@@ -173,7 +173,7 @@ def _breach_check(enabled: bool) -> Check:
         return Check(key="breach_check", label=label, status="ok",
                      detail="Have I Been Pwned answers.")
     return Check(key="breach_check", label=label, status="warning",
-                 detail="Skjald can't reach Have I Been Pwned, so new passwords can't be saved "
+                 detail="Þing can't reach Have I Been Pwned, so new passwords can't be saved "
                  "until it can.")
 
 
@@ -182,7 +182,7 @@ def _worker_check(beat: datetime | None, failed: int, now: datetime,
     label = "Background worker"
     if beat is not None and stopped is not None and stopped >= beat:
         return Check(key="worker", label=label, status="problem",
-                     detail=f"Stopped {_ago(stopped, now)}. Start it with skjald start.")
+                     detail=f"Stopped {_ago(stopped, now)}. Start it with ting start.")
     if beat is None:
         return Check(key="worker", label=label, status="problem",
                      detail="The worker hasn't started. Check the worker container.")
@@ -377,7 +377,7 @@ def server_health(_: Admin, db: DB) -> ServerHealth:
     data_dir = Path(settings.data_dir)
     disk = shutil.disk_usage(data_dir)
     database_bytes = sum(
-        _file_size(data_dir / name) for name in ("skjald.db", "skjald.db-wal", "skjald.db-shm")
+        _file_size(data_dir / name) for name in ("ting.db", "ting.db-wal", "ting.db-shm")
     )
     return ServerHealth(
         checked_at=clock.utcnow(),
@@ -388,7 +388,7 @@ def server_health(_: Admin, db: DB) -> ServerHealth:
         usage=Usage(disk_total_bytes=disk.total, disk_free_bytes=disk.free,
                     database_bytes=database_bytes, **counts),
         versions=Versions(
-            skjald=skjald_version(),
+            ting=ting_version(),
             python=platform.python_version(),
             sqlite=sqlite_version,
             sqlcipher=sqlcipher_version,

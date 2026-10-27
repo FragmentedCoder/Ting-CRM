@@ -311,7 +311,7 @@
       checking = false;
       if (failure) {
         checkFailed = true;
-        error = `Saved, but Skjald couldn't reach ${failure}`;
+        error = `Saved, but Þing couldn't reach ${failure}`;
         return;
       }
     }
@@ -357,13 +357,13 @@
 
 {#if ready}
   {#if step === "token"}
-    <AuthLayout heading="Set up Skjald" {eyebrow}>
+    <AuthLayout heading="Set up Þing" {eyebrow}>
       <p class="muted">
         The installer printed a one-time setup token, so only someone with access to the
-        server can set Skjald up. If it's gone from the screen, print a new one on the server
+        server can set Þing up. If it's gone from the screen, print a new one on the server
         (the old one stops working):
       </p>
-      <Command command="sudo skjald setup-token" />
+      <Command command="sudo ting setup-token" />
       <form class="stack" onsubmit={submitToken}>
         {#if error}<p class="alert alert-critical" role="alert">{error}</p>{/if}
         <div class="field">
@@ -386,7 +386,7 @@
   {:else if step === "company" && progress}
     <AuthLayout
       heading="Company and server"
-      intro="Skjald works for one company. Its name appears in the app and on every report."
+      intro="Þing works for one company. Its name appears in the app and on every report."
       {eyebrow}
     >
       <div class="address stack">
@@ -394,7 +394,7 @@
         <p class="mono">{progress.address}</p>
         <p class="small muted">
           Passkeys are tied to this address. If it isn't the one people will use, stop here,
-          set <span class="mono">SKJALD_ADDRESS</span> on the server and restart Skjald.
+          set <span class="mono">TING_ADDRESS</span> on the server and restart Þing.
         </p>
       </div>
       <form class="stack" onsubmit={submitCompany}>
@@ -445,7 +445,7 @@
         {#if breachCheckDown}
           <div class="alert alert-warning stack" role="alert">
             <p>
-              Skjald couldn't reach api.pwnedpasswords.com to check the password against known
+              Þing couldn't reach api.pwnedpasswords.com to check the password against known
               data breaches. If this server has no internet access, you can continue without the
               check.
             </p>
@@ -569,7 +569,7 @@
     >
       <SaveSecrets
         text={recoveryCodesText(session.current.user.username, codes)}
-        filename="skjald-recovery-codes.txt"
+        filename="ting-recovery-codes.txt"
         confirmation="I have saved these codes somewhere safe"
         onContinue={nextStep}
       >
@@ -589,7 +589,7 @@
       {#if kit}
         <SaveSecrets
           text={recoveryKitText(kit)}
-          filename="skjald-recovery-kit.txt"
+          filename="ting-recovery-kit.txt"
           confirmation="I have saved the recovery kit somewhere safe, away from this server"
           {busy}
           onContinue={kitSaved}
@@ -614,7 +614,7 @@
       {#if backups && backupPlan}
         <form class="stack" onsubmit={saveBackups}>
           <BackupPlanFields bind:plan={backupPlan} />
-          {#if checking}<p class="small" role="status">Checking that Skjald can reach it…</p>{/if}
+          {#if checking}<p class="small" role="status">Checking that Þing can reach it…</p>{/if}
           <div class="button-row">
             <button class="button button-primary" type="submit" disabled={busy}>
               {backupPlan.targets.some((t) => t.kind !== "local") ? "Save and check" : "Save and continue"}
@@ -633,7 +633,7 @@
   {:else if step === "email"}
     <AuthLayout
       heading="Email"
-      intro="The mail server Skjald sends reports and notices through. You can change this any time under Admin, Email."
+      intro="The mail server Þing sends reports and notices through. You can change this any time under Admin, Email."
       {eyebrow}
       wide
     >
@@ -680,8 +680,8 @@
           {#if tlsChoice.mode === "internal" && tls.root_url}
             <p class="small">
               <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a file Caddy serves, not a page -->
-              <a href={tls.root_url} download="skjald-root.crt">Download the root certificate</a>
-              and install it as a trusted root on each computer that will use Skjald: this one
+              <a href={tls.root_url} download="ting-root.crt">Download the root certificate</a>
+              and install it as a trusted root on each computer that will use Þing: this one
               too, if the browser warned about the certificate.
             </p>
           {/if}

@@ -50,7 +50,7 @@ OLD_TARGET_SETTING = "backup/target"
 SECRETS = "backup"
 LOCAL_REPOSITORY = "/backups/restic"
 KEY_FILES = ("db.key.enc", "backup.key.enc", "config.key.enc")
-HOST = "skjald"
+HOST = "ting"
 # restic's exit codes for a repository that isn't there, and for a wrong password.
 NO_REPOSITORY, WRONG_PASSWORD = 10, 12
 LONG = 6 * 60 * 60
@@ -66,12 +66,12 @@ class Target(BaseModel):
     kind: TargetKind = "local"
     smb_host: str = Field(default="", max_length=253, pattern=_NAME)
     smb_share: str = Field(default="", max_length=80, pattern=_NAME)
-    smb_path: str = Field(default="skjald", max_length=200, pattern=_PATH)
+    smb_path: str = Field(default="ting", max_length=200, pattern=_PATH)
     smb_username: str = Field(default="", max_length=100)
     smb_domain: str = Field(default="", max_length=100, pattern=_NAME)
     s3_endpoint: str = Field(default="", max_length=300, pattern=r"^(https?://[^\s/]+/?)?$")
     s3_bucket: str = Field(default="", max_length=63, pattern=_NAME)
-    s3_path: str = Field(default="skjald", max_length=200, pattern=_PATH)
+    s3_path: str = Field(default="ting", max_length=200, pattern=_PATH)
     s3_region: str = Field(default="", max_length=40, pattern=_NAME)
     s3_access_key_id: str = Field(default="", max_length=200)
 
@@ -147,7 +147,7 @@ def load_target_secrets(db: Session, plan: Plan) -> dict[str, dict[str, str]]:
 def repository(target: Target) -> str:
     """The restic repository a target means."""
     if target.kind == "smb":
-        return f"rclone:skjaldsmb:{target.smb_share}/{target.smb_path.strip('/')}"
+        return f"rclone:tingsmb:{target.smb_share}/{target.smb_path.strip('/')}"
     if target.kind == "s3":
         return (f"s3:{target.s3_endpoint.rstrip('/')}/{target.s3_bucket}/"
                 f"{target.s3_path.strip('/')}")
@@ -185,7 +185,7 @@ def environment(target: Target, secrets: dict[str, Any], key_text: str) -> dict[
             "AWS_DEFAULT_REGION": target.s3_region or "us-east-1",
         }
     if target.kind == "smb":
-        prefix = "RCLONE_CONFIG_SKJALDSMB_"
+        prefix = "RCLONE_CONFIG_TINGSMB_"
         env |= {
             prefix + "TYPE": "smb",
             prefix + "HOST": target.smb_host,
@@ -250,8 +250,8 @@ def _stage(folder: Path, manifest: dict[str, Any]) -> None:
     folder.mkdir(mode=0o700, parents=True)
     database_key = load_or_create_database_key(data_dir, settings.master_key_path)
     key = f"PRAGMA key = \"x'{database_key.hex()}'\""
-    source = sqlcipher3.connect(str(data_dir / "skjald.db"))
-    copy = sqlcipher3.connect(str(folder / "skjald.db"))
+    source = sqlcipher3.connect(str(data_dir / "ting.db"))
+    copy = sqlcipher3.connect(str(folder / "ting.db"))
     try:
         source.execute(key)
         copy.execute(key)
@@ -329,7 +329,7 @@ def run_backup(db: Session, job: jobs.Job) -> dict[str, Any]:
     except (BackupError, OSError, subprocess.SubprocessError, sqlcipher3.Error) as exc:
         _log(db, "backup.failed", job, {"target": target.id, "error": str(exc)[:300]})
         if job.attempts >= jobs.MAX_ATTEMPTS:
-            _tell(db, "Skjald couldn't back up", (
+            _tell(db, "Þing couldn't back up", (
                 f"The backup to {target.words()} failed {job.attempts} times in a "
                 f"row; the last time: {exc}\n\nAdmin, Backups has the details."))
         raise
@@ -355,7 +355,7 @@ def check_restored(folder: Path) -> dict[str, Any]:
         made_under = manifest.get("master_key_id") or "an earlier one"
         raise BackupError(
             f"It was made under master key {made_under}, before the master key was rotated "
-            f"(this server's is {key_id(current)}). skjald restore asks for that key; the "
+            f"(this server's is {key_id(current)}). ting restore asks for that key; the "
             "next backup is made under this one.")
     engine = make_engine(folder, settings.master_key_path)
     try:
@@ -393,14 +393,14 @@ def run_restore_test(db: Session, job: jobs.Job) -> dict[str, Any]:
         restic(env, "restore", "latest", "--host", HOST, "--target", str(scratch))
         found = next(scratch.rglob("manifest.json"), None)
         if found is None:
-            raise BackupError("The newest backup has no manifest; it isn't Skjald's.")
+            raise BackupError("The newest backup has no manifest; it isn't Þing's.")
         result = check_restored(found.parent) | {
             "snapshot": str(newest[-1].get("short_id", ""))[:8], "target": target.id}
     except (BackupError, OSError, subprocess.SubprocessError, ValueError) as exc:
         _log(db, "backup.restore_test_failed", job, {"target": target.id,
                                                       "error": str(exc)[:300]})
         if job.attempts >= jobs.MAX_ATTEMPTS:
-            _tell(db, "Skjald's restore test failed", (
+            _tell(db, "Þing's restore test failed", (
                 f"Restoring the newest backup from {target.words()} failed "
                 f"{job.attempts} times in a row; the last time: {exc}\n\n"
                 "Until it passes, don't count on that backup. Admin, Backups has the details."))
@@ -408,7 +408,7 @@ def run_restore_test(db: Session, job: jobs.Job) -> dict[str, Any]:
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     _log(db, "backup.restore_tested", job, result)
-    _tell(db, "Skjald's restore test passed", (
+    _tell(db, "Þing's restore test passed", (
         f"The newest backup ({result['snapshot']}, made {str(result.get('made_at'))[:16]}Z) was "
         f"restored from {target.words()} into a scratch folder and checked: the "
         f"database, and {result['audit_entries']:,} audit log entries in an unbroken chain."))

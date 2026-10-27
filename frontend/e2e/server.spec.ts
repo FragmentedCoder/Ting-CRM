@@ -22,9 +22,9 @@ test("email and the certificate: saved after confirming, and refused plainly", a
   await page.getByLabel("Mail server").fill("smtp.nordlys.invalid");
   await page.getByLabel("Connection security").selectOption("tls");
   await expect(page.getByLabel("Port")).toHaveValue("465");
-  await page.getByLabel("User name (optional)").fill("skjald");
+  await page.getByLabel("User name (optional)").fill("ting");
   await page.getByLabel("Password").fill("mail password from the e2e test");
-  await page.getByLabel("Mail comes from").fill("skjald@nordlys.invalid");
+  await page.getByLabel("Mail comes from").fill("ting@nordlys.invalid");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   const stepUp = page.getByRole("dialog", { name: "Confirm it's you" });
   await stepUp.getByLabel("Code from your authenticator app").fill(totp(secret, 1));
@@ -35,24 +35,24 @@ test("email and the certificate: saved after confirming, and refused plainly", a
 
   await page.getByLabel("Send it to").fill("ingrid@nordlys.invalid");
   await page.getByRole("button", { name: "Send test message" }).click();
-  await expect(toastWith(page, "Skjald can't find a mail server called smtp.nordlys.invalid")).toBeVisible();
+  await expect(toastWith(page, "Þing can't find a mail server called smtp.nordlys.invalid")).toBeVisible();
   await page.screenshot({ path: "e2e-results/screens/server-1-email.png", fullPage: true });
   await dismissToasts(page);
 
   await menu.getByRole("link", { name: "Certificate", exact: true }).click();
   const served = page.getByRole("region", { name: "Serving now" });
-  await expect(served).toContainText("Skjald's own certificate authority");
+  await expect(served).toContainText("Þing's own certificate authority");
   await expect(served).toContainText("localhost, from Caddy Local Authority");
   // Caddy's own certificates last hours and are renewed on their own.
   await expect(served).toContainText(/\(expires in \d+ hours?\)\. Caddy renews it on its own/);
-  const root = await page.request.get("/skjald-root.crt");
+  const root = await page.request.get("/ting-root.crt");
   expect(root.headers()["content-type"]).toBe("application/x-x509-ca-cert");
   expect(await root.text()).toContain("-----BEGIN CERTIFICATE-----");
 
   await page.getByRole("radio", { name: /Your organisation's certificate/ }).check();
-  const notPem = { name: "skjald.pem", mimeType: "application/x-pem-file", buffer: Buffer.from("hello") };
+  const notPem = { name: "ting.pem", mimeType: "application/x-pem-file", buffer: Buffer.from("hello") };
   await page.getByLabel("Certificate", { exact: true }).setInputFiles(notPem);
-  await page.getByLabel("Private key").setInputFiles({ ...notPem, name: "skjald.key" });
+  await page.getByLabel("Private key").setInputFiles({ ...notPem, name: "ting.key" });
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(toastWith(page, "That isn't a certificate in PEM form")).toBeVisible();
   await dismissToasts(page);
@@ -68,7 +68,7 @@ test("email and the certificate: saved after confirming, and refused plainly", a
   await expect(page.getByText("must be in public DNS")).toBeVisible();
   await page.getByLabel("Your DNS is at").selectOption("rfc2136");
   await page.getByLabel("DNS server").fill("ns1.nordlys.invalid");
-  await page.getByLabel("TSIG key name").fill("skjald-acme.");
+  await page.getByLabel("TSIG key name").fill("ting-acme.");
   await page.getByLabel("TSIG key", { exact: true }).fill("cWnu6Ju9zOki4f7Q+da2KKGo0KOXbCf6Pej6hW3geC4=");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(toastWith(page, "and localhost isn't one")).toBeVisible();

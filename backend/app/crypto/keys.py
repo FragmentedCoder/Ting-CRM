@@ -1,6 +1,6 @@
-"""Envelope encryption for Skjald's key hierarchy (see docs/architecture.md).
+"""Envelope encryption for Þing's key hierarchy (see docs/architecture.md).
 
-The master key never leaves /etc/skjald; every other key (database,
+The master key never leaves /etc/ting; every other key (database,
 per-customer, backup) is generated at random and stored only in its
 wrapped form, decryptable solely by whoever holds the master key.
 """

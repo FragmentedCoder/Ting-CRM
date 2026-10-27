@@ -1,7 +1,7 @@
 [project]
-name = "skjald-backend"
+name = "ting-backend"
 version = "0.1.0"
-description = "Skjald API and background worker"
+description = "Þing API and background worker"
 requires-python = ">=3.13"
 license = { text = "AGPL-3.0-or-later" }
 dependencies = [

@@ -1,7 +1,7 @@
 // The colours people and Administrators can pick: a primary (links, focus rings,
 // switches, primary buttons) and an accent (the marker on the current page in
 // menus, highlighted commands). Each has a light-mode and a dark-mode value, and
-// colours.test.ts checks every one for contrast (WCAG AA) on Skjald's surfaces.
+// colours.test.ts checks every one for contrast (WCAG AA) on Þing's surfaces.
 // The names must match backend/app/colours.py; a test checks that too.
 // Administrators may also pick any colour for the site; customSwatch() then
 // finds the nearest shades of it that pass the same checks.
@@ -17,13 +17,13 @@ export const PRIMARY: Swatch[] = [
   { key: "fjord", name: "Fjord", light: "#2B5D8A", dark: "#5B9BD5" },
   { key: "pine", name: "Pine", light: "#2F6B47", dark: "#5FBF84" },
   { key: "teal", name: "Teal", light: "#1D6B73", dark: "#4FBFC9" },
-  { key: "heather", name: "Heather", light: "#6A4C9C", dark: "#B49DE0" },
+  { key: "plum", name: "Plum", light: "#6A4C9C", dark: "#B49DE0" },
   { key: "rose", name: "Rose", light: "#A23A64", dark: "#EE93B7" },
   { key: "slate", name: "Slate", light: "#4A5568", dark: "#AAB4C3" },
 ];
 
 export const ACCENT: Swatch[] = [
-  { key: "rav", name: "Amber", light: "#C8862A", dark: "#E0A04A" },
+  { key: "lyng", name: "Lyng", light: "#9A78B0", dark: "#B898C8" },
   { key: "copper", name: "Copper", light: "#B5652B", dark: "#E39A62" },
   { key: "moss", name: "Moss", light: "#6B8E23", dark: "#A5C85A" },
   { key: "sky", name: "Sky", light: "#2E86C1", dark: "#6DB6E8" },
@@ -32,17 +32,17 @@ export const ACCENT: Swatch[] = [
 ];
 
 export const DEFAULT_PRIMARY = "fjord";
-export const DEFAULT_ACCENT = "rav";
+export const DEFAULT_ACCENT = "lyng";
 
 // Text on a primary button: white on the light-mode colour, near-black on the dark.
 const ON_PRIMARY = { light: "#FFFFFF", dark: "#0B1420" };
-// With Skjald's own primary, buttons stay ink and snow (docs/brand).
+// With Þing's own primary, buttons stay ink and snow (docs/brand).
 const INK_BUTTON = {
   light: { bg: "#0F1B2D", text: "#FFFFFF" },
   dark: { bg: "#E8ECF0", text: "#0B1420" },
 };
 
-// Skjald's surfaces (docs/brand/tokens.json): page, card and subtle backgrounds.
+// Þing's surfaces (docs/brand/tokens.json): page, card and subtle backgrounds.
 export const SURFACES = {
   light: ["#FFFFFF", "#F7F7F7", "#EFEFEF"],
   dark: ["#0B1420", "#13202F", "#1B2B3D"],
@@ -167,7 +167,7 @@ export function currentMode(): "light" | "dark" {
 }
 
 /**
- * Set the colours on the page. Skjald's own (Fjord and Amber) come from
+ * Set the colours on the page. Þing's own (Fjord and Lyng) come from
  * tokens.css, so they clear any override: the primary button stays ink and snow
  * as docs/brand asks. Set through the CSSOM, which the page's CSP allows.
  */

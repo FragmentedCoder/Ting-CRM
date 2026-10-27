@@ -21,8 +21,8 @@ from app.setup import company_name
 
 BRANDING_KEY = "branding"
 LOGO_KEY = "branding/logo"
-DEFAULT_SITE_NAME = "Skjald"
-DEFAULT_TAGLINE = "Reports worth keeping."
+DEFAULT_SITE_NAME = "Þing"
+DEFAULT_TAGLINE = "Gather. Agree. Remember."
 
 router = APIRouter(prefix="/branding")
 

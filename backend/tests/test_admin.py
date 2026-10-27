@@ -434,11 +434,11 @@ def test_one_session_can_be_ended_and_the_browser_is_told_why(
     assert [s["id"] for s in after.json()["sessions"]] == [sessions[1]["id"]]
     ended = phone.get("/api/auth/session")
     assert ended.status_code == 401
-    assert ended.headers["X-Skjald-Reason"] == "session_by_admin"
+    assert ended.headers["X-Ting-Reason"] == "session_by_admin"
     assert "An administrator signed you out" in ended.json()["detail"]
     assert laptop.get("/api/auth/session").status_code == 200
     # Told once; after that the session is simply gone.
-    assert phone.get("/api/auth/session").headers["X-Skjald-Reason"] == "session_ended"
+    assert phone.get("/api/auth/session").headers["X-Ting-Reason"] == "session_ended"
 
     again = client.post(f"{USERS}/{user_id}/sessions/{sessions[0]['id']}/end", headers=headers)
     assert again.status_code == 404
@@ -455,7 +455,7 @@ def test_disabling_a_user_signs_them_out_and_says_why(client, admin, bjorn, new_
     client.patch(f"{USERS}/{user_id}", headers=headers, json={"is_active": False})
     status = browser.get("/api/auth/session/status")
     assert status.status_code == 401
-    assert status.headers["X-Skjald-Reason"] == "session_disabled"
+    assert status.headers["X-Ting-Reason"] == "session_disabled"
     assert "disabled" in status.json()["detail"]
     # Enabling the account again doesn't bring the old session back.
     client.patch(f"{USERS}/{user_id}", headers=headers, json={"is_active": True})
@@ -472,7 +472,7 @@ def test_ended_sessions_are_not_revived_by_enabling_again(
     client.patch(f"{USERS}/{user_id}", headers=headers, json={"is_active": False})
     client.patch(f"{USERS}/{user_id}", headers=headers, json={"is_active": True})
     assert client.get(f"{USERS}/{user_id}", headers=headers).json()["sessions"] == []
-    assert browser.get("/api/auth/session").headers["X-Skjald-Reason"] == "session_disabled"
+    assert browser.get("/api/auth/session").headers["X-Ting-Reason"] == "session_disabled"
 
 
 # Step-up for security changes
@@ -485,7 +485,7 @@ def test_lowering_security_asks_every_time_however_recent_the_sign_in(
     weaker = client.put("/api/admin/security", headers=headers,
                         json=security(require_mfa_everyone=False))
     assert weaker.status_code == 403
-    assert weaker.headers["X-Skjald-Reason"] == "step_up_required"
+    assert weaker.headers["X-Ting-Reason"] == "step_up_required"
     # Stricter rules for new passwords touch no one: no confirmation needed.
     stricter = client.put("/api/admin/security", headers=headers,
                           json=security(min_password_length=14))
@@ -503,7 +503,7 @@ def test_lowering_security_asks_every_time_however_recent_the_sign_in(
     # The confirmation was for that change only.
     again = client.put("/api/admin/security", headers=headers,
                        json=security(min_password_length=10, require_mfa_everyone=False))
-    assert again.headers["X-Skjald-Reason"] == "step_up_required"
+    assert again.headers["X-Ting-Reason"] == "step_up_required"
     assert "auth.confirmed" in actions(session)
 
 
@@ -513,7 +513,7 @@ def test_a_confirmation_goes_stale(frozen_clock, client, admin) -> None:
     frozen_clock.advance(minutes=6)
     stale = client.put("/api/admin/security", headers=headers,
                        json=security(breach_check_enabled=False))
-    assert stale.headers["X-Skjald-Reason"] == "step_up_required"
+    assert stale.headers["X-Ting-Reason"] == "step_up_required"
 
 
 @pytest.mark.parametrize("change", [
@@ -528,7 +528,7 @@ def test_a_confirmation_goes_stale(frozen_clock, client, admin) -> None:
 def test_every_kind_of_lowering_asks_for_confirmation(client, admin, change) -> None:
     _, headers = admin
     response = client.put("/api/admin/security", headers=headers, json=security(**change))
-    assert response.headers["X-Skjald-Reason"] == "step_up_required"
+    assert response.headers["X-Ting-Reason"] == "step_up_required"
 
 
 def test_adding_to_an_allowlist_that_is_on_asks_for_confirmation(admin) -> None:
@@ -543,7 +543,7 @@ def test_adding_to_an_allowlist_that_is_on_asks_for_confirmation(admin) -> None:
     assert on.status_code == 200, on.text  # from everyone to these: narrower
     wider = inside.put("/api/admin/security", headers=headers, json=security(
         admin_allowlist_enabled=True, admin_allowlist=["10.0.0.0/24", "192.168.0.0/16"]))
-    assert wider.headers["X-Skjald-Reason"] == "step_up_required"
+    assert wider.headers["X-Ting-Reason"] == "step_up_required"
 
 
 @pytest.mark.parametrize("change", [
@@ -559,4 +559,4 @@ def test_changes_that_can_lock_people_out_need_a_recent_confirmation(
                       json=security(**change)).status_code == 200
     frozen_clock.advance(minutes=6)
     undone = client.put("/api/admin/security", headers=headers, json=security())
-    assert undone.headers["X-Skjald-Reason"] == "step_up_required"
+    assert undone.headers["X-Ting-Reason"] == "step_up_required"

@@ -2,7 +2,7 @@
 
 export function recoveryCodesText(username: string, codes: string[]): string {
   return [
-    "Skjald recovery codes",
+    "Þing recovery codes",
     `For ${username}. Each code lets you sign in once if you lose your phone or key.`,
     "",
     ...codes,
@@ -20,10 +20,10 @@ export interface RecoveryKit {
 
 export function recoveryKitText(kit: RecoveryKit): string {
   return [
-    "Skjald recovery kit",
-    `${kit.company_name ?? "Skjald"} · ${kit.address} · created ${kit.shown_at.slice(0, 10)}`,
+    "Þing recovery kit",
+    `${kit.company_name ?? "Þing"} · ${kit.address} · created ${kit.shown_at.slice(0, 10)}`,
     "",
-    "Keep this offline or in your password manager, never on the Skjald server.",
+    "Keep this offline or in your password manager, never on the Þing server.",
     "Without both keys, no backup of this server can be restored.",
     "",
     `Master key: ${kit.master_key}`,

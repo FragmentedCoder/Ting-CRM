@@ -1,6 +1,6 @@
 """Email and the certificate, in the admin panel (Administrators only).
 
-Changing where mail goes out, or which certificate Skjald serves, asks the
+Changing where mail goes out, or which certificate Þing serves, asks the
 person to confirm it's them. The setup wizard saves the same settings through
 apply_mail and apply_tls, without that question: the one setting up has just
 signed in with multifactor. Passwords and keys are written, never read back.
@@ -81,7 +81,7 @@ def apply_mail(db: Session, request: Request, who: UserSession, body: MailIn,
     before = mail.load_server(db)
     if confirm and (server.host != before.host or server.username != before.username
                     or body.password is not None):
-        require_step_up(who, "Confirm it's you to change how Skjald sends email.")
+        require_step_up(who, "Confirm it's you to change how Þing sends email.")
     secrets = load_secrets(db, mail.SECRETS)
     if body.password is not None:
         secrets["password"] = body.password
@@ -110,7 +110,7 @@ def tls_status(db: Session) -> TlsStatus:
     secrets = load_secrets(db, tls.SECRETS)
     db.commit()  # asking Caddy follows: hold no lock meanwhile
     return TlsStatus(settings=saved, host=tls.host(), served=tls.served_certificate(),
-                     root_url="/skjald-root.crt" if saved.mode == "internal" else None,
+                     root_url="/ting-root.crt" if saved.mode == "internal" else None,
                      cloudflare_token_set=bool(secrets.get("cloudflare_token")),
                      rfc2136_key_set=bool(secrets.get("rfc2136_key")))
 
@@ -147,7 +147,7 @@ def apply_tls(db: Session, request: Request, who: UserSession, body: TlsIn,
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
             chain, key = body.certificate_pem, body.key_pem
     if confirm:
-        require_step_up(who, "Confirm it's you to change Skjald's certificate.")
+        require_step_up(who, "Confirm it's you to change Þing's certificate.")
     tls.save_tls(db, saved)
     save_secrets(db, tls.SECRETS, secrets)
     _log(db, request, who, "tls.changed", {

@@ -24,7 +24,7 @@ def server(monkeypatch, data_dir, master_key_path, tmp_path):
     """The app reads its keys from settings; point them at this test's files."""
     monkeypatch.setattr(settings, "data_dir", str(data_dir))
     monkeypatch.setattr(settings, "master_key_path", str(master_key_path))
-    monkeypatch.setattr(settings, "address", "https://skjald.example.internal")
+    monkeypatch.setattr(settings, "address", "https://ting.example.internal")
     monkeypatch.setattr(settings, "tls_dir", str(tmp_path / "tls"))
     monkeypatch.setattr(tls, "served_certificate", lambda: None)
 
@@ -91,7 +91,7 @@ def test_the_token_command_prints_a_token_and_stores_only_its_hash(
     printed = capsys.readouterr().out
     token = printed.split("Setup token: ")[1].split()[0]
 
-    assert "https://skjald.example.internal/setup" in printed
+    assert "https://ting.example.internal/setup" in printed
     assert setup_state.setup_token_valid(session, token)
     stored = session.get(Setting, setup_state.SETUP_KEY).value
     session.commit()
@@ -109,7 +109,7 @@ def test_the_whole_wizard(client, token, session, server, no_breach_found, maste
                           data_dir) -> None:
     progress = client.post("/api/setup/company", json={"name": "Nordlys IT ApS"},
                            headers=h(token)).json()
-    assert progress["address"] == "https://skjald.example.internal"
+    assert progress["address"] == "https://ting.example.internal"
     assert progress["security"]["min_password_length"] == 12  # the defaults, to review
     assert not progress["security_reviewed"]
     reviewed = client.post("/api/setup/security", json=SECURITY, headers=h(token)).json()
@@ -130,7 +130,7 @@ def test_the_whole_wizard(client, token, session, server, no_breach_found, maste
     assert from_kit_text(kit["master_key"]) == master_key_path.read_bytes()
     assert from_kit_text(kit["backup_key"]) == load_or_create_backup_key(data_dir, master_key_path)
     assert (kit["company_name"], kit["address"]) == (
-        "Nordlys IT ApS", "https://skjald.example.internal"
+        "Nordlys IT ApS", "https://ting.example.internal"
     )
 
     early = client.post("/api/setup/backups", json={"targets": [{"kind": "local"}]},
@@ -146,8 +146,8 @@ def test_the_whole_wizard(client, token, session, server, no_breach_found, maste
     unfinished = client.post("/api/setup/complete", headers=h(token, csrf))
     assert unfinished.json()["detail"] == "Set up email, or leave it for later, first."
     mail = client.post("/api/setup/email", headers=h(token, csrf), json={
-        "host": "smtp.nordlys.example", "from_address": "skjald@nordlys.example",
-        "username": "skjald", "password": "mail-secret"})
+        "host": "smtp.nordlys.example", "from_address": "ting@nordlys.example",
+        "username": "ting", "password": "mail-secret"})
     assert mail.json()["password_set"] and "mail-secret" not in mail.text
     later = client.post("/api/setup/later/tls", headers=h(token, csrf)).json()
     assert later["steps_done"] == ["backups", "email", "tls"]

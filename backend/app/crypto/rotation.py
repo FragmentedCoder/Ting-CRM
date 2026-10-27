@@ -6,7 +6,7 @@ unwraps each with the old master key and wraps it again with a new one. Nothing
 those keys encrypt changes, so it takes moments. Restoring a backup made before a
 rotation does the same, from that backup's master key to the server's.
 
-`skjald keys rotate` runs it with Skjald stopped, in steps that can each be
+`ting keys rotate` runs it with Þing stopped, in steps that can each be
 finished or undone if the server stops halfway:
 
 1. The new master key goes to master.key.next, and the key files, wrapped again,
@@ -17,7 +17,7 @@ finished or undone if the server stops halfway:
 4. The record goes.
 
 Stopped before step 2 committed, a rotation is undone; after, it's finished.
-Skjald won't start while one is unfinished.
+Þing won't start while one is unfinished.
 """
 
 from __future__ import annotations
@@ -61,8 +61,8 @@ class Rotated:
 
 def key_id(key: bytes) -> str:
     """A name for a master key that gives nothing of it away, such as 3F9A-12BC-77D0:
-    skjald status shows it, and each backup's manifest records it."""
-    digest = hashlib.sha256(b"skjald/master-key-id/" + key).hexdigest()[:12].upper()
+    ting status shows it, and each backup's manifest records it."""
+    digest = hashlib.sha256(b"ting/master-key-id/" + key).hexdigest()[:12].upper()
     return "-".join(digest[i : i + 4] for i in range(0, 12, 4))
 
 
@@ -110,12 +110,12 @@ def rewrap_customer_keys(db: Session, old: bytes, new: bytes) -> int:
 
 
 def pending(master_key_path: str | Path) -> bool:
-    """Whether a rotation stopped halfway (Skjald won't start until it's resumed)."""
+    """Whether a rotation stopped halfway (Þing won't start until it's resumed)."""
     return _next(Path(master_key_path)).exists()
 
 
 def rotate(data_dir: str | Path, master_key_path: str | Path) -> Rotated:
-    """Replace the master key. Skjald must be stopped."""
+    """Replace the master key. Þing must be stopped."""
     data_dir, path = Path(data_dir), Path(master_key_path)
     if pending(path):
         raise RotationError("A rotation is unfinished: resume it first.")

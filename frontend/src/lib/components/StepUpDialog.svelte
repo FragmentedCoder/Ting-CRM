@@ -49,7 +49,7 @@
   title="Confirm it's you"
 >
   <p class="muted">
-    This change weakens security or can sign people out, so Skjald checks it's really you.
+    This change weakens security or can sign people out, so Þing checks it's really you.
   </p>
   {#if stepUp.open && info}
     {#if hasFactors}

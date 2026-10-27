@@ -3,7 +3,7 @@
 The hash chain shows an entry changed or taken out of the middle, but whoever
 removes the newest entries leaves a valid, shorter chain. So once a day the
 worker sends a timestamp authority (TSA) a fingerprint of the newest entry, its
-number and hash, and keeps the token the TSA signs: proof, from outside Skjald,
+number and hash, and keeps the token the TSA signs: proof, from outside Þing,
 that the entry existed at that time. A stamped entry that later goes missing or
 changes shows the log was cut short or edited afterwards. Only the fingerprint
 leaves the server.
@@ -66,7 +66,7 @@ def tsa_url(db: Session) -> str:
 
 def fingerprint(seq: int, entry_hash: str) -> bytes:
     """What's sent to the TSA: a SHA-256 of the entry's number and hash."""
-    return hashlib.sha256(f"skjald/audit-entry/{seq}/{entry_hash}".encode()).digest()
+    return hashlib.sha256(f"ting/audit-entry/{seq}/{entry_hash}".encode()).digest()
 
 
 def stamper(url: str) -> TimeStamper:

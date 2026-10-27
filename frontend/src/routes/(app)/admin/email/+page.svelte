@@ -7,7 +7,7 @@
   import { withStepUp } from "#lib/stepUp.svelte.js";
   import { toast } from "#lib/toast.svelte.js";
 
-  // The mail server Skjald sends reports and notices through.
+  // The mail server Þing sends reports and notices through.
   let status = $state<MailStatus | null>(null);
   let form = $state<MailServer | null>(null);
   let password = $state("");
@@ -65,7 +65,7 @@
   <div>
     <h1 class="title">Email</h1>
     <p class="small muted">
-      The mail server Skjald sends reports and notices through. Its certificate is always
+      The mail server Þing sends reports and notices through. Its certificate is always
       checked. Every Administrator with an email address hears about each break-glass sign-in,
       each restore test, and backups that keep failing.
     </p>

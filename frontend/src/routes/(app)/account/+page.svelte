@@ -317,7 +317,7 @@
               <input id="display-name" class="input" autocomplete="name" required maxlength="200"
                 bind:value={profile.display_name} />
               <span class="hint">
-                How Skjald shows your name to others.
+                How Þing shows your name to others.
                 <span class="mono">{variableFor("author", "display_name")}</span>
               </span>
             </div>
@@ -340,7 +340,7 @@
       <section class="section" aria-labelledby="appearance-title">
         <h2 class="section-title" id="appearance-title">Appearance</h2>
         <p class="small muted">
-          How Skjald looks for you, on every device you sign in on. Changes apply at once. The
+          How Þing looks for you, on every device you sign in on. Changes apply at once. The
           button beside your name, at the bottom of the side menu, switches between light and
           dark too.
         </p>
@@ -557,7 +557,7 @@
     {#if newCodes}
       <SaveSecrets
         text={recoveryCodesText(account.username, newCodes)}
-        filename="skjald-recovery-codes.txt"
+        filename="ting-recovery-codes.txt"
         confirmation="I have saved these codes somewhere safe"
         continueLabel="Done"
         onContinue={() => {

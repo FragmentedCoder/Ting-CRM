@@ -16,7 +16,7 @@ from app.policy import SecurityPolicy, login_allowed_from
 from app.users import User
 
 # __Host- makes browsers refuse the cookie unless it is Secure, has Path=/ and no Domain.
-COOKIE_NAME = "__Host-skjald_session"
+COOKIE_NAME = "__Host-ting_session"
 
 # Recording activity on every request would mean a write per request.
 TOUCH_INTERVAL = timedelta(minutes=1)
@@ -60,7 +60,7 @@ def hash_token(token: str) -> str:
 
 def csrf_token_for(token: str) -> str:
     """Derived from the session token, so it needs no storage and dies with the session."""
-    return hmac.new(token.encode(), b"skjald/csrf", hashlib.sha256).hexdigest()
+    return hmac.new(token.encode(), b"ting/csrf", hashlib.sha256).hexdigest()
 
 
 def start_session(
@@ -135,7 +135,7 @@ def ended_message(reason: str, policy: SecurityPolicy) -> str:
         "expired": f"Sessions last at most {policy.max_session_hours} hours. Sign in again to "
         "continue.",
         "disabled": "Your account has been disabled. Ask an administrator if you need access.",
-        "network": "Skjald isn't available from this network.",
+        "network": "Þing isn't available from this network.",
         "by_admin": "An administrator signed you out. Sign in again to continue.",
         "password_reset": "An administrator reset your password. Sign in with the new one.",
         "mfa_reset": "An administrator reset your multifactor authentication. Sign in to set "

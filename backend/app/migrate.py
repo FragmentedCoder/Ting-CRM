@@ -41,6 +41,6 @@ if __name__ == "__main__":
 
     if pending(settings.master_key_path):
         print("A master key rotation didn't finish. Finish it on the server with: "
-              "skjald keys rotate", file=sys.stderr, flush=True)
+              "ting keys rotate", file=sys.stderr, flush=True)
         sys.exit(1)
     upgrade()

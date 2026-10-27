@@ -86,7 +86,7 @@ export interface UserDetail extends UserSummary {
   sessions: SessionRow[];
 }
 
-/** A new or reset password: Skjald's random one is shown once; a chosen one never is. */
+/** A new or reset password: Þing's random one is shown once; a chosen one never is. */
 export interface PasswordResult {
   user: UserDetail;
   temporary_password: string | null;
@@ -106,7 +106,7 @@ export function userStatus(user: UserSummary): { tone: Tone; text: string } {
   return { tone: "ok", text: "Active" };
 }
 
-/** How an administrator sets someone's password: Skjald's random one, or one they type. */
+/** How an administrator sets someone's password: Þing's random one, or one they type. */
 export interface PasswordChoice {
   mode: "random" | "chosen";
   password: string;

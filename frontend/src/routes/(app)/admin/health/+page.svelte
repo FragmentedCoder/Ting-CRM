@@ -44,7 +44,7 @@
       sessions: number;
     };
     versions: {
-      skjald: string;
+      ting: string;
       python: string;
       sqlite: string;
       sqlcipher: string;
@@ -215,7 +215,7 @@
   </div>
   <p class="small muted">
     Whether the database, the audit log and the keys are intact, and whether there's room and
-    a connection for what Skjald needs.
+    a connection for what Þing needs.
   </p>
   <table class="checks-table">
     <tbody>
@@ -285,7 +285,7 @@
 
 <section class="section" aria-labelledby="space-title">
   <h2 class="section-title" id="space-title">Space</h2>
-  <p class="small muted">How full the server's disk is, and what Skjald keeps on it.</p>
+  <p class="small muted">How full the server's disk is, and what Þing keeps on it.</p>
   <div class="disk">
     <span class="check-label" id="disk-label">Disk</span>
     {#if health}
@@ -334,8 +334,8 @@
   <h2 class="section-title" id="versions-title">Software</h2>
   <p class="small muted">The versions running now, for support questions and update checks.</p>
   <dl class="facts">
-    <dt>Skjald</dt>
-    <dd>{@render value(health?.versions.skjald, true)}</dd>
+    <dt>Þing</dt>
+    <dd>{@render value(health?.versions.ting, true)}</dd>
     <dt>Database schema</dt>
     <dd>{@render value(health?.versions.schema_version, true)}</dd>
     <dt>Python</dt>

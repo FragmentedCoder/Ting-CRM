@@ -37,12 +37,12 @@ def _master_key() -> bytes:
 
 
 def _customer_key(master: bytes, customer_id: int, wrapped: bytes) -> bytes:
-    context = f"skjald/customer-key/{customer_id}".encode()
+    context = f"ting/customer-key/{customer_id}".encode()
     return AESGCM(master).decrypt(wrapped[:NONCE_LENGTH], wrapped[NONCE_LENGTH:], context)
 
 
 def _bound(customer_id: int, kind: str, record_id: int) -> bytes:
-    return f"skjald/customer/{customer_id}/{kind}/{record_id}".encode()
+    return f"ting/customer/{customer_id}/{kind}/{record_id}".encode()
 
 
 def _open(key: bytes, customer_id: int, kind: str, record_id: int, sealed: bytes

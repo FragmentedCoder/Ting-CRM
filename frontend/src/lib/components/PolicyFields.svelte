@@ -13,7 +13,7 @@
     {
       key: "min_password_length",
       label: "Minimum password length",
-      hint: "Characters. Skjald has no rules about character types: length and the breach check protect better (ASVS 6.2).",
+      hint: "Characters. Þing has no rules about character types: length and the breach check protect better (ASVS 6.2).",
       min: 8,
       max: 64,
     },
@@ -73,7 +73,7 @@
     </Switch>
     {#if !values.require_mfa_everyone}
       <p class="alert alert-warning">
-        Skjald holds customer data: OWASP ASVS Level 2 expects multifactor for everyone. The
+        Þing holds customer data: OWASP ASVS Level 2 expects multifactor for everyone. The
         administrator made during setup always needs it.
       </p>
     {/if}

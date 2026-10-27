@@ -28,7 +28,7 @@ test("the setup wizard, start to finish", async ({ page }) => {
   await page.getByRole("button", { name: "Continue" }).click();
 
   await expect(page.getByRole("heading", { name: "Company and server" })).toBeVisible();
-  const address = process.env.SKJALD_URL ?? "https://localhost";
+  const address = process.env.TING_URL ?? "https://localhost";
   await expect(page.getByText(address, { exact: true })).toBeVisible();
   await shot(page, "2-company");
   await page.getByLabel("Company name").fill("Nordlys IT ApS");

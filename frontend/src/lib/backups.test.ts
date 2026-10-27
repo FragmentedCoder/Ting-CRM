@@ -10,7 +10,7 @@ const status: BackupStatus = {
     { target: { ...newTarget("local"), id: "local" }, words: "this server", secret_set: false,
       repository: "/backups/restic", last_backup: null, last_restore_test: null },
     { target: { ...newTarget("smb"), id: "smb", smb_host: "nas", smb_share: "b", smb_username: "u" },
-      words: "the SMB share \\\\nas\\b", secret_set: true, repository: "rclone:skjaldsmb:b/skjald",
+      words: "the SMB share \\\\nas\\b", secret_set: true, repository: "rclone:tingsmb:b/ting",
       last_backup: null, last_restore_test: null },
   ],
 };

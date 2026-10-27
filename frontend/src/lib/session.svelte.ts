@@ -28,7 +28,7 @@ export interface SessionInfo {
   csrf_token: string;
   idle_expires_at: string;
   expires_at: string;
-  // Only once signed in: which Skjald this is.
+  // Only once signed in: which Þing this is.
   version: string | null;
 }
 
@@ -159,8 +159,8 @@ const RAN_OUT = ["session_timed_out", "session_expired", "session_ended"];
 
 /**
  * The server ended the session: go straight to the sign-in page, and say why.
- * One that ran out is explained only to someone using Skjald here when it did,
- * not on opening Skjald again later or coming back to a page that slept through
+ * One that ran out is explained only to someone using Þing here when it did,
+ * not on opening Þing again later or coming back to a page that slept through
  * it; what someone else did (an administrator, say) is always told, once.
  * Several requests may find out at once; they share one toast and one move.
  */

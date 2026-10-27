@@ -219,11 +219,11 @@
   <section class="section" aria-labelledby="restore-title">
     <h2 class="section-title" id="restore-title">Restoring</h2>
     <p class="small">
-      Restoring replaces Skjald's data with a backup, so it's done on the server with the
-      recovery kit at hand. Skjald stops while it runs, and the data that was there is kept
+      Restoring replaces Þing's data with a backup, so it's done on the server with the
+      recovery kit at hand. Þing stops while it runs, and the data that was there is kept
       beside it.
     </p>
-    <Command command="sudo skjald restore" />
+    <Command command="sudo ting restore" />
     <p class="small muted">
       The newest backup unless you add --snapshot and its ID. A backup made before the master
       key was rotated asks for the master key it was made under. On a new server, put the

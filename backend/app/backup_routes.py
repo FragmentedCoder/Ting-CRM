@@ -92,7 +92,7 @@ class BackupStatus(BaseModel):
 def _run(db: Session, job: Job) -> Run:
     who = db.get(User, job.requested_by) if job.requested_by else None
     by = who.display_name if who else (
-        "The skjald command" if job.data().get("via") == "console" else None)
+        "The ting command" if job.data().get("via") == "console" else None)
     return Run(id=job.id, kind=job.kind, target=job.data().get("target"), state=job.state,
                created_at=job.created_at, started_at=job.started_at,
                finished_at=job.finished_at, result=job.outcome(), error=job.error,

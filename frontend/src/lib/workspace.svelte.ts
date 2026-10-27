@@ -6,7 +6,7 @@ import type { CustomerSummary, ProjectSummary } from "./customers.js";
 // archived). Only the chosen customer's ID is remembered on this device, never
 // its name.
 
-const REMEMBERED = "skjald.customer";
+const REMEMBERED = "ting.customer";
 
 export const workspace = $state<{
   customers: CustomerSummary[] | null;

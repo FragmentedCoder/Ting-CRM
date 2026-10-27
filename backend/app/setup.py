@@ -2,7 +2,7 @@
 
 Until setup is complete, the server can be claimed by whoever holds the setup
 token, which only someone with access to the VM can read. Run as
-`python -m app.setup` (skjald setup-token) to print a new token; the container
+`python -m app.setup` (ting setup-token) to print a new token; the container
 does it at start.
 """
 
@@ -139,17 +139,17 @@ def main() -> None:
 
     with Session(get_engine()) as db:
         if setup_complete(db):
-            print("Skjald is set up; no setup token is needed.", flush=True)
+            print("Þing is set up; no setup token is needed.", flush=True)
             return
         token = new_setup_token(db)
         db.commit()
     rule = "=" * 72
     print(
         f"{rule}\n"
-        f"  Skjald needs setting up. Open {settings.address}/setup and enter:\n\n"
+        f"  Þing needs setting up. Open {settings.address}/setup and enter:\n\n"
         f"      Setup token: {token}\n\n"
-        "  It works until setup is finished. Restarting Skjald, or running\n"
-        "  `sudo skjald setup-token`, prints a new one.\n"
+        "  It works until setup is finished. Restarting Þing, or running\n"
+        "  `sudo ting setup-token`, prints a new one.\n"
         f"{rule}",
         flush=True,
     )

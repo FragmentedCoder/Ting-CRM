@@ -1,16 +1,16 @@
-"""Commands for the server's console, for what the web UI can't do. The skjald
-command on the server runs them (deploy/skjald); each also runs as
+"""Commands for the server's console, for what the web UI can't do. The ting
+command on the server runs them (deploy/ting); each also runs as
 
     docker compose exec app python -m app.console <command>
 
-    status              how Skjald is: every health check, and the master key's ID
+    status              how Þing is: every health check, and the master key's ID
     backup              back up now, and wait for it
     restore-test        restore the newest backup into a scratch folder and check it
-    rotate-master-key   replace the master key (with Skjald stopped, in the tools
-                        service, which may write to /etc/skjald)
+    rotate-master-key   replace the master key (with Þing stopped, in the tools
+                        service, which may write to /etc/ting)
     reset-allowlist     switch off both IP allowlists, when they lock everyone out
     reset-certificate   go back to Caddy's own certificate authority, when the
-                        certificate chosen leaves Skjald unreachable
+                        certificate chosen leaves Þing unreachable
 
 The allowlist addresses stay, so they can be switched on again after fixing them.
 Running any of these needs shell access to the server, which is the point.
@@ -62,7 +62,7 @@ def status(db: Session) -> int:
     schema = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
     completed = setup_completed_at(db)
     db.commit()
-    print(f"Skjald at {settings.address}, schema {schema}, "
+    print(f"Þing at {settings.address}, schema {schema}, "
           f"{'set up ' + completed if completed else 'not set up yet'}.\n")
     problems = 0
     for run in CHECKS.values():
@@ -98,7 +98,7 @@ def run_and_wait(db: Session, kind: str, timeout: float = 3 * 3600, poll: float 
         print("Backups are switched off (Admin, Backups).", file=sys.stderr)
         return 1
     if not _worker_running(db):
-        print("The worker isn't running, so nothing would do it: start Skjald first.",
+        print("The worker isn't running, so nothing would do it: start Þing first.",
               file=sys.stderr)
         return 1
     waiting = list(db.scalars(select(jobs.Job).where(
@@ -160,7 +160,7 @@ def rotate_master_key() -> int:
         try:
             with _Session(engine) as db:
                 if _worker_running(db):
-                    print("The worker is running: stop Skjald first (skjald keys rotate does).",
+                    print("The worker is running: stop Þing first (ting keys rotate does).",
                           file=sys.stderr)
                     return 1
                 db.commit()
@@ -168,7 +168,7 @@ def rotate_master_key() -> int:
             engine.dispose()
         rotated = rotation.rotate(data_dir, path)
     except PermissionError:
-        print(f"{path} can't be written here: run it with skjald keys rotate.", file=sys.stderr)
+        print(f"{path} can't be written here: run it with ting keys rotate.", file=sys.stderr)
         return 1
     except rotation.RotationError as exc:
         print(f"Not rotated: {exc}", file=sys.stderr)
@@ -216,7 +216,7 @@ def main(argv: list[str]) -> int:
             before = reset_certificate(db)
             db.commit()
             tls.write_for_caddy(tls.TlsSettings())
-            print("Skjald serves the certificate of its own authority again"
+            print("Þing serves the certificate of its own authority again"
                   f"{'' if before == 'internal' else f' (it was {before})'}; Caddy reloads "
                   "within seconds.")
             return 0
@@ -224,7 +224,7 @@ def main(argv: list[str]) -> int:
         db.commit()
         tls.write_admin_allowlist(False, ())
     if were_on:
-        print(f"Switched off the {' and '.join(were_on)} allowlist; Skjald answers from any "
+        print(f"Switched off the {' and '.join(were_on)} allowlist; Þing answers from any "
               "address again.")
     else:
         print("Both allowlists were already off.")

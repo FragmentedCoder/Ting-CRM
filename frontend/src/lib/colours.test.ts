@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ACCENT, customSwatch, effectiveColours, PRIMARY } from "./colours";
 
-// Skjald's surfaces (docs/brand/tokens.json): page, card and subtle backgrounds.
+// Þing's surfaces (docs/brand/tokens.json): page, card and subtle backgrounds.
 const LIGHT = ["#FFFFFF", "#F7F7F7", "#EFEFEF"];
 const DARK = ["#0B1420", "#13202F", "#1B2B3D"];
 

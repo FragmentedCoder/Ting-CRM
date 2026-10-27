@@ -37,8 +37,8 @@ jobs:
             exit 1
           fi
           owner=$(tr '[:upper:]' '[:lower:]' <<<"${{ github.repository_owner }}")
-          echo "APP=ghcr.io/$owner/skjald-app" >>"$GITHUB_ENV"
-          echo "CADDY=ghcr.io/$owner/skjald-caddy" >>"$GITHUB_ENV"
+          echo "APP=ghcr.io/$owner/ting-app" >>"$GITHUB_ENV"
+          echo "CADDY=ghcr.io/$owner/ting-caddy" >>"$GITHUB_ENV"
           mkdir -p dist
 
       - name: Install cosign (pinned, checked)
@@ -59,7 +59,7 @@ jobs:
           label=(--label "org.opencontainers.image.source=$SOURCE"
                  --label "org.opencontainers.image.version=$VERSION"
                  --label "org.opencontainers.image.revision=$GITHUB_SHA")
-          docker build "${label[@]}" --build-arg "SKJALD_VERSION=$VERSION" -t "$APP:$VERSION" backend
+          docker build "${label[@]}" --build-arg "TING_VERSION=$VERSION" -t "$APP:$VERSION" backend
           docker build "${label[@]}" -t "$CADDY:$VERSION" -f deploy/caddy.Dockerfile .
           docker push "$APP:$VERSION"
           docker push "$CADDY:$VERSION"
@@ -83,7 +83,7 @@ jobs:
         with:
           image: ${{ env.APP_REF }}
           format: spdx-json
-          output-file: dist/skjald-app.spdx.json
+          output-file: dist/ting-app.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -92,7 +92,7 @@ jobs:
         with:
           image: ${{ env.CADDY_REF }}
           format: spdx-json
-          output-file: dist/skjald-caddy.spdx.json
+          output-file: dist/ting-caddy.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -100,21 +100,21 @@ jobs:
         run: |
           cosign sign --yes "$APP_REF"
           cosign sign --yes "$CADDY_REF"
-          cosign attest --yes --type spdxjson --predicate dist/skjald-app.spdx.json "$APP_REF"
-          cosign attest --yes --type spdxjson --predicate dist/skjald-caddy.spdx.json "$CADDY_REF"
+          cosign attest --yes --type spdxjson --predicate dist/ting-app.spdx.json "$APP_REF"
+          cosign attest --yes --type spdxjson --predicate dist/ting-caddy.spdx.json "$CADDY_REF"
 
       - name: The files of the release
         run: |
           python3 deploy/release-compose.py deploy/docker-compose.yml "$APP_REF" "$CADDY_REF" \
             >dist/docker-compose.yml
-          sed "s|^SKJALD_RELEASE=.*|SKJALD_RELEASE=\${SKJALD_RELEASE:-$VERSION}|" install.sh >dist/install.sh
-          grep -qx "SKJALD_RELEASE=\${SKJALD_RELEASE:-$VERSION}" dist/install.sh
+          sed "s|^TING_RELEASE=.*|TING_RELEASE=\${TING_RELEASE:-$VERSION}|" install.sh >dist/install.sh
+          grep -qx "TING_RELEASE=\${TING_RELEASE:-$VERSION}" dist/install.sh
           # No leading dot in a release file's name: GitHub renames such files.
-          cp deploy/skjald dist/skjald
+          cp deploy/ting dist/ting
           cp deploy/.env.example dist/env.example
-          chmod 0755 dist/install.sh dist/skjald
-          (cd dist && sha256sum docker-compose.yml install.sh skjald env.example \
-            skjald-app.spdx.json skjald-caddy.spdx.json >SHA256SUMS)
+          chmod 0755 dist/install.sh dist/ting
+          (cd dist && sha256sum docker-compose.yml install.sh ting env.example \
+            ting-app.spdx.json ting-caddy.spdx.json >SHA256SUMS)
           cosign sign-blob --yes --bundle dist/SHA256SUMS.sigstore.json dist/SHA256SUMS
           cosign sign-blob --yes --bundle dist/install.sh.sigstore.json dist/install.sh
 
@@ -149,12 +149,12 @@ jobs:
 
           Images: \`$APP_REF\` and \`$CADDY_REF\`
           EOF
-          files=(docker-compose.yml install.sh install.sh.sigstore.json skjald env.example
-                 SHA256SUMS SHA256SUMS.sigstore.json skjald-app.spdx.json skjald-caddy.spdx.json)
+          files=(docker-compose.yml install.sh install.sh.sigstore.json ting env.example
+                 SHA256SUMS SHA256SUMS.sigstore.json ting-app.spdx.json ting-caddy.spdx.json)
           # A draft first, read back and checked as the installer will check it, and
           # published only then: a release missing a file never goes out.
           gh release create "$VERSION" "${files[@]/#/dist/}" --draft --verify-tag \
-            --title "Skjald $VERSION" --notes-file notes.md "${prerelease[@]}"
+            --title "Þing $VERSION" --notes-file notes.md "${prerelease[@]}"
           gh release download "$VERSION" --dir published
           for name in "${files[@]}"; do
             test -f "published/$name" || { echo "The release lacks $name." >&2; exit 1; }

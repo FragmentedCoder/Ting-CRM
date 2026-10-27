@@ -54,7 +54,7 @@ describe("api", () => {
   it("passes on why the server refused, and tells the refusal handler first", async () => {
     const seen: ApiError[] = [];
     onRefusal((error) => seen.push(error));
-    respond(401, { detail: "You were signed out." }, { "X-Skjald-Reason": "session_timed_out" });
+    respond(401, { detail: "You were signed out." }, { "X-Ting-Reason": "session_timed_out" });
 
     const error = await api("GET", "/account").catch((e: unknown) => e);
     expect(error).toMatchObject({ status: 401, reason: "session_timed_out" });
