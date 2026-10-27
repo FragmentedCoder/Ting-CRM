@@ -77,7 +77,7 @@ The key idea is **standard service → customer service**: Backup is one entry i
 
 | Entity | Main fields |
 | --- | --- |
-| **Customer** | Name, kind (company, or a private person for the rare one-off), address, main phone, email domains (for search), status (prospect / active / former), pinned warnings (at most three, pinned by Managers), free tags, the technicians who usually work with it, retention period. Has its own encryption key. |
+| **Customer** | Name, kind (company, or a private person for the rare one-off), address, main phone, email domains (for search), status (prospect / active / former), pinned warnings (at most three, one line each, pinned by Managers), free tags, the technicians who usually work with it, retention period. Has its own encryption key. |
 | **Company** | The companies a customer is made of, each with its name, CVR number (optional, filled in from the CVR registry) and address; most customers are one. A group with subsidiaries is one customer, treated as one, and its services, agreements and cases cover the whole group unless limited to one company, so a subsidiary with its own agreement fits without becoming a customer of its own. |
 | **Site** | Name, address, access notes. |
 | **Contact** | Name, title, company, site, email, phone, roles (primary, technical, billing, decision-maker, security/NIS2 contact), **may contact** (yes/no plus a note). |
@@ -104,7 +104,7 @@ The key idea is **standard service → customer service**: Backup is one entry i
 
 - **My work** (home): for a technician, overdue and coming tasks, recurring work and renewals for the customers they work with, and their own tasks; for a Manager, also the monthly case numbers to replace, renewals waiting on a customer's answer, active services no agreement covers, and agreements near their notice or renewal date. Recently viewed customers.
 - **Customer page**, the heart of Þing:
-  - **Header (the first five seconds):** name, the support they have, the services we provide, the case numbers to use (standing, and this month's), **pinned warnings** (short warnings that must never be missed, such as "Do not update in working hours"; Managers pin them, at most three per customer, so they stay few enough to read), the decision-maker with phone and email, and compliance tags.
+  - **Header (the first five seconds):** name, the support they have, the services we provide, the case numbers to use (standing, and this month's), **pinned warnings** (short warnings that must never be missed, such as "Do not update in working hours"; Managers pin them, at most three per customer and one line each, plain text without line breaks, so they stay few and short enough to read at a glance; who pinned them and how many of the three are used shows above them), the decision-maker with phone and email, and compliance tags.
   - **Overview:** agreements and what they cover, services no agreement covers, the next work and renewals due, the latest log entries, the systems at a glance.
   - **Services:** each customer service with its details, the systems it covers and their notes, its case number, agreement, recurring tasks and renewals.
   - **Timeline:** what's coming (tasks, recurring work, renewals, agreement dates) above today, and what's been done (log entries, emails, documents, completed work) below, filterable by service or system, with a one-line box at the top to log work.
