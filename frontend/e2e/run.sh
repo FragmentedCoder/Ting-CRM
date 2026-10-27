@@ -14,7 +14,7 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 COMPOSE=(docker compose -p ting-e2e -f "$ROOT/deploy/docker-compose.yml")
 export TING_HTTPS_PORT=${E2E_PORT:-8443}
 export TING_ADDRESS=https://localhost:$TING_HTTPS_PORT
-PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.64.0-noble
+PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.64.1-noble
 E2E_PASSWORD="e2e passphrase by the fjord $(date +%s)"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"; "${COMPOSE[@]}" down -v >/dev/null 2>&1 || true' EXIT
