@@ -80,7 +80,7 @@ def make_engine(
 
     # SQLite allows one writer at a time anyway. Taking the write lock when a
     # transaction begins, rather than at its first write, means read-then-write
-    # steps (the audit chain head, report numbers, job claims) never interleave
+    # steps (the audit chain head, record numbers, job claims) never interleave
     # and never fail halfway with SQLITE_BUSY_SNAPSHOT. Long reads use reading()
     # instead, which takes no write lock.
     @event.listens_for(engine, "begin")

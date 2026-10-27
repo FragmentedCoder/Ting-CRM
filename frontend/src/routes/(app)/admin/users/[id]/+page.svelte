@@ -113,7 +113,7 @@
   <form class="section stack" onsubmit={save}>
     <h2 class="section-title">Profile and roles</h2>
     <p class="small muted">
-      Work details reports can use, and the roles that decide what they can do. Roles add up: each
+      Work details colleagues see, and the roles that decide what they can do. Roles add up: each
       one gives its own rights, and nobody gets more by holding a "higher" one.
     </p>
     <div class="columns">

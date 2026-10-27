@@ -8,6 +8,5 @@ import app.customers
 import app.images
 import app.jobs
 import app.policy
-import app.projects
 import app.roles
 import app.users  # noqa: F401

@@ -1,7 +1,7 @@
 import type { FullAutoFill } from "svelte/elements";
 import type { Role } from "./roles";
 
-/** Business details reports and templates can use (the same for Your account). */
+/** Work details colleagues see beside someone's name (the same for Your account). */
 export interface Profile {
   display_name: string;
   first_name: string | null;
@@ -11,11 +11,6 @@ export interface Profile {
   department: string | null;
   email: string | null;
   phone: string | null;
-}
-
-/** How a report template names a person's detail, e.g. author.first_name. */
-export function variableFor(role: "author" | "reviewer", key: keyof Profile): string {
-  return `{{${role}.${key}}}`;
 }
 
 export const PROFILE_FIELDS: {

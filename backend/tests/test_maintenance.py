@@ -139,7 +139,7 @@ def test_the_health_page_checks_everything_that_matters(client, admin, reachable
     assert checks["audit_chain"]["status"] == "ok"
     assert checks["audit_chain"]["detail"].startswith("Chain intact")
     assert checks["breach_check"]["status"] == "ok" and reachable == [1]
-    assert health["versions"]["schema_version"] == "0013"
+    assert health["versions"]["schema_version"] == "0015"
     assert health["versions"]["ting"].endswith("-dev")
     assert health["versions"]["sqlcipher"]
     assert any(p["name"] == "fastapi" for p in health["packages"])

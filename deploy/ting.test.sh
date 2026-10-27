@@ -74,6 +74,15 @@ copied() { copy_data_to "$1" 2>/dev/null; }
 check "the data's copy is kept when it's the archive" copied "${WORK}/copy.tar.gz"
 check "  the tools image built first, apart" grep -qE "build .*tools" <(head -1 "${WORK}/calls")
 check "  its build log kept out of the copy" grep -qx './ting.db' <(tar -tzf "${WORK}/copy.tar.gz")
+# A real data folder: the database first, then its WAL and the key files, so the
+# check that finds the database must still read the archive to its end.
+head -c 4000000 /dev/urandom >"${WORK}/data/ting.db"
+for name in ting.db-wal ting.db-shm db.key.enc; do head -c 200000 /dev/urandom >"${WORK}/data/${name}"; done
+# shellcheck disable=SC2317,SC2329
+docker() {
+	case " $* " in *" run "*) tar -C "${WORK}/data" -czf - ./ting.db ./ting.db-wal ./ting.db-shm ./db.key.enc ;; esac
+}
+check "a copy with the database ahead of other files is kept too" copied "${WORK}/full.tar.gz"
 # shellcheck disable=SC2317,SC2329
 docker() { case " $* " in *" run "*) printf '#1 [internal] load build definition\n' && archive ;; esac; }
 check "a copy with anything else in it is refused" refused "${WORK}/noisy.tar.gz"

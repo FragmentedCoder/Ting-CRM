@@ -32,7 +32,7 @@
     >
       <p class="small">{look.name}</p>
       <span class="menu-item">Current page</span>
-      <span class="sample-link">A link to a report</span>
+      <span class="sample-link">A link to a customer</span>
       <span class="sample-button">Save</span>
     </div>
   {/each}

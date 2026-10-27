@@ -2,20 +2,15 @@
   import { resolve } from "$app/paths";
   import Circle from "@lucide/svelte/icons/circle";
   import CircleCheck from "@lucide/svelte/icons/circle-check";
-  import Plus from "@lucide/svelte/icons/plus";
   import { pageTitle } from "#lib/branding.svelte.js";
-  import ProjectTable from "#lib/components/ProjectTable.svelte";
-  import RoleGroups from "#lib/components/RoleGroups.svelte";
   import { sharedCustomer } from "#lib/context.js";
   import { dateTime } from "#lib/format.js";
-  import { reviewers, technicians } from "#lib/customers.js";
-  import { workspace } from "#lib/workspace.svelte.js";
 
-  // A customer at a glance: its work under way, who to talk to, who works on it.
+  // A customer at a glance: who to talk to, who works with it, the details. What they
+  // pay for, coverage, systems and the timeline join it in Phase 2.
   const shared = sharedCustomer();
   const customer = $derived(shared.current);
   const id = $derived(String(customer?.id ?? ""));
-  const recent = $derived((workspace.projects ?? []).slice(0, 5));
 
   // For administrators, until a new customer is ready for work.
   const steps = $derived(customer ? [
@@ -23,9 +18,6 @@
       href: resolve("/(app)/customers/[id]/contacts", { id }) },
     { label: "Choose who works with it", done: !!customer.assigned?.length,
       href: resolve("/(app)/customers/[id]/people", { id }) },
-    { label: "Start its first project",
-      done: (customer.active_projects ?? 0) + (customer.archived_projects ?? 0) > 0,
-      href: resolve("/(app)/customers/[id]/projects/new", { id }) },
   ] : []);
   const gettingStarted = $derived(!!customer?.may_manage && steps.some((step) => !step.done));
 </script>
@@ -54,25 +46,6 @@
       </section>
     {/if}
 
-    <section class="section wide" aria-labelledby="work-title">
-      <div class="heading-row">
-        <h2 class="section-title" id="work-title">Projects under way</h2>
-        {#if customer.may_manage_projects}
-          <a class="button button-primary" href={resolve("/(app)/customers/[id]/projects/new", { id })}>
-            <Plus size={18} aria-hidden="true" />New project
-          </a>
-        {/if}
-      </div>
-      <ProjectTable projects={recent} empty={customer.may_manage_projects
-        ? "No active projects. Start one with New project."
-        : "No active projects you can open."} />
-      {#if (customer.active_projects ?? 0) > recent.length}
-        <a class="small" href={resolve("/(app)/customers/[id]/projects", { id })}>
-          All {customer.active_projects} projects
-        </a>
-      {/if}
-    </section>
-
     <section class="section" aria-labelledby="contacts-title">
       <h2 class="section-title" id="contacts-title">Contacts</h2>
       {#if customer.contacts?.length}
@@ -93,12 +66,11 @@
     <section class="section" aria-labelledby="people-title">
       <h2 class="section-title" id="people-title">People on this customer</h2>
       {#if customer.assigned?.length}
-        <RoleGroups compact groups={[
-          { role: "technician", empty: "No technicians yet.",
-            people: technicians(customer.assigned).map((p) => ({ id: p.id, name: p.display_name })) },
-          { role: "reviewer", empty: "No reviewers yet.",
-            people: reviewers(customer.assigned).map((p) => ({ id: p.id, name: p.display_name })) },
-        ]} />
+        <ul class="plain">
+          {#each customer.assigned as person (person.id)}
+            <li><span class="check-title">{person.display_name}</span></li>
+          {/each}
+        </ul>
       {:else}
         <p class="muted">Nobody is assigned yet.</p>
       {/if}
@@ -112,10 +84,8 @@
         <dd class="address">{customer.address || "—"}</dd>
         <dt>Sites</dt>
         <dd>{customer.sites?.map((s) => s.name).join(", ") || "—"}</dd>
-        <dt>Raw data kept</dt>
-        <dd>{customer.retention_months} months after a project is archived</dd>
-        <dt>Projects</dt>
-        <dd>{customer.active_projects} active, {customer.archived_projects} archived</dd>
+        <dt>Records kept</dt>
+        <dd>{customer.retention_months} months after it stops being a customer</dd>
         <dt>Added</dt>
         <dd>{dateTime(customer.created_at)}</dd>
       </dl>
@@ -134,13 +104,6 @@
   }
   .wide {
     grid-column: 1 / -1;
-  }
-  .heading-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
   }
   .steps {
     display: flex;

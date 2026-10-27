@@ -62,7 +62,7 @@ class SessionSummary(BaseModel):
 
 
 class Profile(BaseModel):
-    """Business details reports and templates can use."""
+    """Work details colleagues see beside someone's name."""
 
     display_name: str
     first_name: str | None
@@ -296,8 +296,8 @@ def update_account(body: AccountUpdate, request: Request, record: FullSession, d
     user = record.user
     changed = apply_profile(user, body)
     # How Þing looks to someone (light or dark, colours, their picture) is theirs
-    # alone and isn't logged; their name, email and other details are, since reports
-    # and notices use them.
+    # alone and isn't logged; their name, email and other details are, since
+    # colleagues and notices see them.
     if body.theme and body.theme != user.theme:
         user.theme = body.theme
     for name in ("primary_colour", "accent_colour"):

@@ -386,7 +386,7 @@
   {:else if step === "company" && progress}
     <AuthLayout
       heading="Company and server"
-      intro="Þing works for one company. Its name appears in the app and on every report."
+      intro="Þing works for one company. Its name appears in the app and in the emails Þing sends."
       {eyebrow}
     >
       <div class="address stack">
@@ -633,7 +633,7 @@
   {:else if step === "email"}
     <AuthLayout
       heading="Email"
-      intro="The mail server Þing sends reports and notices through. You can change this any time under Admin, Email."
+      intro="The mail server Þing sends notices and reminders through. You can change this any time under Admin, Email."
       {eyebrow}
       wide
     >

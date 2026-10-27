@@ -7,7 +7,7 @@
   import { api, ApiError, sessionGone } from "#lib/api.js";
   import RecordHeader from "#lib/components/RecordHeader.svelte";
   import { shareCustomer } from "#lib/context.js";
-  import { formatCvr, LANGUAGES, type CustomerDetail } from "#lib/customers.js";
+  import { formatCvr, type CustomerDetail } from "#lib/customers.js";
   import { toast } from "#lib/toast.svelte.js";
   import { chooseCustomer, refreshWorkspace, workspace } from "#lib/workspace.svelte.js";
 
@@ -91,11 +91,8 @@
     </div>
   {:else if customer}
     <RecordHeader kind="Customer" title={customer.name} icon={Building} image={customer.logo_url}>
-      {#if customer.visibility === "full"}
-        <p class="small muted">
-          {#if customer.cvr}CVR <span class="mono">{formatCvr(customer.cvr)}</span> ·{/if}
-          Reports in {LANGUAGES.find((l) => l.value === customer?.language)?.name}
-        </p>
+      {#if customer.visibility === "full" && customer.cvr}
+        <p class="small muted">CVR <span class="mono">{formatCvr(customer.cvr)}</span></p>
       {/if}
     </RecordHeader>
 
@@ -103,18 +100,10 @@
       {@render children()}
     {:else}
       <section class="section">
-        <h2 class="section-title">
-          {customer.visibility === "names" ? "Name only" : "Overview only"}
-        </h2>
+        <h2 class="section-title">Overview only</h2>
         <p class="muted">
-          {#if customer.visibility === "names"}
-            Report designers see every customer's name, to attach styles, but not its details or
-            projects.
-          {:else}
-            Auditors see an overview of every customer: {customer.active_projects} active and
-            {customer.archived_projects} archived projects. Details and projects are for the
-            people assigned to it.
-          {/if}
+          Auditors see that every customer exists, for the audit log. Its details, contacts and
+          records are for Administrators and the technicians assigned to it.
         </p>
       </section>
     {/if}

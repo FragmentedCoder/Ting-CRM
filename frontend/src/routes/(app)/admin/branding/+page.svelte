@@ -89,7 +89,7 @@
 
   <section class="section" aria-labelledby="names-title">
     <h2 class="section-title" id="names-title">Names</h2>
-    <p class="small muted">What people see when they sign in and work, and the name on reports.</p>
+    <p class="small muted">What people see when they sign in and work, and the company's name in emails.</p>
     <form class="stack form-narrow" onsubmit={save}>
       <div class="field">
         <label for="site-name">Site name</label>
@@ -105,7 +105,7 @@
         <label for="company-name">Company name</label>
         <input id="company-name" class="input" required maxlength="200" autocomplete="organization"
           bind:value={form.company_name} />
-        <span class="hint">Your company's legal name, as it appears on reports.</span>
+        <span class="hint">Your company's legal name, as it appears in emails and the recovery kit.</span>
       </div>
       <div><button class="button button-primary" type="submit" disabled={busy}>Save</button></div>
     </form>

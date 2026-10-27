@@ -2,14 +2,10 @@
   import { afterNavigate } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import Archive from "@lucide/svelte/icons/archive";
   import Contact from "@lucide/svelte/icons/contact";
-  import FileText from "@lucide/svelte/icons/file-text";
-  import FolderKanban from "@lucide/svelte/icons/folder-kanban";
   import HeartPulse from "@lucide/svelte/icons/heart-pulse";
   import House from "@lucide/svelte/icons/house";
   import LayoutDashboard from "@lucide/svelte/icons/layout-dashboard";
-  import ListChecks from "@lucide/svelte/icons/list-checks";
   import LockKeyhole from "@lucide/svelte/icons/lock-keyhole";
   import LogOut from "@lucide/svelte/icons/log-out";
   import Mail from "@lucide/svelte/icons/mail";
@@ -29,11 +25,9 @@
   import { onMount, tick, type Component, type Snippet } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import { api } from "#lib/api.js";
-  import { classificationTone, type ProjectSummary } from "#lib/customers.js";
   import { applyTheme, can, session, signOut, type SessionInfo } from "#lib/session.svelte.js";
   import { toast } from "#lib/toast.svelte.js";
   import {
-    activeProjects,
     clearWorkspace,
     openCustomer,
     refreshSoon,
@@ -45,11 +39,10 @@
   import Brand from "./Brand.svelte";
   import CustomerPicker from "./CustomerPicker.svelte";
 
-  // The app's frame: a side menu with the customer you're working in, its
-  // projects, and the open project's sections; the page beside it. On a narrow
-  // screen the menu slides in from a button in a slim top bar. The menu runs from
-  // the top (Home and All customers, the customer, Admin), so a group that opens
-  // pushes what's below it down, never up.
+  // The app's frame: a side menu with the customer you're working in and its
+  // sections; the page beside it. On a narrow screen the menu slides in from a
+  // button in a slim top bar. The menu runs from the top (Home and All customers,
+  // the customer, Admin), so a group that opens pushes what's below it down, never up.
   let { info, children }: { info: SessionInfo; children: Snippet } = $props();
 
   interface Item {
@@ -61,7 +54,7 @@
     group?: Group;
   }
 
-  // An item with others under it (a customer's projects, an open project, Admin).
+  // An item with others under it (Admin).
   // On its own page, clicking it again folds the group away or opens it again.
   interface Group {
     key: string;
@@ -98,13 +91,6 @@
     const base = resolve("/(app)/customers/[id]", { id });
     return [
       { href: base, label: "Overview", icon: LayoutDashboard, current: path === base },
-      { href: resolve("/(app)/customers/[id]/projects", { id }), label: "Projects", icon: FolderKanban,
-        current: path === resolve("/(app)/customers/[id]/projects", { id }), count: customer.active_projects,
-        group: workspace.projects?.length
-          ? group("projects", true, path === resolve("/(app)/customers/[id]/projects", { id }))
-          : undefined },
-      { href: resolve("/(app)/customers/[id]/archived", { id }), label: "Archived", icon: Archive,
-        current: path === resolve("/(app)/customers/[id]/archived", { id }), count: customer.archived_projects },
       { href: resolve("/(app)/customers/[id]/contacts", { id }), label: "Contacts & sites", icon: Contact,
         current: path === resolve("/(app)/customers/[id]/contacts", { id }) },
       { href: resolve("/(app)/customers/[id]/people", { id }), label: "People", icon: UsersRound,
@@ -112,26 +98,13 @@
     ];
   });
 
-  // The customer's own settings (details, logo, deleting it), for Managers and Administrators:
-  // last in the customer's part of the menu.
+  // The customer's own settings (details; for Administrators also retention, the logo and
+  // deleting it), for those who change customers: last in the customer's part of the menu.
   const customerSettings = $derived.by((): Item | null => {
-    if (!customer || !full || !can(current, "manage_customers")) return null;
+    if (!customer || !full || !can(current, "edit_customers")) return null;
     const href = resolve("/(app)/customers/[id]/settings", { id: String(customer.id) });
     return { href, label: "Customer settings", icon: Settings, current: path === href };
   });
-
-  // The open project's own sections, shown under it in the list.
-  function projectItems(projectId: number): Item[] {
-    const id = String(projectId);
-    return [
-      { href: resolve("/(app)/projects/[id]", { id }), label: "Reports", icon: FileText,
-        current: path === resolve("/(app)/projects/[id]", { id }) },
-      { href: resolve("/(app)/projects/[id]/details", { id }), label: "Details", icon: ListChecks,
-        current: path === resolve("/(app)/projects/[id]/details", { id }) },
-      { href: resolve("/(app)/projects/[id]/team", { id }), label: "Team", icon: Users,
-        current: path === resolve("/(app)/projects/[id]/team", { id }) },
-    ];
-  }
 
   const adminItems = $derived.by((): Item[] => {
     const items: Item[] = [];
@@ -170,13 +143,8 @@
 
   // Where you are: its groups open, and a long menu scrolled to show it.
   async function showWhereYouAre() {
-    const [, section, id] = page.url.pathname.split("/");
+    const [, section] = page.url.pathname.split("/");
     if (section === "admin") folded.delete("admin");
-    if (section === "projects") {
-      folded.delete("projects");
-      folded.delete(`project:${id}`);
-    }
-    if (section === "customers" && page.url.pathname.endsWith("/projects")) folded.delete("projects");
     following = true;
     await tick();
     showCurrent();
@@ -192,10 +160,7 @@
   // first page has, and afterNavigate only runs for the pages after that.
   onMount(() => void showWhereYouAre());
 
-  const listedProjects = $derived(activeProjects(workspace.projects, workspace.project));
-
-  // The menu fills in after a page change (the customer's projects and counts
-  // arrive, Admin opens), which can push the page you're on out of view again:
+  // The menu fills in after a page change (the customers arrive, Admin opens), which can push the page you're on out of view again:
   // keep it in view, whatever changed in the menu, until you scroll it yourself.
   let following = false;
 
@@ -260,26 +225,6 @@
   <span class="chevron" class:folded={!open} aria-hidden="true"><ChevronDown size={14} /></span>
 {/snippet}
 
-{#snippet projectEntry(project: ProjectSummary)}
-  {@const open = project.id === workspace.project?.id}
-  {@const href = resolve("/(app)/projects/[id]", { id: String(project.id) })}
-  {@const sections = group(`project:${project.id}`, open, path === href)}
-  <a class="item depth-1 project" {href} class:open aria-expanded={open ? sections.open : undefined}
-    onclick={(event) => follow(event, open ? sections : undefined)}>
-    <span class="dot {classificationTone(project.classification)}" aria-hidden="true"></span>
-    <span class="text">{project.name}</span>
-    <span class="visually-hidden">, {project.classification}</span>
-    {#if open}{@render chevron(sections.open)}{/if}
-  </a>
-  {#if sections.open}
-    <ul class="items nested">
-      {#each projectItems(project.id) as sub (sub.href)}
-        <li>{@render link(sub, 2)}</li>
-      {/each}
-    </ul>
-  {/if}
-{/snippet}
-
 <svelte:window onkeydown={(event) => {
   if (menuOpen && event.key === "Escape") menuOpen = false;
 }} />
@@ -324,20 +269,7 @@
             {#if customer && full}
               <ul class="items">
                 {#each customerItems as item (item.href)}
-                  <li>
-                    {@render link(item)}
-                    {#if item.label === "Projects" && item.group?.open}
-                      <ul class="items nested">
-                        {#each listedProjects as project (project.id)}
-                          <li>{@render projectEntry(project)}</li>
-                        {/each}
-                      </ul>
-                    {:else if item.label === "Archived" && workspace.project?.archived_at}
-                      <ul class="items nested">
-                        <li>{@render projectEntry(workspace.project)}</li>
-                      </ul>
-                    {/if}
-                  </li>
+                  <li>{@render link(item)}</li>
                 {/each}
               </ul>
               {#if customerSettings}
@@ -346,11 +278,11 @@
                 </ul>
               {/if}
             {:else if customer}
-              <p class="small muted hint">
-                {customer.visibility === "names" ? "You see this customer's name only." : "You see an overview of this customer."}
-              </p>
+              <p class="small muted hint">You see an overview of this customer.</p>
             {:else}
-              <p class="small muted hint">Choose a customer to see its projects, contacts and people.</p>
+              <p class="small muted hint">
+                {can(current, "edit_customers") ? "Choose a customer to see its contacts, sites and people." : "Choose a customer to see its overview."}
+              </p>
             {/if}
           </div>
         {/if}
@@ -502,14 +434,6 @@
     padding-left: 30px;
     font: var(--type-body-sm);
   }
-  .depth-2 {
-    padding-left: 48px;
-    font: var(--type-body-sm);
-  }
-  .project.open {
-    color: var(--text);
-    font-weight: 600;
-  }
   .text {
     flex: 1;
     min-width: 0;
@@ -524,23 +448,6 @@
     background: var(--surface-subtle);
     font: var(--type-body-sm);
     text-align: center;
-  }
-  /* A TLP colour by each project, red for the most restricted. */
-  .dot {
-    flex: none;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--border-strong);
-  }
-  .dot.critical {
-    background: var(--critical-text);
-  }
-  .dot.warning {
-    background: var(--warning-text);
-  }
-  .dot.ok {
-    background: var(--ok-text);
   }
   .hint {
     padding: 0 var(--space-2);

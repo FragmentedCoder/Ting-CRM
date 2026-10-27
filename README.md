@@ -11,7 +11,17 @@
 The *þing* (thing) was the Norse assembly: free people met in a ring of standing stones to settle disputes, make agreements and hear the law spoken. Þing is where everything about a customer is gathered, agreed and remembered.
 
 > [!NOTE]
-> **Status: Phase 0 of the road to 1.0.** Þing starts from the platform of its sister product [Skjald](https://github.com/FragmentedCoder/Skjald-Reporting): install, setup wizard, sign-in with MFA, roles, customers, encryption keys, the audit log and backups already run. The CRM itself (agreements, coverage, systems, timeline) comes in Phases 2 and 3. Don't trust it with real customer data before 1.0.
+> **Status: the platform is in place; the CRM comes next.** The first pre-release has what Þing stands on: the installer and setup wizard, sign-in with MFA, roles, customers with their sites and contacts, encryption keys, the audit log, backups and updates. Agreements, coverage, systems and the timeline come in Phases 2 and 3. Pre-releases are for trying out: don't trust them with real customer data before 1.0. Watch the repository to hear about new releases.
+
+## What runs today
+
+- **One-command install** on Ubuntu Server LTS with Docker Compose, from signed images, and a setup wizard for the company, the first Administrator with MFA, the recovery kit, backups, email and the certificate.
+- **Sign-in with MFA for everyone**: passkeys and hardware keys, authenticator apps and recovery codes; Argon2id passwords checked against Have I Been Pwned; lockout, session limits, step-up confirmation for changes that lower security, and optional IP allowlists.
+- **Roles and need-to-know access**: Administrators run everything; Managers run customers, the service catalog and agreements; technicians see and update only the customers they're assigned to; auditors read the audit log.
+- **Customers** with sites and contacts, each customer encrypted with its own key, so deleting one leaves nothing readable behind.
+- **A tamper-evident audit log**: hash-chained, timestamped daily by an outside authority, with a viewer and CSV export.
+- **Encrypted backups** with restic to the server itself, SMB shares or S3 storage, a weekly restore test, and updates that back up first and roll back if the new version doesn't start.
+- **Light and dark mode**, at desktop and phone width.
 
 ## What it will do
 
@@ -24,7 +34,15 @@ The *þing* (thing) was the Norse assembly: free people met in a ring of standin
 
 ## Try it
 
-There is no release yet. To try the newest code on an Ubuntu Server LTS VM (4 vCPU, 8 GB RAM, 100 GB disk), install from a checkout: it builds the images there.
+On an Ubuntu Server LTS VM (4 vCPU, 8 GB RAM, 100 GB disk); until the first full release it installs the newest pre-release, which is for trying out, not for real data:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/FragmentedCoder/Ting-CRM/main/install.sh | sudo bash
+```
+
+The installer installs Docker Engine if needed, generates the master key, downloads the release and checks its files and every image against the release's signatures, starts Þing, and prints a one-time setup token. Open the address followed by `/setup` and the wizard takes it from there: the company, the first Administrator with MFA, the recovery kit, backups, email and the certificate. Until you choose another certificate, Þing's own authority signs it: install `https://<address>/ting-root.crt` as a trusted root on each computer that uses it. Each release's notes show how to check the installer with cosign before running it.
+
+To try the newest code, install from a checkout instead: it builds the images there.
 
 ```sh
 git clone https://github.com/FragmentedCoder/Ting-CRM.git
@@ -32,16 +50,14 @@ cd Ting-CRM
 sudo ./install.sh --address https://ting.example.internal
 ```
 
-The installer installs Docker Engine if needed, generates the master key, starts Þing and prints a one-time setup token. Open the address followed by `/setup` and the wizard takes it from there: the company, the first Administrator with MFA, the recovery kit, backups, email and the certificate. Until you choose another certificate, Þing's own authority signs it: install `https://<address>/ting-root.crt` as a trusted root on each computer that uses it.
-
-On the server, `sudo ting help` lists what the web UI can't do: status, logs, backups and restores, updates, and replacing the master key.
+On the server, `sudo ting help` lists what the web UI can't do: status, logs, backups and restores, updates, and replacing the master key; `sudo ting update` moves to the newest release.
 
 ## Roadmap
 
 | Step | Scope |
 | --- | --- |
-| Phase 0 | Repository from Skjald's platform, renamed and rebranded; CI and signed builds; documentation and brand |
-| Phase 1 | The platform made Þing's: Skjald's projects and report roles removed, Þing's roles (Administrator, Technician, Auditor) and assignments, retention per customer |
+| Phase 0 ✓ | Repository from Skjald's platform, renamed and rebranded; CI and signed builds; documentation and brand |
+| Phase 1 ✓ | The platform made Þing's: Skjald's projects and report roles removed; Þing's roles (Administrator, Manager, Technician, Auditor) and plain assignments; the first pre-release |
 | Phase 2 | Core CRM: customers, sites, contacts; service catalog; agreements, lines and coverage rules; systems with RDM references; timeline and tasks; global search; customer page; home |
 | Phase 3 | Compliance, coverage check, CSV/Excel import, "systems no agreement pays for" and renewal warnings |
 | 1.0 | Release gate: one-command install, ASVS Level 2 test plan passes, restore test green, the fictional demo company's data imports and works end to end |
@@ -51,7 +67,7 @@ The design is described in [docs/architecture.md](docs/architecture.md).
 
 ## Tech stack
 
-SvelteKit and TypeScript · Python and FastAPI · SQLite with SQLCipher · restic · ClamAV · Caddy · Docker Compose
+SvelteKit and TypeScript · Python and FastAPI · SQLite with SQLCipher · restic · Caddy · Docker Compose · Sigstore cosign
 
 ## Contributing and security
 

@@ -26,7 +26,7 @@ def stocked(session, data_dir, master_key_path):
     load_or_create_backup_key(data_dir, master_key_path)
     keyring = Keyring()
     for name in ("Fjordlys Energi A/S", "Nordlys IT ApS"):
-        customer = Customer(wrapped_key=b"", sealed=b"", language="da", retention_months=24,
+        customer = Customer(wrapped_key=b"", sealed=b"", retention_months=24,
                             created_at=clock.utcnow())
         session.add(customer)
         session.flush()

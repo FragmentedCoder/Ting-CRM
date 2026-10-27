@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { LANGUAGES } from "#lib/customers.js";
-
-  // A customer's own details, for adding one and for changing them.
+  // A customer's own details, for adding one and for changing them. How long its
+  // records are kept is for Administrators only.
   let {
     values = $bindable(),
+    retention = true,
   }: {
-    values: { name: string; cvr: string; address: string; language: string; retention_months: number };
+    values: { name: string; cvr: string; address: string; retention_months: number };
+    retention?: boolean;
   } = $props();
 
   const uid = $props.id();
@@ -15,7 +16,7 @@
   <label for="{uid}-name">Name</label>
   <input id="{uid}-name" class="input" required maxlength="200" autocomplete="organization"
     bind:value={values.name} />
-  <span class="hint">The legal name, as it goes on reports.</span>
+  <span class="hint">The company's legal name.</span>
 </div>
 <div class="field">
   <label for="{uid}-cvr">CVR number (optional)</label>
@@ -29,28 +30,20 @@
     bind:value={values.address}></textarea>
   <span class="hint">Kept encrypted with the customer's own key.</span>
 </div>
-<div class="field">
-  <label for="{uid}-language">Report language</label>
-  <select id="{uid}-language" class="input select" bind:value={values.language}>
-    {#each LANGUAGES as language (language.value)}
-      <option value={language.value}>{language.name}</option>
-    {/each}
-  </select>
-</div>
-<div class="field">
-  <label for="{uid}-retention">Keep raw data for</label>
-  <input id="{uid}-retention" class="input number" type="number" min="1" max="120" required
-    aria-describedby="{uid}-retention-hint" bind:value={values.retention_months} />
-  <span class="hint" id="{uid}-retention-hint">
-    Months after a project is archived: uploads, imports and data bundles. Signed reports are
-    kept at least 5 years either way. From 1 to 120.
-  </span>
-</div>
+{#if retention}
+  <div class="field">
+    <label for="{uid}-retention">Keep its records for</label>
+    <input id="{uid}-retention" class="input number" type="number" min="1" max="120" required
+      aria-describedby="{uid}-retention-hint" bind:value={values.retention_months} />
+    <span class="hint" id="{uid}-retention-hint">
+      Months after it stops being a customer. From 1 to 120.
+    </span>
+  </div>
+{/if}
 
 <style>
   .cvr,
-  .number,
-  .select {
+  .number {
     max-width: 12rem;
   }
 </style>

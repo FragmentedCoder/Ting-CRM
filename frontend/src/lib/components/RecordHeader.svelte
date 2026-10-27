@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Component, Snippet } from "svelte";
 
-  // The top of a customer's or a project's pages: what it is, its name, and a
+  // The top of a record's pages (a customer's): what it is, its name, and a
   // line about it underneath. A logo, when there is one, takes the icon's place.
   let {
     kind,
