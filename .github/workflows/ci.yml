@@ -120,7 +120,7 @@ jobs:
           done
       - name: Keep screenshots and traces
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-results
           path: frontend/e2e-results/
