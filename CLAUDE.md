@@ -14,6 +14,6 @@
 ## Rules that always apply
 
 - Never commit secrets, real customer data, certificates or private keys. Demo data uses a fictional company (Nordlys), in fixtures, screenshots and examples alike.
-- Þing never stores passwords, OTP secrets or keys for customer systems. A system holds a reference to its Devolutions RDM entry, never a credential.
+- Þing never stores passwords, OTP secrets, licence keys or other keys for customer systems; they stay in the team's password manager.
 - The security baseline is OWASP ASVS Level 2. New endpoints need authentication, authorisation by role and assignment, input validation and audit logging.
 - UI and documents follow `docs/brand/` (tokens, fonts, logo rules). UI labels are plain English, in sentence case. Write **Þing** in product copy; `ting` only where ASCII is required (packages, images, commands, paths, HTTP headers).
