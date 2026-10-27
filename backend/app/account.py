@@ -18,6 +18,7 @@ from app import audit, clock
 from app.auth.dependencies import DB, AnySession, FullSession, client_ip, refuse
 from app.auth.mfa import (
     confirmed_factors,
+    has_reusable_code,
     issue_recovery_codes,
     mfa_required,
     unused_recovery_codes,
@@ -95,6 +96,8 @@ class AccountInfo(Profile):
     mfa_required: bool
     factors: list[FactorInfo]
     recovery_codes_left: int
+    # The break-glass Administrator's one code, good every time.
+    recovery_code_reusable: bool
     sessions: list[SessionSummary]
 
 
@@ -126,6 +129,7 @@ class PasswordConfirmation(BaseModel):
 
 class RecoveryCodes(BaseModel):
     recovery_codes: list[str]
+    reusable: bool
 
 
 def profile_of(user: User) -> dict[str, Any]:
@@ -286,6 +290,7 @@ def get_account(record: FullSession, db: DB) -> AccountInfo:
         mfa_required=mfa_required(db, user.id, load_policy(db)),
         factors=factor_infos(db, user.id),
         recovery_codes_left=len(unused_recovery_codes(db, user.id)),
+        recovery_code_reusable=has_reusable_code(db, user.id),
         sessions=session_summaries(db, user.id, current=record),
     )
 
@@ -376,7 +381,7 @@ def new_recovery_codes(
     codes = issue_recovery_codes(db, record.user_id)
     _log(db, request, record, "auth.mfa.recovery_codes_issued", {"count": len(codes)})
     db.commit()
-    return RecoveryCodes(recovery_codes=codes)
+    return RecoveryCodes(recovery_codes=codes, reusable=has_reusable_code(db, record.user_id))
 
 
 @router.post("/account/sessions/end-others")

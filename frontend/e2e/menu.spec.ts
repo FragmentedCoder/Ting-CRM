@@ -53,6 +53,8 @@ test("the side menu, with customers", async ({ browser }) => {
   const violations = watchForCspViolations(mette);
   await signIn(mette, "e2e-mette");
   await setUpAuthenticatorApp(mette);
+  // Þing starts light; following the device lets the tour show both themes.
+  await call(mette, "PATCH", "/account", { theme: "system" });
 
   const fjordlys = await addCustomer(mette, "Fjordlys Energi A/S", "12345678",
     [["Sigrid Holm", "IT manager", "sigrid@fjordlys.example"], ["Anders Vang", "CISO", "anders@fjordlys.example"]],
@@ -157,6 +159,7 @@ test("the side menu, with customers", async ({ browser }) => {
   const bobPage = await bobContext.newPage();
   await signIn(bobPage, "e2e-bob");
   await setUpAuthenticatorApp(bobPage);
+  await call(bobPage, "PATCH", "/account", { theme: "system" });
   await bobPage.goto(`/customers/${fjordlys.id}`);
   await expect(menu(bobPage).getByRole("link", { name: "Customer settings" })).toBeVisible();
   await expect(menu(bobPage).getByRole("link", { name: "Admin", exact: true })).toHaveCount(0);
@@ -173,6 +176,7 @@ test("the side menu, with customers", async ({ browser }) => {
   const audPage = await audContext.newPage();
   await signIn(audPage, "e2e-auditor");
   await setUpAuthenticatorApp(audPage);
+  await call(audPage, "PATCH", "/account", { theme: "system" });
   await audPage.goto("/customers");
   await expect(audPage.getByRole("row").filter({ hasText: "Overview only" })).toHaveCount(3);
   await audPage.goto(`/customers/${fjordlys.id}`);

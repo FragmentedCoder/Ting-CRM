@@ -41,6 +41,8 @@ def test_the_account_page_shows_factors_codes_and_sessions(astrid) -> None:
     assert [f["kind"] for f in account["factors"]] == ["totp"]
     assert account["recovery_codes_left"] == 10
     assert [s["current"] for s in account["sessions"]] == [True]
+    # Light until they choose dark or their device's setting.
+    assert account["theme"] == "light"
 
 
 def test_name_email_and_theme_can_be_changed(astrid, session) -> None:

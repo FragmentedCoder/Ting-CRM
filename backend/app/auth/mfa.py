@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 import pyotp
-from sqlalchemy import ForeignKey, LargeBinary, String, delete, select
+from sqlalchemy import ForeignKey, LargeBinary, String, delete, false, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app import clock
@@ -26,6 +26,9 @@ RECOVERY_CODE_COUNT = 10
 # No 0/o, 1/l/i: codes get read off paper.
 RECOVERY_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 RECOVERY_CODE_LENGTH = 12
+# The break-glass Administrator's one code works every time, so it's twice as long:
+# about 120 bits, like a key.
+REUSABLE_CODE_LENGTH = 24
 
 SecondFactorState = Literal["enrol", "verify", "done"]
 Method = Literal["totp", "webauthn", "recovery_code"]
@@ -60,7 +63,10 @@ class RecoveryCode(Base):
     salt: Mapped[bytes] = mapped_column(LargeBinary)
     code_hash: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    # Set when a one-time code is spent. A reusable code is never spent.
     used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    # The break-glass Administrator's code: one, good every time (see below).
+    reusable: Mapped[bool] = mapped_column(default=False, server_default=false())
 
 
 def confirmed_factors(db: Session, user_id: int) -> list[MfaFactor]:
@@ -260,6 +266,14 @@ def verify_totp(db: Session, record: UserSession, code: str) -> MfaFactor | None
 
 # Recovery codes: ten one-time codes, shown once, kept only as salted hashes.
 # About 60 bits each, so a salted SHA-256 is enough (ASVS 6.6, lookup secrets).
+#
+# The break-glass Administrator is the way in when everything else fails, and a
+# server that's down for good because its last one-time code is spent is worse
+# than the risk ASVS guards against. So that account has one code instead, about
+# 120 bits, good every time: a second secret beside the password, not a lookup
+# secret. Each use is in the audit log, every break-glass sign-in is emailed to
+# the Administrators, and `ting admin recovery-code` on the server makes a new one
+# when it may be known.
 
 
 def _normalize_code(code: str) -> str:
@@ -271,21 +285,34 @@ def _hash_code(salt: bytes, code: str) -> str:
 
 
 def issue_recovery_codes(db: Session, user_id: int) -> list[str]:
-    """Replace the user's recovery codes with ten new ones and return them for showing once."""
+    """Replace the user's recovery codes and return the new ones for showing once: ten
+    one-time codes, or for the break-glass Administrator one reusable code."""
     db.execute(delete(RecoveryCode).where(RecoveryCode.user_id == user_id))
+    user = db.get(User, user_id)
+    reusable = user is not None and user.is_break_glass
+    count, length = (1, REUSABLE_CODE_LENGTH) if reusable else (
+        RECOVERY_CODE_COUNT, RECOVERY_CODE_LENGTH)
     now = clock.utcnow()
     codes = []
-    for _ in range(RECOVERY_CODE_COUNT):
-        raw = "".join(secrets.choice(RECOVERY_ALPHABET) for _ in range(RECOVERY_CODE_LENGTH))
+    for _ in range(count):
+        raw = "".join(secrets.choice(RECOVERY_ALPHABET) for _ in range(length))
         salt = os.urandom(16)
         code_hash = _hash_code(salt, raw)
-        db.add(RecoveryCode(user_id=user_id, salt=salt, code_hash=code_hash, created_at=now))
-        codes.append(f"{raw[:4]}-{raw[4:8]}-{raw[8:]}")
+        db.add(RecoveryCode(user_id=user_id, salt=salt, code_hash=code_hash, created_at=now,
+                            reusable=reusable))
+        codes.append("-".join(raw[i:i + 4] for i in range(0, length, 4)))
     return codes
 
 
+def has_reusable_code(db: Session, user_id: int) -> bool:
+    """Whether this person's recovery code is one that works every time."""
+    return db.scalar(select(RecoveryCode.id).where(
+        RecoveryCode.user_id == user_id, RecoveryCode.reusable).limit(1)) is not None
+
+
 def use_recovery_code(db: Session, user_id: int, code: str) -> int | None:
-    """Spend a matching code. Returns how many unused codes remain, or None if none matched."""
+    """Spend a matching code (a reusable one stays good). Returns how many unused codes
+    remain, or None if none matched."""
     normalized = _normalize_code(code)
     unused = unused_recovery_codes(db, user_id)
     match = None
@@ -294,5 +321,7 @@ def use_recovery_code(db: Session, user_id: int, code: str) -> int | None:
             match = candidate
     if match is None:
         return None
+    if match.reusable:
+        return len(unused)
     match.used_at = clock.utcnow()
     return len(unused) - 1

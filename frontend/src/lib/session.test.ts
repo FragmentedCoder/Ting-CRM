@@ -20,6 +20,7 @@ function sessionIn(
     methods: [],
     password_change_required,
     recovery_codes_left: null,
+    recovery_code_reusable: false,
     csrf_token: "t",
     idle_expires_at: "2026-10-24T12:00:00Z",
     expires_at: "2026-10-24T12:00:00Z",

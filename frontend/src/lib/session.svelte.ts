@@ -25,6 +25,8 @@ export interface SessionInfo {
   password_change_required: boolean;
   // Only once fully signed in, for someone with multifactor set up.
   recovery_codes_left: number | null;
+  // The break-glass Administrator's one code works every time: nothing runs out.
+  recovery_code_reusable: boolean;
   csrf_token: string;
   idle_expires_at: string;
   expires_at: string;
@@ -35,6 +37,7 @@ export interface SessionInfo {
 export interface SecondFactorResult {
   session: SessionInfo;
   recovery_codes: string[] | null;
+  recovery_code_reusable: boolean;
 }
 
 interface SessionStatus {
@@ -55,6 +58,7 @@ export const appearance = $state({ applied: 0 });
 
 /**
  * Light or dark as the user chose; "system" leaves it to the browser's setting.
+ * Before anyone is signed in (no theme), Þing is light, as app.html starts it.
  * With `fade`, a change you'd see fades slowly across, where the browser can and
  * motion is welcome; otherwise it's instant, as when someone picks it in the app.
  */
@@ -62,14 +66,16 @@ export function applyTheme(theme: Theme | undefined, fade = false): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   const systemDark = matchMedia("(prefers-color-scheme: dark)").matches;
+  // What each would show: no attribute follows the device, as "system" does.
   const darkWith = (chosen: string | undefined) =>
     chosen === "dark" || (chosen !== "light" && systemDark);
+  const wanted = theme === "system" ? undefined : (theme ?? "light");
   const set = () => {
-    if (theme === "light" || theme === "dark") root.dataset.theme = theme;
-    else delete root.dataset.theme;
+    if (theme === "system") delete root.dataset.theme;
+    else root.dataset.theme = theme ?? "light";
     appearance.applied++;
   };
-  const changes = darkWith(root.dataset.theme) !== darkWith(theme);
+  const changes = darkWith(root.dataset.theme) !== darkWith(wanted);
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (fade && changes && !calm && "startViewTransition" in document) document.startViewTransition(set);
   else set();
@@ -316,7 +322,7 @@ if (typeof document !== "undefined") {
 
 function warnAboutRecoveryCodes(info: SessionInfo): void {
   const left = info.recovery_codes_left;
-  if (left === null || left > 3) return;
+  if (info.recovery_code_reusable || left === null || left > 3) return;
   const open = { label: "Go to Your account", run: () => void goto(resolve("/(app)/account")) };
   const text =
     left === 0

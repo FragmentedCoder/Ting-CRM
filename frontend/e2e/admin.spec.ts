@@ -155,12 +155,18 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   await expect
     .poll(() => admin.evaluate(() => document.documentElement.style.getPropertyValue("--link")))
     .toBe("");
-  // The menu's head: the name, the tag line under it, and which Þing this is
-  // (a development build here).
-  const menuHead = admin.getByRole("complementary", { name: "Side menu" }).locator(".side-head");
+  // The menu's head: the name and the tag line under it. Which Þing this is (a
+  // development build here) is the menu's last line, just above the account.
+  const side = admin.getByRole("complementary", { name: "Side menu" });
+  const menuHead = side.locator(".side-head");
   await expect(menuHead).toContainText("Nordlys CRM");
   await expect(menuHead).toContainText("Kunder ved fjorden.");
-  await expect(menuHead).toContainText(/\d+\.\d+\.\d+-dev/);
+  await expect(menuHead).not.toContainText(/\d+\.\d+\.\d+/);
+  const version = side.locator(".version");
+  await expect(version).toBeInViewport();
+  await expect(version).toContainText(/Þing \d+\.\d+\.\d+-dev/);
+  const below = await side.locator(".you").boundingBox();
+  expect((await version.boundingBox())!.y).toBeLessThan(below!.y);
   await expect(admin).toHaveTitle(/Nordlys CRM/);
   await shot(admin, "9-branding");
 

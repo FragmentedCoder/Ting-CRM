@@ -14,6 +14,20 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 COMPOSE=(docker compose -p ting-e2e -f "$ROOT/deploy/docker-compose.yml")
 export TING_HTTPS_PORT=${E2E_PORT:-8443}
 export TING_ADDRESS=https://localhost:$TING_HTTPS_PORT
+# Its own keys, apart from any install's /etc/ting: the worker writes the backup
+# key's spare copy beside the master key. Run as root, it makes a throwaway one.
+export TING_ETC=${E2E_ETC:-/etc/ting-e2e}
+if [[ $EUID -eq 0 ]]; then
+	install -d -m 0700 "$TING_ETC" "$TING_ETC/keys"
+	[[ -f "$TING_ETC/master.key" ]] || head -c 32 /dev/urandom >"$TING_ETC/master.key"
+	chmod 0600 "$TING_ETC/master.key"
+	chown -R 10001:10001 "$TING_ETC"
+elif [[ ! -d "$TING_ETC" ]]; then
+	# The folder only: it's closed to everyone but the app's user, so its key
+	# can't be seen from here.
+	echo "No $TING_ETC with a master key: run this as root once, or see CONTRIBUTING.md." >&2
+	exit 1
+fi
 PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.64.1-noble
 E2E_PASSWORD="e2e passphrase by the fjord $(date +%s)"
 WORK=$(mktemp -d)
@@ -42,7 +56,10 @@ policy = SecurityPolicy(breach_check_enabled=False)
 with Session(get_engine()) as db:
     for username in os.environ["USERS"].split():
         password = vet_new_password(os.environ["E2E_PASSWORD"], policy, username=username)
-        create_user(db, username, "Astrid Fjeld", password)
+        user = create_user(db, username, "Astrid Fjeld", password)
+        # The dark screenshots' accounts chose dark; everyone else starts light.
+        if "-dark-" in username:
+            user.theme = "dark"
     # Administrators, a manager, technicians and an auditor for the admin panel,
     # customer and menu tests (the wizard's Administrator has a passkey only).
     for username, name, role in (

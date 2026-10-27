@@ -11,6 +11,8 @@ command on the server runs them (deploy/ting); each also runs as
     reset-allowlist     switch off both IP allowlists, when they lock everyone out
     reset-certificate   go back to Caddy's own certificate authority, when the
                         certificate chosen leaves Þing unreachable
+    recovery-code       a new recovery code for the break-glass Administrator, in
+                        place of theirs: the way back in when it's lost or may be known
 
 The allowlist addresses stay, so they can be switched on again after fixing them.
 Running any of these needs shell access to the server, which is the point.
@@ -192,11 +194,31 @@ def rotate_master_key() -> int:
     return 0
 
 
+def new_break_glass_code(db: Session) -> tuple[str, str] | None:
+    """A new recovery code for the break-glass Administrator, in place of theirs.
+    Returns their username and the code, or None if there's no such account yet."""
+    from app.auth.mfa import issue_recovery_codes
+    from app.notices import notify_administrators
+    from app.users import User
+
+    user = db.scalars(select(User).where(User.is_break_glass)).first()
+    if user is None:
+        return None
+    (code,) = issue_recovery_codes(db, user.id)
+    audit.append(db, "auth.mfa.recovery_codes_issued", actor_name="console",
+                 target_type="user", target_id=str(user.id),
+                 details={"count": 1, "by": "console", "user": user.username})
+    notify_administrators(db, "A new break-glass recovery code was made on the server", (
+        f"A new recovery code for the break-glass Administrator ({user.username}) was made "
+        "on the server with ting admin recovery-code. The code before it no longer works."))
+    return user.username, code
+
+
 def main(argv: list[str]) -> int:
     from app.db import get_engine
 
     commands = ("status", "backup", "restore-test", "rotate-master-key", "reset-allowlist",
-                "reset-certificate")
+                "reset-certificate", "recovery-code")
     if len(argv) != 1 or argv[0] not in commands:
         print(__doc__, file=sys.stderr)
         return 2
@@ -212,6 +234,20 @@ def main(argv: list[str]) -> int:
             import app.backups  # noqa: F401 - registers the job kinds
 
             return run_and_wait(db, command.replace("-", "_"))
+        if command == "recovery-code":
+            made = new_break_glass_code(db)
+            db.commit()
+            if made is None:
+                print("There's no break-glass Administrator yet: the setup wizard makes one.",
+                      file=sys.stderr)
+                return 1
+            username, code = made
+            print(f"A new recovery code for the break-glass Administrator, {username}:\n\n"
+                  f"    {code}\n\n"
+                  "It works every time, in place of the one before, which no longer does. Keep "
+                  "it with the recovery kit, never on this server. The Administrators are "
+                  "emailed that a new one was made.")
+            return 0
         if command == "reset-certificate":
             before = reset_certificate(db)
             db.commit()

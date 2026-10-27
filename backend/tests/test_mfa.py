@@ -193,6 +193,40 @@ def test_each_recovery_code_works_once(client, enrolled, session) -> None:
     assert used == ['{"left":9}', '{"left":8}']
 
 
+def test_the_break_glass_administrators_one_code_works_every_time(
+    client, make_user, frozen_clock, session
+) -> None:
+    make_user(is_break_glass=True)
+    sign_in(client)
+    secret = post(client, f"{MFA}/totp/enrol").json()["secret"]
+    result = post(client, f"{MFA}/totp/confirm", {"code": code_at(secret, frozen_clock.now)})
+    codes = result.json()["recovery_codes"]
+    assert result.json()["recovery_code_reusable"] is True
+    # One code, about 120 bits: six groups of four.
+    assert len(codes) == 1 and re.fullmatch(r"([a-z2-9]{4}-){5}[a-z2-9]{4}", codes[0])
+    post(client, "/api/auth/sign-out")
+
+    for _ in range(3):
+        sign_in(client)
+        used = post(client, f"{MFA}/recovery-code/verify", {"code": codes[0]})
+        assert used.status_code == 200
+        session_info = used.json()["session"]
+        assert session_info["recovery_code_reusable"] is True
+        assert session_info["recovery_codes_left"] == 1
+        post(client, "/api/auth/sign-out")
+    logged = session.scalars(
+        select(AuditEntry.details).where(AuditEntry.action == "auth.recovery_code.used")
+    ).all()
+    session.commit()
+    assert logged == ['{"reusable":true}'] * 3
+
+
+def test_everyone_else_gets_ten_one_time_codes(enrolled) -> None:
+    _, codes = enrolled
+    assert len(codes) == 10 and all(re.fullmatch(r"[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{4}", c)
+                                    for c in codes)
+
+
 def test_wrong_codes_share_the_password_lockout(client, enrolled, session) -> None:
     save_policy(session, SecurityPolicy(lockout_threshold=3))
     session.commit()

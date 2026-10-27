@@ -3,12 +3,11 @@
   import Mark from "./Mark.svelte";
 
   // The company's logo and site name when an Administrator set them, else Þing's;
-  // under the name the tag line, and the version when given.
+  // under the name the tag line when asked for.
   let {
     size = 32,
     tagline = false,
-    version = null,
-  }: { size?: number; tagline?: boolean; version?: string | null } = $props();
+  }: { size?: number; tagline?: boolean } = $props();
 
   const look = $derived(branding.current);
 </script>
@@ -21,11 +20,8 @@
   {/if}
   <span class="names">
     <span class="wordmark">{look.site_name}</span>
-    {#if (tagline && look.tagline) || version}
-      <span class="under small muted">
-        {#if tagline && look.tagline}<span class="tagline" title={look.tagline}>{look.tagline}</span>{/if}
-        {#if version}<span class="version" title="Þing {version}">{version}</span>{/if}
-      </span>
+    {#if tagline && look.tagline}
+      <span class="tagline small muted" title={look.tagline}>{look.tagline}</span>
     {/if}
   </span>
 </span>
@@ -56,19 +52,5 @@
   }
   .wordmark {
     font: var(--type-subheading);
-  }
-  /* The tag line, and beside it which Þing this is; the tag line gives way. */
-  .under {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    min-width: 0;
-  }
-  .version {
-    flex: none;
-    padding: 0 var(--space-2);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    white-space: nowrap;
   }
 </style>

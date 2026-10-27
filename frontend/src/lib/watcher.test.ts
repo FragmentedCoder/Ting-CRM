@@ -17,6 +17,7 @@ function signedIn(idleExpiresAt: string): SessionInfo {
     methods: [],
     password_change_required: false,
     recovery_codes_left: null,
+    recovery_code_reusable: false,
     csrf_token: "t",
     idle_expires_at: idleExpiresAt,
     expires_at: LATER,

@@ -18,6 +18,7 @@ from app.auth.mfa import (
     begin_totp,
     confirm_totp,
     confirmed_factors,
+    has_reusable_code,
     issue_recovery_codes,
     may_enrol,
     record_second_factor_failure,
@@ -61,6 +62,8 @@ class SecondFactorResult(BaseModel):
     session: SessionInfo
     # Shown once, after the first factor is set up. Never retrievable again.
     recovery_codes: list[str] | None = None
+    # The break-glass Administrator's one code, good every time.
+    recovery_code_reusable: bool = False
 
 
 class FactorInfo(BaseModel):
@@ -74,6 +77,7 @@ class FactorInfo(BaseModel):
 class FactorList(BaseModel):
     factors: list[FactorInfo]
     recovery_codes_left: int
+    recovery_code_reusable: bool
 
 
 def _actor(record: UserSession) -> dict[str, Any]:
@@ -130,7 +134,8 @@ def _complete(
     db.commit()
     set_session_cookie(response, token)
     return SecondFactorResult(session=session_info(db, record, token, request),
-                              recovery_codes=codes)
+                              recovery_codes=codes,
+                              recovery_code_reusable=has_reusable_code(db, record.user_id))
 
 
 def _fail(db: Session, request: Request, record: UserSession, method: Method) -> NoReturn:
@@ -190,11 +195,12 @@ def verify_recovery_code(
     body: CodeRequest, request: Request, response: Response, record: AnySession, db: DB
 ) -> SecondFactorResult:
     _require_factors(db, record)
+    reusable = has_reusable_code(db, record.user_id)
     left = use_recovery_code(db, record.user_id, body.code)
     if left is None:
         _fail(db, request, record, "recovery_code")
     audit.append(db, "auth.recovery_code.used", **_actor(record), ip=client_ip(request),
-                 details={"left": left})
+                 details={"reusable": True} if reusable else {"left": left})
     return _complete(db, request, response, record, "recovery_code")
 
 
@@ -254,4 +260,5 @@ def list_factors(record: FullSession, db: DB) -> FactorList:
             for f in confirmed_factors(db, record.user_id)
         ],
         recovery_codes_left=len(unused_recovery_codes(db, record.user_id)),
+        recovery_code_reusable=has_reusable_code(db, record.user_id),
     )

@@ -56,7 +56,10 @@ class User(Base):
     must_change_password: Mapped[bool] = mapped_column(default=False, server_default=false())
     password_expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     last_sign_in_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
-    theme: Mapped[str] = mapped_column(String(10), default="system", server_default="system")
+    # Light unless they choose dark or their device's setting. The column's own
+    # default (from 0005) is still "system": changing it would rebuild the table, and
+    # every account is made here, with "light".
+    theme: Mapped[str] = mapped_column(String(10), default="light", server_default="system")
     # The person's own colours; None follows the site's (see app/colours.py).
     primary_colour: Mapped[str | None] = mapped_column(String(20))
     accent_colour: Mapped[str | None] = mapped_column(String(20))
