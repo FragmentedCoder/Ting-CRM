@@ -22,8 +22,10 @@ if [[ $EUID -eq 0 ]]; then
 	[[ -f "$TING_ETC/master.key" ]] || head -c 32 /dev/urandom >"$TING_ETC/master.key"
 	chmod 0600 "$TING_ETC/master.key"
 	chown -R 10001:10001 "$TING_ETC"
-elif [[ ! -f "$TING_ETC/master.key" ]]; then
-	echo "No master key in $TING_ETC: run this as root once, or see CONTRIBUTING.md." >&2
+elif [[ ! -d "$TING_ETC" ]]; then
+	# The folder only: it's closed to everyone but the app's user, so its key
+	# can't be seen from here.
+	echo "No $TING_ETC with a master key: run this as root once, or see CONTRIBUTING.md." >&2
 	exit 1
 fi
 PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.64.1-noble
