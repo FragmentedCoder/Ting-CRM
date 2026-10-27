@@ -109,7 +109,7 @@ The key idea is **standard service → customer service**: Backup is one entry i
   - **Services:** each customer service with its details, the systems it covers and their notes, its case number, agreement, recurring tasks and renewals.
   - **Timeline:** what's coming (tasks, recurring work, renewals, agreement dates) above today, and what's been done (log entries, emails, documents, completed work) below, filterable by service or system, with a one-line box at the top to log work.
   - **Systems**, **Contacts and sites**, **Cases**, **Agreements**, **Documents** and **Compliance**.
-- **Wall display:** a read-only page for a TV, across all customers: what is overdue or due in the coming weeks (renewals, updates, restore tests and other recurring work), in large type, refreshing itself. It shows each item's customer, what and when, nothing more. How the TV opens it is an open question.
+- **Wall display** (`/public/dashboard`): a read-only dashboard made for a TV in full screen, across all customers: what is overdue or due in the coming weeks (renewals, updates, restore tests and other recurring work), in large type, refreshing itself. It shows each item's customer, what and when, nothing more. It isn't in the side menu: the TV is signed in as a display account, a service user that can open this page and nothing else.
 - **Standard services** and **compliance frameworks** (Managers): the catalog, with each service's details, recurring tasks and renewals, and each framework's checklist.
 - **Agreements** and **renewals** across customers, filterable by date, status and service.
 - **Admin:** users, roles and which customers a technician is limited to, import, backups, audit log.
@@ -126,6 +126,7 @@ The app shell comes from Skjald: a side menu with My work and All customers firs
 | Manager | v1 | Every customer: add customers and change them, choose who usually works with them, set retention; standard services and customers' services, case numbers, agreements and SLA, renewal decisions, compliance frameworks. No admin panel, and no deleting customers |
 | Technician | v1 | Every customer, unless limited to some: read it all; change details, contacts, sites and systems; log work; add, complete and reschedule tasks; mark renewals done; upload documents; fill in compliance checklists |
 | Auditor | v1 | Read the audit log and record metadata |
+| Display | v1 | A service user for the TV: opens the wall display at `/public/dashboard` and nothing else |
 | Sales | Later | Prospects, "candidate for" lists, pipeline and quotes; read agreements |
 | Management | Later | Renewals and agreements across all customers, read-only |
 
@@ -266,7 +267,7 @@ Answers the design waits for:
 
 - **Prices and a coverage check.** Whether Þing records prices and answers "is this covered?" is for the company to decide. Until then Þing records which agreements cover which services, and which case number each service's work goes on, so time isn't put on a case the customer is already paying for some other way.
 - **Case numbers.** Where they are made (the company's own system), whether every one follows the `TDSE26001` pattern (department, year, running number), and which cases get a new number each month.
-- **The wall display.** How the TV opens it without someone signing in with multifactor: most likely a display link an Administrator makes, read-only, revocable, accepted only from the office's addresses, and logged. Customer names would then show on a screen in the office.
+- **The display account.** How the wall display's service user signs in on a TV nobody sits at: most likely without multifactor but only from the office's addresses, with a session that renews itself while the page is open, every sign-in logged, and nothing but `/public/dashboard` open to it. Customer names then show on a screen in the office.
 - **The standard SLA.** The company's own targets per kind of work.
 
 ## Roadmap
