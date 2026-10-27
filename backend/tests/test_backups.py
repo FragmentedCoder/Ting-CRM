@@ -438,6 +438,47 @@ def test_the_break_glass_code_made_since_the_backup_stays_after_a_restore(
 
 
 @needs_restic
+def test_a_backup_from_before_a_schema_change_restores(
+    local_repository, session, engine, make_user, data_dir, master_key_path
+) -> None:
+    """A backup made under an older schema (say, before an update) is brought up to
+    date before the restore reads it: recovery codes carry over, and Þing starts on
+    it with nothing left to migrate."""
+    from alembic import command
+    from sqlalchemy.orm import Session
+
+    from app.auth.mfa import issue_recovery_codes, use_recovery_code
+    from app.db import make_engine
+    from app.migrate import _config, is_current, upgrade
+    from app.restore import restore
+
+    ingrid = make_user("ingrid")
+    session.commit()
+    session.close()
+    config = _config()
+    with engine.connect() as conn:  # the schema of the release before
+        config.attributes["connection"] = conn
+        command.downgrade(config, "0015")
+    with Session(engine) as older:
+        assert run(older, "backup").state == "done"
+    upgrade(engine)  # the update
+    with Session(engine) as now:
+        codes = issue_recovery_codes(now, ingrid.id)
+        now.commit()
+    engine.dispose()
+
+    key_text = backups.password(load_or_create_backup_key(data_dir, master_key_path))
+    found = restore(backups.environment(Target(), {}, key_text), "latest", data_dir)
+    assert found["schema"] == "0015" and found["recovery_codes"] == "carried_over"
+    restored = make_engine(data_dir, master_key_path)
+    assert is_current(restored)
+    with Session(restored) as db:
+        assert use_recovery_code(db, ingrid.id, codes[0]) == 9
+        db.rollback()
+    restored.dispose()
+
+
+@needs_restic
 def test_recovery_codes_go_only_to_the_same_person(
     local_repository, session, engine, make_user, data_dir, master_key_path
 ) -> None:
