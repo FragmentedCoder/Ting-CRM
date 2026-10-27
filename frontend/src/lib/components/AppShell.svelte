@@ -246,7 +246,7 @@
   <div class="side-column">
     <aside class="side" id="side-menu" aria-label="Side menu">
       <div class="side-head">
-        <a class="home" href={resolve("/(app)")}><Brand size={30} tagline version={current.version} /></a>
+        <a class="home" href={resolve("/(app)")}><Brand size={30} tagline /></a>
         <button class="icon-button close" type="button" aria-label="Close the menu"
           onclick={() => (menuOpen = false)}>
           <X size={20} aria-hidden="true" />
@@ -304,6 +304,12 @@
           </ul>
         {/if}
       </nav>
+
+      <!-- Which Þing this is: the menu's last line, just above the account, in view
+           however long the menu above it scrolls. -->
+      {#if current.version}
+        <p class="version small muted">Þing <span class="mono">{current.version}</span></p>
+      {/if}
 
       <div class="you">
         <a class="account" href={resolve("/(app)/account")} title="Your account: {user.display_name}"
@@ -450,6 +456,12 @@
     text-align: center;
   }
   .hint {
+    padding: 0 var(--space-2);
+  }
+  .version {
+    flex: none;
+    /* Closer to the account below than the side menu's usual gap. */
+    margin: 0 0 calc(-1 * var(--space-2));
     padding: 0 var(--space-2);
   }
   .you {
