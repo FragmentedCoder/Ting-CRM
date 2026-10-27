@@ -42,7 +42,10 @@ policy = SecurityPolicy(breach_check_enabled=False)
 with Session(get_engine()) as db:
     for username in os.environ["USERS"].split():
         password = vet_new_password(os.environ["E2E_PASSWORD"], policy, username=username)
-        create_user(db, username, "Astrid Fjeld", password)
+        user = create_user(db, username, "Astrid Fjeld", password)
+        # The dark screenshots' accounts chose dark; everyone else starts light.
+        if "-dark-" in username:
+            user.theme = "dark"
     # Administrators, a manager, technicians and an auditor for the admin panel,
     # customer and menu tests (the wizard's Administrator has a passkey only).
     for username, name, role in (

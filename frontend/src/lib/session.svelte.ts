@@ -55,6 +55,7 @@ export const appearance = $state({ applied: 0 });
 
 /**
  * Light or dark as the user chose; "system" leaves it to the browser's setting.
+ * Before anyone is signed in (no theme), Þing is light, as app.html starts it.
  * With `fade`, a change you'd see fades slowly across, where the browser can and
  * motion is welcome; otherwise it's instant, as when someone picks it in the app.
  */
@@ -62,14 +63,16 @@ export function applyTheme(theme: Theme | undefined, fade = false): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   const systemDark = matchMedia("(prefers-color-scheme: dark)").matches;
+  // What each would show: no attribute follows the device, as "system" does.
   const darkWith = (chosen: string | undefined) =>
     chosen === "dark" || (chosen !== "light" && systemDark);
+  const wanted = theme === "system" ? undefined : (theme ?? "light");
   const set = () => {
-    if (theme === "light" || theme === "dark") root.dataset.theme = theme;
-    else delete root.dataset.theme;
+    if (theme === "system") delete root.dataset.theme;
+    else root.dataset.theme = theme ?? "light";
     appearance.applied++;
   };
-  const changes = darkWith(root.dataset.theme) !== darkWith(theme);
+  const changes = darkWith(root.dataset.theme) !== darkWith(wanted);
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (fade && changes && !calm && "startViewTransition" in document) document.startViewTransition(set);
   else set();

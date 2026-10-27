@@ -339,7 +339,7 @@
         </p>
         <fieldset class="themes">
           <legend class="check-title">Light or dark</legend>
-          {#each [["system", "Same as this device"], ["light", "Light"], ["dark", "Dark"]] as [value, label] (value)}
+          {#each [["light", "Light"], ["dark", "Dark"], ["system", "Same as this device"]] as [value, label] (value)}
             <label class="check">
               <input type="radio" name="theme" {value} bind:group={theme}
                 onchange={(event) => saveAppearance({ theme: event.currentTarget.value as Theme })} />
