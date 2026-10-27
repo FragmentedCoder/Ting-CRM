@@ -173,7 +173,7 @@
       <dt>Multifactor</dt>
       <dd>{user.mfa_required ? "Required" : "Not required"}</dd>
       <dt>Recovery codes</dt>
-      <dd>{user.recovery_codes_left} of 10 left</dd>
+      <dd>{user.recovery_code_reusable ? "One reusable code (break-glass)" : `${user.recovery_codes_left} of 10 left`}</dd>
       <dt>Lockout</dt>
       <dd>{user.locked ? "Locked after too many wrong attempts" : "Not locked"}</dd>
     </dl>

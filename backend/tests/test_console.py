@@ -143,3 +143,31 @@ def test_rotating_finishes_one_left_halfway_first(server, session, capsys, data_
 def test_an_unknown_command_shows_what_there_is(capsys) -> None:
     assert console.main(["format-disk"]) == 2
     assert "rotate-master-key" in capsys.readouterr().err
+
+
+def test_ting_admin_recovery_code_gives_the_break_glass_administrator_a_new_one(
+    server, session, make_user, capsys
+) -> None:
+    from app.auth.mfa import issue_recovery_codes, use_recovery_code
+
+    ingrid = make_user("ingrid", is_break_glass=True)
+    (old,) = issue_recovery_codes(session, ingrid.id)
+    session.commit()
+
+    assert console.main(["recovery-code"]) == 0
+    out = capsys.readouterr().out
+    (new,) = [line.strip() for line in out.splitlines() if line.count("-") == 5]
+    assert "for the break-glass Administrator, ingrid" in out
+    assert "the one before, which no longer does" in out
+    assert use_recovery_code(session, ingrid.id, old) is None
+    assert use_recovery_code(session, ingrid.id, new) == 1
+    logged = session.scalar(select(AuditEntry).where(
+        AuditEntry.action == "auth.mfa.recovery_codes_issued"))
+    session.commit()
+    assert logged.actor_name == "console" and new not in (logged.details or "")
+
+
+def test_ting_admin_recovery_code_needs_a_break_glass_administrator(server, capsys) -> None:
+    assert console.main(["recovery-code"]) == 1
+    assert "no break-glass Administrator yet" in capsys.readouterr().err
+

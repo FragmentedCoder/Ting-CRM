@@ -17,6 +17,7 @@ from app.auth.dependencies import (
 from app.auth.mfa import (
     Method,
     SecondFactorState,
+    has_reusable_code,
     mark_signed_in,
     methods_of,
     second_factor_state,
@@ -82,8 +83,10 @@ class SessionInfo(BaseModel):
     methods: list[Method]
     # A temporary password must be replaced before the app opens.
     password_change_required: bool
-    # Only once signed in: how many recovery codes are left, to warn when few.
+    # Only once signed in: how many recovery codes are left, to warn when few (never
+    # for a reusable one).
     recovery_codes_left: int | None
+    recovery_code_reusable: bool = False
     csrf_token: str
     idle_expires_at: datetime
     expires_at: datetime
@@ -118,6 +121,7 @@ def session_info(db: Session, record: UserSession, token: str, request: Request)
             len(unused_recovery_codes(db, user.id))
             if state == "done" and methods_of(db, user.id) else None
         ),
+        recovery_code_reusable=has_reusable_code(db, user.id),
         csrf_token=csrf_token_for(token),
         idle_expires_at=idle_deadline(record, policy),
         expires_at=record.expires_at,

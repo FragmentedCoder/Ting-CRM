@@ -224,19 +224,17 @@ def test_skjalds_projects_and_roles_go_and_customers_and_people_stay(
 
 
 def test_skjalds_saved_tag_line_becomes_things_and_a_chosen_one_stays(
-    data_dir, master_key_path
+    tmp_path, master_key_path
 ) -> None:
     """0015: Branding saved with Skjald's tag line gets Þing's; any other stays."""
-    for saved, after in (("Reports worth keeping.", "Gather. Agree. Remember."),
-                         ("Kunder ved fjorden.", "Kunder ved fjorden.")):
-        engine = make_engine(data_dir, master_key_path)
+    for n, (saved, after) in enumerate((("Reports worth keeping.", "Gather. Agree. Remember."),
+                                        ("Kunder ved fjorden.", "Kunder ved fjorden."))):
+        engine = make_engine(tmp_path / f"data-{n}", master_key_path)
         upgrade(engine, "0014")
         branding = {"site_name": "Þing", "tagline": saved, "accent_colour": "lyng"}
         with engine.begin() as conn:
-            conn.execute(text("DELETE FROM settings WHERE key = 'branding'"))
             conn.execute(text("INSERT INTO settings (key, value) VALUES ('branding', :v)"),
                          {"v": json.dumps(branding)})
-            conn.execute(text("UPDATE alembic_version SET version_num = '0014'"))
 
         upgrade(engine)
 

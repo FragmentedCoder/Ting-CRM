@@ -6,7 +6,7 @@
   import AuthLayout from "#lib/components/AuthLayout.svelte";
   import SaveSecrets from "#lib/components/SaveSecrets.svelte";
   import SecondFactorSetup from "#lib/components/SecondFactorSetup.svelte";
-  import { recoveryCodesText } from "#lib/secrets.js";
+  import { recoveryCodesText, recoveryCodesWording } from "#lib/secrets.js";
   import {
     settle,
     signOut,
@@ -17,6 +17,7 @@
 
   let info = $state<SessionInfo | null>(null);
   let codes = $state<string[] | null>(null);
+  let reusable = $state(false);
 
   onMount(async () => {
     info = await settle("/sign-in/set-up");
@@ -25,6 +26,7 @@
   function done(result: SecondFactorResult) {
     useSession(result.session);
     codes = result.recovery_codes ?? [];
+    reusable = result.recovery_code_reusable;
   }
 </script>
 
@@ -42,13 +44,13 @@
   </AuthLayout>
 {:else if info && codes}
   <AuthLayout
-    heading="Save your recovery codes"
-    intro="If you lose your phone or key, each code lets you sign in once. They are shown only now."
+    heading={recoveryCodesWording(reusable).heading}
+    intro={recoveryCodesWording(reusable).intro}
   >
     <SaveSecrets
-      text={recoveryCodesText(info.user.username, codes)}
+      text={recoveryCodesText(info.user.username, codes, reusable)}
       filename="ting-recovery-codes.txt"
-      confirmation="I have saved these codes somewhere safe"
+      confirmation={recoveryCodesWording(reusable).confirmation}
       onContinue={() => goto(resolve("/(app)"))}
     >
       <ol class="codes mono">

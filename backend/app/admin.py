@@ -41,6 +41,7 @@ from app.auth.mfa import (
     MfaFactor,
     RecoveryCode,
     confirmed_factors,
+    has_reusable_code,
     mfa_required,
     unused_recovery_codes,
 )
@@ -126,6 +127,7 @@ class UserDetail(UserSummary):
     password_expires_at: datetime | None
     factors: list[FactorInfo]
     recovery_codes_left: int
+    recovery_code_reusable: bool
     sessions: list[SessionSummary]
 
 
@@ -200,6 +202,7 @@ def _detail(db: Session, user: User) -> UserDetail:
         password_expires_at=user.password_expires_at,
         factors=factor_infos(db, user.id),
         recovery_codes_left=len(unused_recovery_codes(db, user.id)),
+        recovery_code_reusable=has_reusable_code(db, user.id),
         sessions=session_summaries(db, user.id),
     )
 

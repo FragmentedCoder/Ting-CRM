@@ -61,7 +61,11 @@ test("the setup wizard, start to finish", async ({ page }) => {
   await expect(protect).toBeVisible();
   await shot(page, "5-second-factor");
   await page.getByRole("button", { name: /Passkey or security key/ }).click();
-  await saveRecoveryCodes(page);
+  // The break-glass Administrator gets one code that works every time.
+  await expect(page.getByRole("heading", { name: "Save your recovery code" })).toBeVisible();
+  const codes = await saveRecoveryCodes(page);
+  expect(codes).toHaveLength(1);
+  expect(codes[0]).toMatch(/^([a-z2-9]{4}-){5}[a-z2-9]{4}$/);
 
   await expect(page.getByRole("heading", { name: "Save the recovery kit" })).toBeVisible();
   for (const key of ["Master key", "Backup key"]) {

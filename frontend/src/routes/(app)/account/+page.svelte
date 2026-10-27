@@ -18,7 +18,7 @@
   import SaveSecrets from "#lib/components/SaveSecrets.svelte";
   import SecondFactorSetup from "#lib/components/SecondFactorSetup.svelte";
   import { browserName, date, dateTime } from "#lib/format.js";
-  import { recoveryCodesText } from "#lib/secrets.js";
+  import { recoveryCodesText, recoveryCodesWording } from "#lib/secrets.js";
   import { toast } from "#lib/toast.svelte.js";
   import {
     applyTheme,
@@ -55,6 +55,7 @@
     mfa_required: boolean;
     factors: Factor[];
     recovery_codes_left: number;
+    recovery_code_reusable: boolean;
     sessions: SessionRow[];
   }
 
@@ -79,6 +80,7 @@
   let confirmError = $state<string | null>(null);
   let adding = $state(false);
   let newCodes = $state<string[] | null>(null);
+  let newReusable = $state(false);
   let codesOpen = $state(false);
 
   // The last method can't go while the account needs multifactor.
@@ -211,11 +213,12 @@
   }
 
   function regenerateCodes() {
-    askPassword("Get new recovery codes", async (password) => {
-      const result = await api<{ recovery_codes: string[] }>("POST", "/account/recovery-codes", {
-        password,
-      });
+    askPassword(account?.recovery_code_reusable ? "Get a new recovery code" : "Get new recovery codes", async (password) => {
+      const result = await api<{ recovery_codes: string[]; reusable: boolean }>(
+        "POST", "/account/recovery-codes", { password },
+      );
       newCodes = result.recovery_codes;
+      newReusable = result.reusable;
       codesOpen = true;
       await load();
     });
@@ -437,8 +440,22 @@
 
       {#if account.factors.length}
         <section class="section" aria-labelledby="codes-title" id="recovery-codes">
-          <h2 class="section-title" id="codes-title">Recovery codes</h2>
-          {#if account.recovery_codes_left === 0}
+          <h2 class="section-title" id="codes-title">
+            {account.recovery_code_reusable ? "Recovery code" : "Recovery codes"}
+          </h2>
+          {#if account.recovery_code_reusable}
+            <p><Pill tone="ok" text="One code, good every time" /></p>
+            <p class="small muted">
+              As the break-glass Administrator, you have one recovery code that lets you sign in
+              whenever you lose your phone or key, as often as you need. A new one replaces it; on
+              the server, <span class="mono">sudo ting admin recovery-code</span> makes one too.
+            </p>
+            <div>
+              <button class="button button-secondary" type="button" onclick={regenerateCodes}>
+                Get a new code
+              </button>
+            </div>
+          {:else if account.recovery_codes_left === 0}
             <div class="alert alert-critical callout" role="alert">
               <p class="check-title">You have no recovery codes left</p>
               <p>
@@ -458,16 +475,18 @@
           {:else}
             <p><Pill tone="ok" text="{account.recovery_codes_left} of 10 left" /></p>
           {/if}
-          <p class="small muted">
-            Each code lets you sign in once if you lose your phone or key. New codes replace all
-            the old ones.
-          </p>
-          <div>
-            <button class="button {account.recovery_codes_left <= 3 ? 'button-primary' : 'button-secondary'}"
-              type="button" onclick={regenerateCodes}>
-              Get new codes
-            </button>
-          </div>
+          {#if !account.recovery_code_reusable}
+            <p class="small muted">
+              Each code lets you sign in once if you lose your phone or key. New codes replace all
+              the old ones.
+            </p>
+            <div>
+              <button class="button {account.recovery_codes_left <= 3 ? 'button-primary' : 'button-secondary'}"
+                type="button" onclick={regenerateCodes}>
+                Get new codes
+              </button>
+            </div>
+          {/if}
         </section>
       {/if}
 
@@ -546,12 +565,12 @@
     </div>
   </Dialog>
 
-  <Dialog bind:open={codesOpen} title="Your new recovery codes">
+  <Dialog bind:open={codesOpen} title={newReusable ? "Your new recovery code" : "Your new recovery codes"}>
     {#if newCodes}
       <SaveSecrets
-        text={recoveryCodesText(account.username, newCodes)}
+        text={recoveryCodesText(account.username, newCodes, newReusable)}
         filename="ting-recovery-codes.txt"
-        confirmation="I have saved these codes somewhere safe"
+        confirmation={recoveryCodesWording(newReusable).confirmation}
         continueLabel="Done"
         onContinue={() => {
           codesOpen = false;

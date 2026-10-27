@@ -78,6 +78,7 @@ export interface UserDetail extends UserSummary {
     last_used_at: string | null;
   }[];
   recovery_codes_left: number;
+  recovery_code_reusable: boolean;
   sessions: SessionRow[];
 }
 

@@ -27,13 +27,13 @@ git -C "${WORK}/repo" -c user.name=t -c user.email=t@example.invalid commit --qu
 ting() { TING_HOME="${WORK}/home" "${WORK}/repo/deploy/ting" "$@"; }
 
 for command in status logs "start | stop | restart" backup restore-test restore update "keys rotate" \
-	"admin reset-allowlist" "admin reset-certificate" setup-token; do
+	"admin reset-allowlist" "admin reset-certificate" "admin recovery-code" setup-token; do
 	check "help lists ${command}" grep -q "^  ${command}" <(ting help)
 done
 unknown() { ! ting format-disk >/dev/null 2>&1 && [[ $(ting format-disk 2>&1 >/dev/null | head -1) == Usage* ]]; }
 check "an unknown command shows the usage and fails" unknown
 check "keys says how it's used" grep -q "Usage: ting keys rotate" <(ting keys spin 2>&1 || true)
-check "admin says what there is" grep -q "reset-allowlist | reset-certificate" <(ting admin nuke 2>&1 || true)
+check "admin says what there is" grep -q "reset-allowlist | reset-certificate | recovery-code" <(ting admin nuke 2>&1 || true)
 
 # shellcheck source=deploy/ting
 . "${WORK}/repo/deploy/ting"

@@ -55,11 +55,12 @@ export async function signIn(page: Page, username: string, password = PASSWORD):
 }
 
 export async function saveRecoveryCodes(page: Page): Promise<string[]> {
-  await expect(page.getByRole("heading", { name: "Save your recovery codes" })).toBeVisible();
+  // Ten one-time codes, or the break-glass Administrator's one reusable code.
+  await expect(page.getByRole("heading", { name: /^Save your recovery codes?$/ })).toBeVisible();
   const codes = await page.locator("ol.codes li").allTextContents();
   const next = page.getByRole("button", { name: "Continue" });
   await expect(next).toBeDisabled();
-  await page.getByLabel("I have saved these codes somewhere safe").check();
+  await page.getByLabel(/I have saved th(ese codes|is code) somewhere safe/).check();
   await next.click();
   return codes;
 }

@@ -101,15 +101,15 @@ def _carry_recovery_codes(restored: Path, data_dir: Path) -> dict[str, Any]:
                     continue
                 theirs = [c for c in codes if c.user_id == user.id]
                 then = list(db.scalars(select(RecoveryCode).where(RecoveryCode.user_id == user.id)))
-                if sorted((c.code_hash, c.used_at) for c in then) == sorted(
-                        (c.code_hash, c.used_at) for c in theirs):
+                if sorted((c.code_hash, c.used_at, c.reusable) for c in then) == sorted(
+                        (c.code_hash, c.used_at, c.reusable) for c in theirs):
                     continue
                 for code in then:
                     db.delete(code)
                 for code in theirs:
                     db.add(RecoveryCode(user_id=code.user_id, salt=code.salt,
                                         code_hash=code.code_hash, created_at=code.created_at,
-                                        used_at=code.used_at))
+                                        used_at=code.used_at, reusable=code.reusable))
                 carried += 1
             db.commit()
     finally:
@@ -125,7 +125,9 @@ def _record(restored: Path, snapshot: str, found: dict[str, Any]) -> None:
     codes = ("Recovery codes are as they were just before the restore: used ones stay "
              "used." if found["recovery_codes"] == "carried_over" else
              "Recovery codes are as they were at the backup: any used since work again, "
-             "so people who used one should make new ones under Your account.")
+             "so people who used one should make new ones under Your account, and if the "
+             "break-glass Administrator's code was replaced since, the old one works again "
+             "until ting admin recovery-code makes a new one.")
     engine = make_engine(restored, settings.master_key_path)
     try:
         with Session(engine) as db:
@@ -272,9 +274,11 @@ def main(argv: list[str] | None = None) -> int:
               f"used ones stay used ({changed} {'person' if changed == 1 else 'people'} "
               "had used or replaced codes since the backup).")
     else:
-        print("Recovery codes are as they were at the backup (the data before couldn't be "
-              "read): any code used since works again. Ask people who used one to make new "
-              "ones under Your account.")
+        print("Warning: recovery codes are as they were at the backup (the data before "
+              "couldn't be read): any code used since works again. Ask people who used one to "
+              "make new ones under Your account. If the break-glass Administrator's code was "
+              "replaced since, the old one works again: ting admin recovery-code makes a new "
+              "one.")
     print("Passwords and second factors are as they were at the backup. The restore is in "
           "the audit log, and the Administrators are emailed when Þing runs again.")
     if not os.environ.get("TING_COMMAND"):  # ting restore starts it again itself

@@ -404,6 +404,40 @@ def test_a_restore_keeps_recovery_codes_as_they_are_now_and_is_recorded(
 
 
 @needs_restic
+def test_the_break_glass_code_made_since_the_backup_stays_after_a_restore(
+    local_repository, session, engine, make_user, data_dir, master_key_path
+) -> None:
+    """Carried over like one-time codes, it stays reusable, and the one from the
+    backup, replaced since, doesn't come back."""
+    from sqlalchemy.orm import Session
+
+    from app.auth.mfa import has_reusable_code, issue_recovery_codes, use_recovery_code
+    from app.db import make_engine
+    from app.restore import restore
+
+    ingrid = make_user("ingrid", is_break_glass=True)
+    (then,) = issue_recovery_codes(session, ingrid.id)
+    session.commit()
+    assert run(session, "backup").state == "done"
+    (now,) = issue_recovery_codes(session, ingrid.id)  # ting admin recovery-code, say
+    session.commit()
+    session.close()
+    engine.dispose()
+
+    key_text = backups.password(load_or_create_backup_key(data_dir, master_key_path))
+    found = restore(backups.environment(Target(), {}, key_text), "latest", data_dir)
+    assert found["recovery_codes_changed_for"] == 1
+    restored = make_engine(data_dir, master_key_path)
+    with Session(restored) as db:
+        assert use_recovery_code(db, ingrid.id, then) is None
+        assert use_recovery_code(db, ingrid.id, now) == 1
+        assert use_recovery_code(db, ingrid.id, now) == 1
+        assert has_reusable_code(db, ingrid.id)
+        db.rollback()
+    restored.dispose()
+
+
+@needs_restic
 def test_recovery_codes_go_only_to_the_same_person(
     local_repository, session, engine, make_user, data_dir, master_key_path
 ) -> None:
@@ -458,8 +492,9 @@ def test_a_restore_without_readable_data_says_codes_are_as_backed_up(
         load_or_create_backup_key(data_dir, master_key_path)))
     assert restore_module.main(["--yes"]) == 0
     out = capsys.readouterr().out
-    assert "Recovery codes are as they were at the backup" in out
+    assert "Warning: recovery codes are as they were at the backup" in out
     assert "any code used since works again" in out
+    assert "ting admin recovery-code makes a new one" in out
 
 
 @needs_restic

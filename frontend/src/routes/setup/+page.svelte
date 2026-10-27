@@ -16,7 +16,7 @@
   import type { SecuritySettings } from "#lib/policy.js";
   import { branding } from "#lib/branding.svelte.js";
   import Command from "#lib/components/Command.svelte";
-  import { recoveryCodesText, recoveryKitText, type RecoveryKit } from "#lib/secrets.js";
+  import { recoveryCodesText, recoveryCodesWording, recoveryKitText, type RecoveryKit } from "#lib/secrets.js";
   import { choiceFrom, tlsBody, type TlsChoice, type TlsStatus } from "#lib/tls.js";
   import {
     session,
@@ -75,6 +75,7 @@
   let admin = $state({ display_name: "", username: "", email: "", password: "", repeat: "" });
   let password = $state("");
   let codes = $state<string[]>([]);
+  let reusable = $state(false);
   let kit = $state<RecoveryKit | null>(null);
   let backups = $state<BackupStatus | null>(null);
   let backupPlan = $state<PlanForm | null>(null);
@@ -216,6 +217,7 @@
   function secondFactorDone(result: SecondFactorResult) {
     useSession(result.session);
     codes = result.recovery_codes ?? [];
+    reusable = result.recovery_code_reusable;
     if (codes.length) step = "codes";
     else nextStep();
   }
@@ -563,14 +565,14 @@
     </AuthLayout>
   {:else if step === "codes" && session.current}
     <AuthLayout
-      heading="Save your recovery codes"
-      intro="If you lose your phone or key, each code lets you sign in once. They are shown only now."
+      heading={recoveryCodesWording(reusable).heading}
+      intro={recoveryCodesWording(reusable).intro}
       {eyebrow}
     >
       <SaveSecrets
-        text={recoveryCodesText(session.current.user.username, codes)}
+        text={recoveryCodesText(session.current.user.username, codes, reusable)}
         filename="ting-recovery-codes.txt"
-        confirmation="I have saved these codes somewhere safe"
+        confirmation={recoveryCodesWording(reusable).confirmation}
         onContinue={nextStep}
       >
         <ol class="codes mono">

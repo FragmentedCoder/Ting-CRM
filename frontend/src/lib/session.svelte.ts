@@ -25,6 +25,8 @@ export interface SessionInfo {
   password_change_required: boolean;
   // Only once fully signed in, for someone with multifactor set up.
   recovery_codes_left: number | null;
+  // The break-glass Administrator's one code works every time: nothing runs out.
+  recovery_code_reusable: boolean;
   csrf_token: string;
   idle_expires_at: string;
   expires_at: string;
@@ -35,6 +37,7 @@ export interface SessionInfo {
 export interface SecondFactorResult {
   session: SessionInfo;
   recovery_codes: string[] | null;
+  recovery_code_reusable: boolean;
 }
 
 interface SessionStatus {
@@ -319,7 +322,7 @@ if (typeof document !== "undefined") {
 
 function warnAboutRecoveryCodes(info: SessionInfo): void {
   const left = info.recovery_codes_left;
-  if (left === null || left > 3) return;
+  if (info.recovery_code_reusable || left === null || left > 3) return;
   const open = { label: "Go to Your account", run: () => void goto(resolve("/(app)/account")) };
   const text =
     left === 0

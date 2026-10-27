@@ -40,6 +40,8 @@ Usage: ting <command>
   keys rotate             replace the master key (Þing stops for a moment)
   admin reset-allowlist   switch off both IP allowlists, when they lock everyone out
   admin reset-certificate go back to Þing's own certificate authority
+  admin recovery-code     a new recovery code for the break-glass Administrator, when
+                          theirs is lost or may be known (the one before stops working)
   setup-token             print a new setup token, while setup is pending
   help                    this
 EOF
@@ -352,11 +354,11 @@ main() {
 	keys) cmd_keys "$@" ;;
 	admin)
 		case "${1:-}" in
-		reset-allowlist | reset-certificate)
+		reset-allowlist | reset-certificate | recovery-code)
 			require_running
 			console "$1"
 			;;
-		*) die "Usage: ting admin reset-allowlist | reset-certificate" ;;
+		*) die "Usage: ting admin reset-allowlist | reset-certificate | recovery-code" ;;
 		esac
 		;;
 	setup-token)
