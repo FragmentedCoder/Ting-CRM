@@ -65,6 +65,9 @@ services:
     volumes:
       - ting_data:/data
       - ${TING_ETC:-/etc/ting}:/etc/ting:ro
+      # The backup key's spare copy, outside the data volume, so a restore on this
+      # server needs no recovery kit; the worker alone may write it, and only here.
+      - ${TING_ETC:-/etc/ting}/keys:/etc/ting/keys
       # Backups kept on this server: a volume by default, or a folder on the host
       # (owned by UID 10001) when TING_BACKUP_DIR names one, such as a mounted disk.
       - ${TING_BACKUP_DIR:-ting_backups}:/backups

@@ -66,3 +66,30 @@ def test_load_master_key_rejects_the_wrong_length(tmp_path) -> None:
     path.write_bytes(b"too short")
     with pytest.raises(ValueError, match="32 bytes"):
         load_master_key(path)
+
+
+def test_the_backup_keys_spare_copy_follows_the_data_folder(data_dir, master_key_path) -> None:
+    from app.crypto.key_files import (
+        backup_keys_on_server,
+        keep_backup_key,
+        kept_backup_key_path,
+        load_or_create_backup_key,
+    )
+
+    assert keep_backup_key(data_dir, master_key_path) is None  # no backup key before setup
+    key = load_or_create_backup_key(data_dir, master_key_path)
+    assert keep_backup_key(data_dir, master_key_path) is False  # no folder for the copy
+    kept = kept_backup_key_path(master_key_path)
+    kept.parent.mkdir()
+    assert keep_backup_key(data_dir, master_key_path) is True
+    assert kept.read_bytes() == (data_dir / "backup.key.enc").read_bytes()
+    assert oct(kept.stat().st_mode & 0o777) == "0o600"
+    assert [k for _, k in backup_keys_on_server(data_dir, master_key_path)] == [key]
+
+    # The data folder gone: the spare copy is still there, and still the same key.
+    (data_dir / "backup.key.enc").unlink()
+    assert backup_keys_on_server(data_dir, master_key_path) == [(str(kept.parent), key)]
+    # A copy wrapped for something else opens nothing.
+    kept.write_bytes(b"\0" * 60)
+    assert backup_keys_on_server(data_dir, master_key_path) == []
+

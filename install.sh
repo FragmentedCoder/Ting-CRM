@@ -124,8 +124,9 @@ create_directories() {
 	# Owned by the app container's non-root UID, not actual root: the app
 	# reads the master key directly, and it never runs as root (see
 	# docs/architecture.md's hardening section).
-	install -d -m 0700 "${TING_ETC}"
-	chown "${APP_UID}:${APP_UID}" "${TING_ETC}" # an existing folder too
+	install -d -m 0700 "${TING_ETC}" "${TING_ETC}/keys"
+	# An existing folder too; keys/ holds the backup key's spare copy, the worker's.
+	chown "${APP_UID}:${APP_UID}" "${TING_ETC}" "${TING_ETC}/keys"
 	log "${TING_HOME} and ${TING_ETC} are in place."
 }
 

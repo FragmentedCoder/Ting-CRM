@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session, sessionmaker
 import app.models  # noqa: F401
 from app import clock, jobs
 from app.crypto import rotation
+from app.crypto.key_files import keep_backup_key
 from app.db import get_engine
 from app.migrate import is_current
 from app.policy import Setting
@@ -70,6 +71,20 @@ def _prune_jobs(db: Session, job: jobs.Job) -> dict[str, object]:
     return {"removed": jobs.prune(db)}
 
 
+def _keep_backup_key(warned: bool) -> bool:
+    """Keep the backup key's spare copy in step; say once if it can't be. Returns
+    whether that was said."""
+    try:
+        if keep_backup_key(settings.data_dir, settings.master_key_path) is not False or warned:
+            return warned
+    except OSError:
+        if warned:
+            return True
+    log.warning("The backup key's spare copy can't be kept in /etc/ting/keys: run "
+                "ting restart on the server, which makes the folder.")
+    return True
+
+
 def main() -> None:
     # Modules whose jobs the worker runs register them when imported.
     import app.audit_stamps  # noqa: F401
@@ -101,6 +116,7 @@ def main() -> None:
         recovered = jobs.recover_stale(db)
     log.info("Worker started%s.", f"; put back {recovered} stale jobs" if recovered else "")
     beaten: datetime | None = None
+    warned = False
     while not stopping:
         now = clock.utcnow()
         with sessions() as db:
@@ -108,6 +124,7 @@ def main() -> None:
                 beat(db, now)
                 jobs.queue_due(db, now)
                 beaten = now
+                warned = _keep_backup_key(warned)
             job = jobs.run_one(db)
             if job is not None:
                 log.info("Job %s (%s): %s", job.id, job.kind, job.state)

@@ -29,9 +29,10 @@ Usage: ting <command>
   start | stop | restart  start or stop Þing
   backup                  back up now, and wait for it
   restore-test            restore the newest backup into a scratch folder and check it
-  restore [--snapshot ID] [--repository R]
-                          restore a backup (asks for the recovery kit's backup key;
-                          Þing is stopped meanwhile)
+  restore [--snapshot ID] [--repository R] [--ask-key]
+                          restore a backup with the backup key this server keeps
+                          (or, without one, the recovery kit's); Þing is stopped
+                          meanwhile
   update [--ref REF] [--no-backup]
                           update to the newest release (or REF), its files and images
                           checked against their signatures; from a checkout, to the
@@ -66,6 +67,18 @@ require_running() {
 
 console() {
 	compose exec -T app python -m app.console "$@"
+}
+
+# The folder for the backup key's spare copy, beside the master key and the worker's
+# to write (docker-compose.yml). Made, or given back to the worker, on every
+# command run as root, so an install from before it gets it too.
+key_folder() {
+	local etc
+	[[ "${EUID}" -eq 0 ]] || return 0
+	etc=$(sed -n 's/^TING_ETC=//p' "${DEPLOY_DIR}/.env" 2>/dev/null | tail -1)
+	etc=${etc:-/etc/ting}
+	[[ -d "${etc}" ]] || return 0
+	install -d -m 0700 "${etc}/keys" && chmod 0700 "${etc}/keys" && chown 10001:10001 "${etc}/keys"
 }
 
 # The address from .env, and the port Caddy answers on.
@@ -332,6 +345,7 @@ start_new() {
 main() {
 	local command=${1:-help}
 	[[ $# -gt 0 ]] && shift
+	key_folder
 	case "${command}" in
 	status) cmd_status ;;
 	logs) compose logs --tail=200 "$@" ;;

@@ -101,12 +101,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - name: Throwaway master key (as install.sh makes it)
+      - name: Throwaway master key, in the browser tests' own folder
         run: |
-          sudo install -d -o 10001 -g 10001 -m 0700 /etc/ting
-          sudo sh -c 'head -c 32 /dev/urandom > /etc/ting/master.key'
-          sudo chown 10001:10001 /etc/ting/master.key
-          sudo chmod 0600 /etc/ting/master.key
+          sudo install -d -o 10001 -g 10001 -m 0700 /etc/ting-e2e /etc/ting-e2e/keys
+          sudo sh -c 'head -c 32 /dev/urandom > /etc/ting-e2e/master.key'
+          sudo chown 10001:10001 /etc/ting-e2e/master.key
+          sudo chmod 0600 /etc/ting-e2e/master.key
       - name: Run Playwright against Caddy, the app and its database
         run: frontend/e2e/run.sh
       # The images the browser tests ran: high and critical vulnerabilities with a fix

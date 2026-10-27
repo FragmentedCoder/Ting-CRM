@@ -1,7 +1,9 @@
 """Restore a backup: `python -m app.restore`, with Þing stopped. `ting restore`
 on the server stops Þing, runs it in a worker container, and starts it again.
 
-It asks for the backup key from the recovery kit, restores the snapshot (the
+It reads the backup key this server keeps (in the data folder, or the spare copy
+in /etc/ting/keys) and asks for the one in the recovery kit only when neither
+opens the backups, or when --ask-key says to. It restores the snapshot (the
 newest unless --snapshot says otherwise) into a scratch folder and checks it as
 the weekly restore test does. Only then does it move the current data aside, into
 a folder named for the time (nothing is deleted), and put the restored copy in
@@ -47,6 +49,7 @@ from app.backups import (
     password,
     restic,
 )
+from app.crypto.key_files import backup_keys_on_server
 from app.crypto.keys import from_kit_text, load_master_key
 from app.crypto.rotation import key_id, opens, rewrap_restored
 from app.db import make_engine
@@ -218,6 +221,15 @@ def _target_environment(key_text: str, repository: str | None,
         engine.dispose()
 
 
+def _opens(env: dict[str, str]) -> bool:
+    """Whether this key opens the backup target's repository."""
+    try:
+        restic(env, "cat", "config", timeout=300)
+    except BackupError:
+        return False
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Restore Þing from a backup.")
     parser.add_argument("--snapshot", default="latest", help="snapshot ID (default: latest)")
@@ -225,23 +237,43 @@ def main(argv: list[str] | None = None) -> int:
                                           "first one in Admin, Backups)")
     parser.add_argument("--repository", help="restic repository, if Þing's settings are gone")
     parser.add_argument("--yes", action="store_true", help="don't ask before replacing data")
+    parser.add_argument("--ask-key", action="store_true",
+                        help="ask for the recovery kit's backup key even when this server "
+                             "keeps one (such as for backups made on another server)")
     args = parser.parse_args(argv)
+    data_dir = Path(settings.data_dir)
 
-    kit = getpass.getpass("Backup key, from the recovery kit: ")
+    def target(key_text: str) -> dict[str, str]:
+        return _target_environment(key_text, args.repository, args.target)
+
+    env: dict[str, str] | None = None
     try:
-        key_text = password(from_kit_text(kit))
-    except ValueError:
-        print("That isn't a backup key as the recovery kit writes it.", file=sys.stderr)
-        return 2
-    try:
-        env = _target_environment(key_text, args.repository, args.target)
+        # The keys this server keeps first: an attacker on the server has worse to do
+        # than restore a backup, and someone restoring may not have the kit to hand.
+        kept = [] if args.ask_key else backup_keys_on_server(data_dir, settings.master_key_path)
+        for where, key in kept:
+            candidate = target(password(key))
+            if _opens(candidate):
+                print(f"Using the backup key kept on this server, in {where}.", flush=True)
+                env = candidate
+                break
+        if env is None:
+            if kept:
+                print("The backup key kept on this server doesn't open these backups.",
+                      flush=True)
+            kit = getpass.getpass("Backup key, from the recovery kit: ")
+            try:
+                key_text = password(from_kit_text(kit))
+            except ValueError:
+                print("That isn't a backup key as the recovery kit writes it.", file=sys.stderr)
+                return 2
+            env = target(key_text)
     except BackupError as exc:
         print(str(exc), file=sys.stderr)
         return 2
     except Exception as exc:  # noqa: BLE001 - the database may be the thing that's lost
         print(f"Þing's settings can't be read ({exc}); give --repository.", file=sys.stderr)
         return 2
-    data_dir = Path(settings.data_dir)
     if not args.yes:
         print(f"This replaces the data in {data_dir} with snapshot {args.snapshot!r} from "
               f"{env['RESTIC_REPOSITORY']}. The current data is kept beside it. Þing must "

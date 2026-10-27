@@ -484,17 +484,78 @@ def test_a_restore_without_readable_data_says_codes_are_as_backed_up(
     session.close()
     engine.dispose()
     (data_dir / "ting.db").write_bytes(b"not a database")  # the disk went
-    key_text = backups.password(load_or_create_backup_key(data_dir, master_key_path))
     monkeypatch.setattr(restore_module, "_target_environment",
-                        lambda key, repository, target: backups.environment(Target(), {},
-                                                                            key_text))
-    monkeypatch.setattr("getpass.getpass", lambda prompt="": to_kit_text(
-        load_or_create_backup_key(data_dir, master_key_path)))
+                        lambda key, repository, target: backups.environment(Target(), {}, key))
     assert restore_module.main(["--yes"]) == 0
     out = capsys.readouterr().out
     assert "Warning: recovery codes are as they were at the backup" in out
     assert "any code used since works again" in out
     assert "ting admin recovery-code makes a new one" in out
+
+
+@needs_restic
+def test_a_restore_on_this_server_needs_no_recovery_kit(
+    local_repository, session, engine, make_user, data_dir, master_key_path, capsys,
+    monkeypatch
+) -> None:
+    """The data folder gone, backup key and all: the spare copy beside the master key
+    opens the backups, so nobody is asked for the recovery kit."""
+    from app import restore as restore_module
+    from app.crypto.key_files import keep_backup_key
+    from app.users import User
+
+    make_user("ingrid")
+    assert run(session, "backup").state == "done"
+    (master_key_path.parent / "keys").mkdir()
+    assert keep_backup_key(data_dir, master_key_path) is True  # as the worker does
+    session.close()
+    engine.dispose()
+    for name in ("ting.db", "backup.key.enc", "db.key.enc", "config.key.enc"):
+        (data_dir / name).unlink(missing_ok=True)
+    monkeypatch.setattr(restore_module, "_target_environment",
+                        lambda key, repository, target: backups.environment(Target(), {}, key))
+
+    def no_kit(prompt=""):
+        raise AssertionError(f"asked for the kit: {prompt}")
+
+    monkeypatch.setattr("getpass.getpass", no_kit)
+    assert restore_module.main(["--yes"]) == 0
+    out = capsys.readouterr().out
+    assert f"Using the backup key kept on this server, in {master_key_path.parent / 'keys'}." in out
+    from sqlalchemy.orm import Session
+
+    from app.db import make_engine
+    restored = make_engine(data_dir, master_key_path)
+    with Session(restored) as db:
+        assert "ingrid" in set(db.scalars(select(User.username)))
+    restored.dispose()
+
+
+@needs_restic
+def test_a_restore_asks_for_the_kit_when_told_to_or_without_a_key_that_opens(
+    local_repository, session, engine, make_user, data_dir, master_key_path, capsys,
+    monkeypatch
+) -> None:
+    from app import restore as restore_module
+
+    make_user("ingrid")
+    assert run(session, "backup").state == "done"
+    kit = to_kit_text(load_or_create_backup_key(data_dir, master_key_path))
+    session.close()
+    engine.dispose()
+    monkeypatch.setattr(restore_module, "_target_environment",
+                        lambda key, repository, target: backups.environment(Target(), {}, key))
+    asked: list[str] = []
+    monkeypatch.setattr("getpass.getpass", lambda prompt="": asked.append(prompt) or kit)
+
+    assert restore_module.main(["--yes", "--ask-key"]) == 0
+    assert asked == ["Backup key, from the recovery kit: "]
+    # A key on this server that doesn't open these backups (say, a new server's).
+    (data_dir / "backup.key.enc").unlink()
+    load_or_create_backup_key(data_dir, master_key_path)
+    assert restore_module.main(["--yes"]) == 0
+    assert len(asked) == 2
+    assert "doesn't open these backups" in capsys.readouterr().out
 
 
 @needs_restic
