@@ -19,7 +19,7 @@ from app.settings import settings
 from tests.conftest import PASSWORD
 
 CUSTOMERS = "/api/customers"
-A, T, U = "administrator", "technician", "auditor"
+A, M, T, U = "administrator", "manager", "technician", "auditor"
 
 
 def audit_entries(session, action):
@@ -70,10 +70,10 @@ def assign(client, admin, customer_id, *users):
 
 
 def test_who_sees_customers_follows_the_roles_table() -> None:
-    # docs/architecture.md, Roles: Administrators every customer, technicians the
-    # ones they're assigned to, auditors every customer's metadata.
+    # docs/architecture.md, Roles: Administrators and Managers every customer,
+    # technicians the ones they're assigned to, auditors every customer's metadata.
     assert {role.value: sight for role, sight in SEES_CUSTOMERS.items()} == {
-        A: "all", T: "assigned", U: "metadata",
+        A: "all", M: "all", T: "assigned", U: "metadata",
     }
 
 
@@ -135,6 +135,35 @@ def test_only_administrators_create_customers_and_choose_who_is_assigned(
     assert assigning.status_code == 403
     assert client.get("/api/admin/users", headers=as_astrid).status_code == 403
     assert client.get("/api/audit", headers=as_astrid).status_code == 403
+
+
+def test_managers_run_every_customer_but_delete_none_and_have_no_admin_panel(
+    client, nordlys, person
+) -> None:
+    _, as_mona = person("mona", M)
+    astrid, _ = person("astrid", T)
+    created = client.post(CUSTOMERS, headers=as_mona, json={"name": "Fjeldstue A/S"})
+    assert created.status_code == 200
+    listed = client.get(CUSTOMERS, headers=as_mona).json()
+    assert [(c["name"], c["visibility"]) for c in listed] == [
+        ("Fjeldstue A/S", "full"), ("Nordlys IT ApS", "full")]
+    detail = client.get(f"{CUSTOMERS}/{nordlys['id']}", headers=as_mona).json()
+    assert detail["contacts"][0]["name"] == "Sigrid Holm"
+    assert detail["may_manage"] and detail["may_edit"] and not detail["may_delete"]
+    kept = client.patch(f"{CUSTOMERS}/{nordlys['id']}", headers=as_mona,
+                        json={"retention_months": 36})
+    assert kept.json()["retention_months"] == 36
+    assigned = client.put(f"{CUSTOMERS}/{nordlys['id']}/assignments", headers=as_mona,
+                          json={"people": [astrid.id]})
+    assert [p["username"] for p in assigned.json()["assigned"]] == ["astrid"]
+
+    # Refused for want of the right, not for want of a fresh confirmation.
+    client.post("/api/auth/confirm-password", headers=as_mona, json={"password": PASSWORD})
+    refused = client.request("DELETE", f"{CUSTOMERS}/{nordlys['id']}", headers=as_mona,
+                             json={"confirm_name": "Nordlys IT ApS"})
+    assert refused.status_code == 403 and refused.headers["X-Ting-Reason"] == "forbidden"
+    assert client.get("/api/admin/users", headers=as_mona).status_code == 403
+    assert client.get("/api/audit", headers=as_mona).status_code == 403
 
 
 def test_technicians_change_the_details_sites_and_contacts_of_their_customers(

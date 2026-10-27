@@ -8,8 +8,9 @@ systems, timeline and files. Only IDs and what access needs (assignments) stay
 plain. The audit log names customers by ID. Deleting a customer deletes its key
 with it, so nothing sealed with it can be read again (crypto-shredding).
 
-Who sees which customers follows the roles table: Administrators all of them,
-technicians the ones they're assigned to, and auditors every customer's metadata.
+Who sees which customers follows the roles table: Administrators and Managers all
+of them, technicians the ones they're assigned to, and auditors every customer's
+metadata.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ Visibility = Literal["full", "metadata"]
 # person is assigned to, and nothing of the others.
 SEES_CUSTOMERS: dict[Role, Literal["all", "assigned", "metadata"]] = {
     Role.ADMINISTRATOR: "all",
+    Role.MANAGER: "all",
     Role.TECHNICIAN: "assigned",
     Role.AUDITOR: "metadata",
 }

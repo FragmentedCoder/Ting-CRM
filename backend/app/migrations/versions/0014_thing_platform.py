@@ -1,11 +1,12 @@
-"""Þing's platform: no projects, three roles, plain assignments
+"""Þing's platform: no projects, Þing's roles, plain assignments
 
 Revision ID: 0014
 Revises: 0013
 
 Skjald's projects (and their teams, sites, numbers and classification), its
-report language per customer and its Manager, Report Designer and Reviewer roles
-have no place in Þing. Tables and columns are dropped in place, never rebuilt
+report language per customer and its Report Designer and Reviewer roles have no
+place in Þing. Managers stay: in Þing they run customers, their services and
+agreements. Tables and columns are dropped in place, never rebuilt
 (see 0003): with foreign keys on, dropping a rebuilt table's old copy would delete
 every row that cascades from it. Someone who held only a removed role keeps their
 account with no role; nobody is given more than they had.
@@ -23,7 +24,7 @@ def upgrade() -> None:
     for table in ("project_members", "project_sites", "projects"):
         op.drop_table(table)
     op.execute("DELETE FROM settings WHERE key LIKE 'project_counter/%'")
-    op.execute("DELETE FROM user_roles WHERE role IN ('manager', 'report_designer', 'reviewer')")
+    op.execute("DELETE FROM user_roles WHERE role IN ('report_designer', 'reviewer')")
     for table, column in (("customers", "language"),
                           ("customer_assignments", "as_technician"),
                           ("customer_assignments", "as_reviewer")):

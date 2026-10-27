@@ -10,24 +10,26 @@ from app.auth.sessions import UserSession
 from app.main import app
 from app.roles import GRANTS, Capability, Role, grant_role, roles_of
 
-A, T, U = "administrator", "technician", "auditor"
+A, M, T, U = "administrator", "manager", "technician", "auditor"
 
 # The roles table in docs/architecture.md, row by row: Administrators everything;
-# technicians read and update the customers they're assigned to; auditors read the
-# audit log and record metadata.
+# Managers customers, the service catalog and agreements, but no deleting and no
+# admin panel; technicians read and update the customers they're assigned to;
+# auditors read the audit log and record metadata.
 SPEC = {
-    "manage_customers": {A},
-    "edit_customers": {A, T},
+    "manage_customers": {A, M},
+    "edit_customers": {A, M, T},
     "delete_customers": {A},
-    "manage_service_catalog": {A},
+    "manage_service_catalog": {A, M},
+    "manage_agreements": {A, M},
     "import_data": {A},
     "administer": {A},
     "read_audit_log": {A, U},
 }
 
 
-def test_the_roles_are_thing_s_three() -> None:
-    assert {r.value for r in Role} == {A, T, U}
+def test_the_roles_are_thing_s_four() -> None:
+    assert {r.value for r in Role} == {A, M, T, U}
 
 
 def test_the_grants_match_the_roles_table() -> None:

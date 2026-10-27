@@ -170,9 +170,9 @@ def test_assignments_and_team_members_keep_what_people_can_be_on_upgrade(
 def test_skjalds_projects_and_roles_go_and_customers_and_people_stay(
     data_dir, master_key_path
 ) -> None:
-    """0014: projects, their counters, the report language and the Manager, Report
-    Designer and Reviewer roles go; customers, assignments, accounts and the other
-    roles stay, and nobody is given a role they didn't have."""
+    """0014: projects, their counters, the report language and the Report Designer
+    and Reviewer roles go; customers, assignments, accounts and the other roles
+    (Managers among them) stay, and nobody is given a role they didn't have."""
     engine = make_engine(data_dir, master_key_path)
     upgrade(engine, "0013")
     at = "2026-10-24 12:00:00"
@@ -215,6 +215,8 @@ def test_skjalds_projects_and_roles_go_and_customers_and_people_stay(
                             ).scalars().all() == [1, 3]
         assert conn.execute(text("SELECT count(*) FROM users")).scalar() == 3
         roles = conn.execute(text("SELECT user_id, role FROM user_roles ORDER BY user_id, role"))
-        assert [tuple(row) for row in roles] == [(1, "auditor"), (1, "technician")]
+        assert [tuple(row) for row in roles] == [
+            (1, "auditor"), (1, "technician"), (2, "manager")]
         assert conn.execute(text("SELECT key FROM settings")).scalars().all() == ["policy"]
     engine.dispose()
+

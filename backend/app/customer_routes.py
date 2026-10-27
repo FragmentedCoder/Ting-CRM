@@ -1,7 +1,8 @@
 """The customers API: customers, their sites and contacts, who's assigned, the logo.
 
 Creating customers, choosing who's assigned, retention and the logo are for
-Administrators (MANAGE_CUSTOMERS), and so is deleting one (DELETE_CUSTOMERS).
+Administrators and Managers (MANAGE_CUSTOMERS); deleting one is for Administrators
+only (DELETE_CUSTOMERS).
 Technicians change the details, sites and contacts of the customers they're
 assigned to (EDIT_CUSTOMERS). Everyone sees what app/customers.py allows. A
 customer someone may not see answers 404, the same as one that doesn't exist,
@@ -142,7 +143,7 @@ class CustomerDetail(CustomerSummary):
     may_manage: bool = False
     may_edit: bool = False
     may_delete: bool = False
-    # For an Administrator choosing who's assigned: everyone who may be.
+    # For an Administrator or Manager choosing who's assigned: everyone who may be.
     assignable: list[Person] | None = None
 
 
@@ -221,8 +222,8 @@ def _people(db: Session, user_ids: list[int]) -> list[Person]:
 
 
 def _assignable_ids(db: Session) -> list[int]:
-    """Active technicians: the people assignments are for. Administrators see
-    every customer without one."""
+    """Active technicians: the people assignments are for. Administrators and
+    Managers see every customer without one."""
     return list(db.scalars(
         select(UserRole.user_id).join(User, User.id == UserRole.user_id)
         .where(UserRole.role == Role.TECHNICIAN.value, User.is_active)

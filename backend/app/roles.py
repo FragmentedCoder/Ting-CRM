@@ -20,6 +20,7 @@ from app.users import User
 
 class Role(StrEnum):
     ADMINISTRATOR = "administrator"
+    MANAGER = "manager"
     TECHNICIAN = "technician"
     AUDITOR = "auditor"
 
@@ -29,18 +30,20 @@ class Capability(StrEnum):
     EDIT_CUSTOMERS = "edit_customers"  # details, sites and contacts of customers in sight
     DELETE_CUSTOMERS = "delete_customers"
     MANAGE_SERVICE_CATALOG = "manage_service_catalog"
+    MANAGE_AGREEMENTS = "manage_agreements"  # agreements, their lines and coverage rules
     IMPORT_DATA = "import_data"
     ADMINISTER = "administer"  # users, roles, policies, keys, backups, settings
     READ_AUDIT_LOG = "read_audit_log"
 
 
-_A, _T, _U = Role.ADMINISTRATOR, Role.TECHNICIAN, Role.AUDITOR
+_A, _M, _T, _U = Role.ADMINISTRATOR, Role.MANAGER, Role.TECHNICIAN, Role.AUDITOR
 
 GRANTS: dict[Capability, frozenset[Role]] = {
-    Capability.MANAGE_CUSTOMERS: frozenset({_A}),
-    Capability.EDIT_CUSTOMERS: frozenset({_A, _T}),
+    Capability.MANAGE_CUSTOMERS: frozenset({_A, _M}),
+    Capability.EDIT_CUSTOMERS: frozenset({_A, _M, _T}),
     Capability.DELETE_CUSTOMERS: frozenset({_A}),
-    Capability.MANAGE_SERVICE_CATALOG: frozenset({_A}),
+    Capability.MANAGE_SERVICE_CATALOG: frozenset({_A, _M}),
+    Capability.MANAGE_AGREEMENTS: frozenset({_A, _M}),
     Capability.IMPORT_DATA: frozenset({_A}),
     Capability.ADMINISTER: frozenset({_A}),
     Capability.READ_AUDIT_LOG: frozenset({_A, _U}),

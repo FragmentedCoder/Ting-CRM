@@ -59,8 +59,9 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await shot(boss, "1-contacts");
 
   await menu(boss, "People").click();
-  // Only technicians can be assigned: the auditor isn't offered.
+  // Only technicians can be assigned: the auditor and the manager aren't offered.
   await expect(boss.getByRole("checkbox", { name: /Aud Auditor/ })).toHaveCount(0);
+  await expect(boss.getByRole("checkbox", { name: /Maja Manager/ })).toHaveCount(0);
   await boss.getByRole("checkbox", { name: /Tor Tekniker/ }).check();
   await boss.getByRole("button", { name: "Save", exact: true }).click();
   await expect(toastWith(boss, "Who works with this customer is saved.")).toBeVisible();
@@ -92,6 +93,21 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(tech.getByRole("checkbox")).toHaveCount(0);
   await expect(tech.getByRole("main")).toContainText("Tor Tekniker");
 
+  // The manager sees every customer without being assigned, and runs it: its
+  // details, how long its records are kept, its logo and who works with it. No
+  // deleting, and no admin panel.
+  const { context: managerContext, page: manager } = await signedIn(browser, "e2e-manager");
+  await expect(manager.getByRole("heading", { name: "Customers", exact: true })).toBeVisible();
+  await manager.getByRole("main").getByRole("link", { name: CUSTOMER }).click();
+  await menu(manager, "Customer settings").click();
+  await expect(manager.getByLabel("Keep its records for")).toBeVisible();
+  await expect(manager.getByRole("heading", { name: "Logo" })).toBeVisible();
+  await expect(manager.getByRole("button", { name: "Delete customer" })).toHaveCount(0);
+  await menu(manager, "People").click();
+  await expect(manager.getByRole("checkbox", { name: /Tor Tekniker/ })).toBeChecked();
+  await expect(menu(manager, "Admin")).toHaveCount(0);
+  await shot(manager, "4-manager-people");
+
   // Unassigned, the technician loses the customer at the next check, without
   // signing in again.
   await menu(boss, "People").click();
@@ -112,7 +128,7 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   const forGood = confirm.getByRole("button", { name: "Delete for good" });
   await expect(forGood).toBeDisabled();
   await confirm.getByLabel("Type the customer's name to confirm").fill(CUSTOMER);
-  await shot(boss, "4-delete");
+  await shot(boss, "5-delete");
   await forGood.click();
   const stepUp = boss.getByRole("dialog", { name: "Confirm it's you" });
   await stepUp.getByLabel("Code from your authenticator app").fill(totp(bossSecret, 1));
@@ -124,5 +140,6 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
 
   expect(violations).toEqual([]);
   await bossContext.close();
+  await managerContext.close();
   await techContext.close();
 });
