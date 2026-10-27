@@ -52,9 +52,9 @@ A 4 px spacing scale, borders instead of shadows, and radii of 8 px (buttons, in
 
 ## Voice
 
-- Plain English labels in sentence case, short and verb first: "New customer", "Confirm agreement", "Log activity".
+- Plain English labels in sentence case, short and verb first: "New customer", "Log work", "Mark renewed".
 - Every status shows a word, never colour alone.
-- Coverage is always a clear answer, **Covered**, **Billable** or **Not covered**, never "maybe", and always shown next to the agreement line it comes from. A limit is part of the answer: "Covered, up to 5 hours a month".
+- Answers a technician acts on are clear, never "maybe": the support a customer has is **Working hours**, **Any time** or **No support**, and always comes with the case number the time goes on.
 
 ## Components
 

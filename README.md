@@ -25,11 +25,11 @@ The *þing* (thing) was the Norse assembly: free people met in a ring of standin
 
 ## What it will do
 
-- **Gather** — customers, sites and contacts (with who may be contacted), and the systems we run for each customer, each with a link to its entry in Devolutions Remote Desktop Manager. Þing never stores passwords or other secrets.
-- **Agree** — agreements, their lines and prices, and coverage rules, so a technician gets a clear answer: **Covered**, **Billable** or **Not covered**, with the rule text and the agreement line it comes from. A system that no agreement line pays for is flagged.
-- **Remember** — a timeline of calls, meetings, visits and notes, with follow-up tasks; pinned warnings that must never be missed; and compliance records (NIS2 class, data processing agreement, reviews).
-- **Overview first** — global search by name, CVR, contact, phone or email domain from every screen (`Ctrl+K`), a customer page that answers the three questions at a glance, and a home screen with tasks, notice deadlines and renewals.
-- **Security first** — per-customer encryption keys, MFA for every account, need-to-know access by customer assignment, and a tamper-evident audit log.
+- **Gather** — customers (and the companies in a group, filled in from the CVR registry), sites and contacts with their roles (who decides, who may be contacted), and each customer's systems: what runs on what, and where. Þing never stores passwords, licence keys or other secrets.
+- **Agree** — standard services (Support, Backup, Microsoft 365, Updates and more) that each customer gets a copy of with its own details, because no two customers' backup looks alike; the case number the work goes on; agreements and SLA; and renewals of licences, feature keys and certificates, with a decision on each.
+- **Remember** — a work log in plain text, tasks and recurring work (updates, restore tests, NIS2 documentation) that schedule themselves, documents and uploaded emails on a timeline, and compliance checklists (NIS2, GDPR, TISAX) that say where to find what an auditor asks for.
+- **Overview first** — global search by name, CVR, contact, phone, email domain or case number from every screen (`Ctrl+K`); a customer page that shows in five seconds the support they have, our services, the case number, pinned warnings and the decision-maker; My work for each technician; and a wall display of what's most pressing for the department's TV.
+- **Security first** — per-customer encryption keys, MFA for every account, need-to-know access, and a tamper-evident audit log.
 - **Easy to run** — one command installs it on an Ubuntu VM with Docker Compose. Updates take a backup first and roll back on failure; backups are encrypted and restore-tested.
 
 ## Try it
@@ -58,10 +58,11 @@ On the server, `sudo ting help` lists what the web UI can't do: status, logs, ba
 | --- | --- |
 | Phase 0 ✓ | Repository from Skjald's platform, renamed and rebranded; CI and signed builds; documentation and brand |
 | Phase 1 ✓ | The platform made Þing's: Skjald's projects and report roles removed; Þing's roles (Administrator, Manager, Technician, Auditor) and plain assignments; the first pre-release |
-| Phase 2 | Core CRM: customers, sites, contacts; service catalog; agreements, lines and coverage rules; systems with RDM references; timeline and tasks; global search; customer page; home |
-| Phase 3 | Compliance, coverage check, CSV/Excel import, "systems no agreement pays for" and renewal warnings |
+| Phase 2 | Core CRM: customers and their companies, CVR lookup, sites, contacts, pinned warnings; systems; standard services and each customer's own; support and case numbers; agreements and SLA; the work log; the customer page and its timeline; global search |
+| Phase 3 | Tasks, recurring tasks and renewals; warnings in Þing and by email; My work; the wall display |
+| Phase 4 | Documents and uploaded emails; compliance frameworks and checklists; CSV/Excel import |
 | 1.0 | Release gate: one-command install, ASVS Level 2 test plan passes, restore test green, the fictional demo company's data imports and works end to end |
-| After 1.0 | Microsoft 365 mail on the timeline, CVR lookup, maintenance and update tracking per system, sales and management roles |
+| After 1.0 | Danish, more warning channels (such as NTFY), prices once decided, sales and management roles |
 
 The design is described in [docs/architecture.md](docs/architecture.md).
 
