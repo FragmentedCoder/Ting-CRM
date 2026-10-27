@@ -31,7 +31,7 @@
     "@testing-library/svelte": "^5.2.8",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.0",
-    "eslint": "^9.38.0",
+    "eslint": "^10.13.0",
     "eslint-plugin-svelte": "^3.12.4",
     "svelte": "^5.57.2",
     "svelte-check": "^4.7.7",
