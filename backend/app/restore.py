@@ -54,6 +54,7 @@ from app.crypto.keys import from_kit_text, load_master_key
 from app.crypto.rotation import key_id, opens, rewrap_restored
 from app.db import make_engine
 from app.jobs import Job
+from app.migrate import upgrade
 from app.settings import settings
 from app.users import User
 
@@ -72,6 +73,16 @@ def _settle_jobs(folder: Path) -> None:
                 job.state, job.finished_at = "failed", clock.utcnow()
                 job.error = "It was running when the backup was made; the restore ended it."
             db.commit()
+    finally:
+        engine.dispose()
+
+
+def _bring_up_to_date(restored: Path) -> None:
+    """A backup from before a schema change gets, here, the migrations Þing would run
+    on starting, so that what follows reads it with today's tables."""
+    engine = make_engine(restored, settings.master_key_path)
+    try:
+        upgrade(engine)
     finally:
         engine.dispose()
 
@@ -172,6 +183,7 @@ def restore(env: dict[str, str], snapshot: str, data_dir: Path,
                 raise BackupError("That master key doesn't open this backup either.")
             rewrap_restored(restored, old, settings.master_key_path)
         found = check_restored(restored)
+        _bring_up_to_date(restored)
         _settle_jobs(restored)
         found |= _carry_recovery_codes(restored, data_dir)
         snapshot_id = _snapshot_id(env, snapshot)
