@@ -6,7 +6,7 @@ RUN CGO_ENABLED=0 go install -trimpath \
       -ldflags "-s -w -X github.com/rclone/rclone/fs.Version=v1.75.2" \
       github.com/rclone/rclone@v1.75.2
 
-FROM python:3.13-slim AS base
+FROM python:3.15-slim AS base
 
 # Backups: restic from Debian's signed packages, and rclone from above.
 RUN apt-get update \
