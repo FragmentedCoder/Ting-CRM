@@ -13,12 +13,13 @@ for those allowed to see it; the audit log names customers by ID only.
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from typing import Annotated, Any, Self
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import audit, clock
@@ -159,7 +160,12 @@ class CustomerSummary(BaseModel):
     cvr: str | None = None
     status: Status | None = None
     status_date: date | None = None
+    # The town from the address's postcode line ("8000 Aarhus C" gives "Aarhus C").
+    town: str | None = None
     people: int | None = None
+    # Who usually works with it (its assigned technicians), and whether you do.
+    worked_on_by: list[str] | None = None
+    mine: bool | None = None
     logo_url: str | None = None
 
 
@@ -227,22 +233,44 @@ def visible_customer(
     return customer, level
 
 
+class Team:
+    """Who is assigned to which customer, and their names: read once per request."""
+
+    def __init__(self, db: Session) -> None:
+        self.held: dict[int, list[int]] = {}
+        for customer_id, user_id in db.execute(
+                select(CustomerAssignment.customer_id, CustomerAssignment.user_id)):
+            self.held.setdefault(customer_id, []).append(user_id)
+        ids = {user_id for people in self.held.values() for user_id in people}
+        # A Result has keys(), so dict() would take it for a mapping: unpack the rows.
+        self.names = {user_id: name for user_id, name in db.execute(
+            select(User.id, User.display_name).where(User.id.in_(ids)))}
+
+    def of(self, customer_id: int) -> list[int]:
+        return self.held.get(customer_id, [])
+
+
+def town_of(address: str) -> str | None:
+    """The town after a Danish postcode, on its own line or after a comma:
+    "8000 Aarhus C" and "Fjordvej 1, 8000 Aarhus C" both give "Aarhus C"."""
+    for line in reversed(address.splitlines()):
+        if match := re.search(r"(?:^|,)\s*(?:DK-?)?\d{4}\s+([^,]+?)\s*$", line):
+            return match.group(1)
+    return None
+
+
 def _summary(db: Session, keyring: Keyring, customer: Customer, level: Visibility,
-             people: dict[int, int]) -> dict[str, Any]:
+             team: Team, me: int) -> dict[str, Any]:
     details = keyring.details(customer)
     fields: dict[str, Any] = {"id": customer.id, "name": details["name"], "visibility": level}
     if level == "full":
+        people = team.of(customer.id)
         fields |= {"cvr": details["cvr"], "logo_url": _logo_url(db, customer.id),
                    "status": customer.status, "status_date": customer.status_date,
-                   "people": people.get(customer.id, 0)}
+                   "town": town_of(details["address"] or ""),
+                   "people": len(people), "mine": me in people,
+                   "worked_on_by": sorted((team.names[u] for u in people), key=str.casefold)}
     return fields
-
-
-def _people_counts(db: Session) -> dict[int, int]:
-    """How many people are assigned to each customer."""
-    rows = db.execute(select(CustomerAssignment.customer_id, func.count())
-                      .group_by(CustomerAssignment.customer_id))
-    return {customer_id: count for customer_id, count in rows}
 
 
 def _people(db: Session, user_ids: list[int]) -> list[Person]:
@@ -279,7 +307,7 @@ def contacts_of(db: Session, sealer: Sealer, customer_id: int) -> list[ContactOu
 
 def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Customer,
             level: Visibility) -> CustomerDetail:
-    summary = _summary(db, keyring, customer, level, _people_counts(db))
+    summary = _summary(db, keyring, customer, level, Team(db), record.user_id)
     if level != "full":
         return CustomerDetail(**summary)
     roles = roles_of(db, record.user_id)
@@ -311,7 +339,7 @@ def list_customers(record: FullSession, db: DB, q: str = "") -> list[CustomerSum
     Names are sealed, so the search runs here, over the opened ones."""
     sight = sights(roles_of(db, record.user_id), is_limited(db, record.user_id))
     assigned = assigned_customer_ids(db, record.user_id)
-    people = _people_counts(db)
+    team = Team(db)
     keyring = Keyring()
     needle = q.strip().casefold().replace(" ", "")
     found = []
@@ -319,7 +347,7 @@ def list_customers(record: FullSession, db: DB, q: str = "") -> list[CustomerSum
         level = level_for(sight, customer.id in assigned)
         if level is None:
             continue
-        summary = CustomerSummary(**_summary(db, keyring, customer, level, people))
+        summary = CustomerSummary(**_summary(db, keyring, customer, level, team, record.user_id))
         details = keyring.details(customer)
         haystack = (details["name"] + " " + (details["cvr"] or "")).casefold().replace(" ", "")
         if needle in haystack:

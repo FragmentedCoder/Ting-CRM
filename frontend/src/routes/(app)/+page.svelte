@@ -6,10 +6,13 @@
   import { can, session } from "#lib/session.svelte.js";
   import { workspace } from "#lib/workspace.svelte.js";
 
-  // Where the day starts: the customers you work with. Tasks, notice deadlines and
-  // renewals join them once Þing keeps agreements.
+  // Where the day starts: the customers you usually work with (a Manager's: every
+  // customer). Tasks, notice deadlines and renewals join them once Þing keeps agreements.
   const info = $derived(session.current);
-  const customers = $derived(workspace.customers?.filter((c) => c.visibility === "full") ?? null);
+  const everyone = $derived(can(info, "manage_customers"));
+  const customers = $derived(
+    workspace.customers?.filter((c) => c.visibility === "full" && (everyone || c.mine)) ?? null,
+  );
   const shown = $derived(customers?.slice(0, 8) ?? []);
 </script>
 
@@ -48,7 +51,8 @@
           {#if can(info, "manage_customers")}
             Add a customer, with its contacts and sites, and assign technicians to it.
           {:else if can(info, "edit_customers")}
-            An administrator assigns you to the customers you work with.
+            A Manager assigns you to the customers you usually work with. All customers lists
+            every customer you may open.
           {:else if info.user.roles.length}
             There's nothing here for your role.
           {:else}
