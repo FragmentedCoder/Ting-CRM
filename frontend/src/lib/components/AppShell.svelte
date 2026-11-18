@@ -85,18 +85,45 @@
   let menuOpen = $state(false);
   let nav = $state<HTMLElement>();
 
-  const customerItems = $derived.by((): Item[] => {
+  // The open customer's pages: Overview, then fold-out groups (docs/architecture.md,
+  // the app shell), each listing the pages Þing has so far.
+  interface Section {
+    key: string;
+    label: string;
+    icon: Item["icon"];
+    items: Item[];
+  }
+
+  const customerItems = $derived.by((): (Item | Section)[] => {
     if (!customer || !full) return [];
     const id = String(customer.id);
     const base = resolve("/(app)/customers/[id]", { id });
+    const contacts = resolve("/(app)/customers/[id]/contacts", { id });
+    const people = resolve("/(app)/customers/[id]/people", { id });
     return [
       { href: base, label: "Overview", icon: LayoutDashboard, current: path === base },
-      { href: resolve("/(app)/customers/[id]/contacts", { id }), label: "Contacts & sites", icon: Contact,
-        current: path === resolve("/(app)/customers/[id]/contacts", { id }) },
-      { href: resolve("/(app)/customers/[id]/people", { id }), label: "People", icon: UsersRound,
-        current: path === resolve("/(app)/customers/[id]/people", { id }) },
+      { key: "contacts-and-systems", label: "Contacts and systems", icon: Contact, items: [
+        { href: contacts, label: "Contacts and sites", icon: Contact, current: path === contacts },
+      ] },
+      { href: people, label: "People", icon: UsersRound, current: path === people },
     ];
   });
+
+  // A customer group is open while it holds the page you're on, unless you fold it;
+  // elsewhere it's folded, unless you open it.
+  const opened = new SvelteSet<string>();
+
+  function sectionOpen(section: Section): boolean {
+    const here = section.items.some((item) => item.current);
+    return here ? !folded.has(section.key) : opened.has(section.key);
+  }
+
+  function toggleSection(section: Section) {
+    const here = section.items.some((item) => item.current);
+    const set = here ? folded : opened;
+    if (set.has(section.key)) set.delete(section.key);
+    else set.add(section.key);
+  }
 
   // The customer's own settings (details; for Administrators also retention, the logo and
   // deleting it), for those who change customers: last in the customer's part of the menu.
@@ -268,8 +295,26 @@
             <CustomerPicker />
             {#if customer && full}
               <ul class="items">
-                {#each customerItems as item (item.href)}
-                  <li>{@render link(item)}</li>
+                {#each customerItems as item ("href" in item ? item.href : item.key)}
+                  {#if "href" in item}
+                    <li>{@render link(item)}</li>
+                  {:else}
+                    {@const open = sectionOpen(item)}
+                    <li>
+                      <button class="item" type="button" aria-expanded={open} onclick={() => toggleSection(item)}>
+                        <item.icon size={16} aria-hidden="true" />
+                        <span class="text">{item.label}</span>
+                        {@render chevron(open)}
+                      </button>
+                      {#if open}
+                        <ul class="items nested">
+                          {#each item.items as child (child.href)}
+                            <li>{@render link(child, 1)}</li>
+                          {/each}
+                        </ul>
+                      {/if}
+                    </li>
+                  {/if}
                 {/each}
               </ul>
               {#if customerSettings}
@@ -430,6 +475,14 @@
   .item:hover {
     background: var(--surface-subtle);
     color: var(--text);
+  }
+  button.item {
+    width: 100%;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
   }
   .item[aria-current="page"] {
     background: var(--surface-subtle);

@@ -14,6 +14,13 @@ function menu(page: Page, name: string | RegExp) {
     .getByRole("link", { name, exact: typeof name === "string" });
 }
 
+/** Contacts and sites, under its fold-out group in the side menu. */
+async function openContacts(page: Page) {
+  const group = page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Contacts and systems" });
+  if ((await group.getAttribute("aria-expanded")) !== "true") await group.click();
+  await menu(page, "Contacts and sites").click();
+}
+
 /** Someone signed in, in a browser of their own, with an authenticator app set up. */
 async function signedIn(browser: Browser, username: string, options: { clock?: boolean } = {}) {
   const context = await browser.newContext();
@@ -44,18 +51,26 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(menu(boss, "Overview")).toHaveAttribute("aria-current", "page");
 
   // Its sites and contacts, then who works with it.
-  await menu(boss, "Contacts & sites").click();
-  await boss.getByRole("button", { name: "Add site" }).click();
+  await openContacts(boss);
+  await boss.getByRole("button", { name: "Add a site" }).click();
   await boss.getByRole("dialog").getByLabel("Name").fill("Hovedkontor");
   await boss.getByRole("dialog").getByLabel("Address").fill("Havnegade 4");
   await boss.getByRole("button", { name: "Save site" }).click();
-  await boss.getByRole("button", { name: "Add contact" }).click();
+  await boss.getByRole("button", { name: "Add a contact" }).click();
   const contact = boss.getByRole("dialog");
   await contact.getByLabel("Name").fill("Sigrid Holm");
-  await contact.getByLabel("Role").fill("IT manager");
+  await contact.getByLabel("Title").fill("IT manager");
+  await contact.getByRole("checkbox", { name: "Technical contact" }).check();
   await contact.getByLabel("Email").fill("sigrid@fjordlys.example");
   await contact.getByRole("button", { name: "Save contact" }).click();
-  await expect(boss.getByText("sigrid@fjordlys.example")).toBeVisible();
+  // Every site has its own contact: Sigrid becomes Hovedkontor's.
+  await boss.getByRole("button", { name: "Change site" }).click();
+  await boss.getByRole("dialog").getByLabel("Contact at this site").selectOption({ label: "Sigrid Holm" });
+  await boss.getByRole("button", { name: "Save site" }).click();
+  const hovedkontor = boss.getByRole("listitem").filter({ hasText: "Hovedkontor" });
+  await expect(hovedkontor).toContainText("Contact at this site");
+  await expect(hovedkontor).toContainText("Technical contact");
+  await expect(boss.getByRole("region", { name: "For the whole company" }).getByText("sigrid@fjordlys.example")).toBeVisible();
   await shot(boss, "1-contacts");
 
   await menu(boss, "People").click();
@@ -84,8 +99,8 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(tech.getByRole("heading", { name: "Logo" })).toHaveCount(0);
   await expect(tech.getByRole("button", { name: "Delete customer" })).toHaveCount(0);
   await shot(tech, "3-technician-settings");
-  await menu(tech, "Contacts & sites").click();
-  await tech.getByRole("button", { name: "Add contact" }).click();
+  await openContacts(tech);
+  await tech.getByRole("button", { name: "Add a contact" }).click();
   await tech.getByRole("dialog").getByLabel("Name").fill("Anders Vang");
   await tech.getByRole("dialog").getByRole("button", { name: "Save contact" }).click();
   await expect(tech.getByText("Anders Vang")).toBeVisible();

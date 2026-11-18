@@ -14,8 +14,9 @@ for those allowed to see it; the audit log names customers by ID only.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from datetime import date, datetime
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, Literal, Self
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -66,9 +67,22 @@ NOT_FOUND = "That customer doesn't exist."
 ORDER: dict[Visibility, int] = {"metadata": 1, "full": 2}
 
 
+SiteKind = Literal["main", "office", "production", "warehouse", "group_company", "other"]
+ContactRole = Literal["primary", "technical", "billing", "decision_maker", "security"]
+Channel = Literal["", "phone", "email"]
+
+
 class SiteIn(BaseModel):
     name: str = Field(min_length=1, max_length=150)
+    kind: SiteKind = "other"
     address: str = Field(default="", max_length=500)
+    opening_hours: str = Field(default="", max_length=300)
+    access: str = Field(default="", max_length=500)
+    parking: str = Field(default="", max_length=300)
+    note: str = Field(default="", max_length=1000)
+    # The site's own contact: one of the customer's contacts (it may be the
+    # contact of another site too).
+    contact_id: int | None = None
 
 
 class SiteOut(SiteIn):
@@ -77,9 +91,22 @@ class SiteOut(SiteIn):
 
 class ContactIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
+    # The role line on the card: their title at the customer ("CEO", "IT coordinator").
     role: str = Field(default="", max_length=150)
     email: str = Field(default="", max_length=254, pattern=r"^([^@\s]+@[^@\s]+)?$")
     phone: str = Field(default="", max_length=50, pattern=r"^[0-9+()\-. ]*$")
+    # What they are to us: who decides, who's technical, billing, the security contact.
+    roles: list[ContactRole] = Field(default=[], max_length=5)
+    # The site they're at; none for the whole company.
+    site_id: int | None = None
+    may_contact: bool = True
+    may_contact_note: str = Field(default="", max_length=200)
+    preferred_channel: Channel = ""
+
+    @field_validator("roles")
+    @classmethod
+    def _distinct(cls, roles: list[ContactRole]) -> list[ContactRole]:
+        return sorted(set(roles))
 
 
 class ContactOut(ContactIn):
@@ -442,8 +469,14 @@ def _site(db: Session, customer: Customer, site_id: int) -> CustomerSite:
     return site
 
 
-def _site_fields(body: SiteIn) -> dict[str, str]:
-    return {"name": body.name.strip(), "address": body.address.strip()}
+def _site_fields(db: Session, customer: Customer, body: SiteIn) -> dict[str, Any]:
+    if body.contact_id is not None:
+        _contact(db, customer, body.contact_id, status.HTTP_422_UNPROCESSABLE_CONTENT)
+    fields: dict[str, Any] = {
+        name: getattr(body, name).strip()
+        for name in ("name", "address", "opening_hours", "access", "parking", "note")
+    }
+    return fields | {"kind": body.kind, "contact_id": body.contact_id}
 
 
 @router.post("/{customer_id}/sites")
@@ -454,7 +487,7 @@ def add_site(customer_id: int, body: SiteIn, request: Request, admin: Editor, db
     site = CustomerSite(customer_id=customer.id, sealed=b"")
     db.add(site)
     db.flush()
-    site.sealed = keyring.sealer(customer).seal("site", site.id, _site_fields(body))
+    site.sealed = keyring.sealer(customer).seal("site", site.id, _site_fields(db, customer, body))
     _log(db, request, admin, "customer.site_added", customer.id, {"site": site.id})
     db.commit()
     return _detail(db, admin, keyring, customer, "full")
@@ -466,7 +499,7 @@ def update_site(customer_id: int, site_id: int, body: SiteIn, request: Request, 
     customer, _ = visible_customer(db, request, admin, customer_id)
     keyring = Keyring()
     site = _site(db, customer, site_id)
-    site.sealed = keyring.sealer(customer).seal("site", site.id, _site_fields(body))
+    site.sealed = keyring.sealer(customer).seal("site", site.id, _site_fields(db, customer, body))
     _log(db, request, admin, "customer.site_changed", customer.id, {"site": site.id})
     db.commit()
     return _detail(db, admin, keyring, customer, "full")
@@ -476,21 +509,44 @@ def update_site(customer_id: int, site_id: int, body: SiteIn, request: Request, 
 def remove_site(customer_id: int, site_id: int, request: Request, admin: Editor, db: DB
                 ) -> CustomerDetail:
     customer, _ = visible_customer(db, request, admin, customer_id)
+    keyring = Keyring()
     db.delete(_site(db, customer, site_id))
+    contacts = db.scalars(select(CustomerContact).where(CustomerContact.customer_id == customer.id))
+    _unlink(contacts, keyring.sealer(customer), "contact", "site_id", site_id)
     _log(db, request, admin, "customer.site_removed", customer.id, {"site": site_id})
     db.commit()
     return _detail(db, admin, Keyring(), customer, "full")
 
 
-def _contact(db: Session, customer: Customer, contact_id: int) -> CustomerContact:
+def _contact(db: Session, customer: Customer, contact_id: int,
+             missing: int = status.HTTP_404_NOT_FOUND) -> CustomerContact:
     contact = db.get(CustomerContact, contact_id)
     if contact is None or contact.customer_id != customer.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "That contact doesn't exist.")
+        raise HTTPException(missing, "That contact doesn't exist.")
     return contact
 
 
-def _contact_fields(body: ContactIn) -> dict[str, str]:
-    return {name: getattr(body, name).strip() for name in ("name", "role", "email", "phone")}
+def _contact_fields(db: Session, customer: Customer, body: ContactIn) -> dict[str, Any]:
+    if body.site_id is not None:
+        site = db.get(CustomerSite, body.site_id)
+        if site is None or site.customer_id != customer.id:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "That site doesn't exist.")
+    fields: dict[str, Any] = {
+        name: getattr(body, name).strip()
+        for name in ("name", "role", "email", "phone", "may_contact_note")
+    }
+    return fields | {"roles": body.roles, "site_id": body.site_id, "may_contact": body.may_contact,
+                     "preferred_channel": body.preferred_channel}
+
+
+def _unlink(records: Iterable[CustomerSite | CustomerContact], sealer: Sealer, kind: str,
+            field: str, removed_id: int) -> None:
+    """Take a removed site or contact out of the records that point at it (the
+    references are sealed, so the database can't do it)."""
+    for record in records:
+        value = sealer.open(kind, record.id, record.sealed)
+        if value.get(field) == removed_id:
+            record.sealed = sealer.seal(kind, record.id, value | {field: None})
 
 
 @router.post("/{customer_id}/contacts")
@@ -501,7 +557,8 @@ def add_contact(customer_id: int, body: ContactIn, request: Request, admin: Edit
     contact = CustomerContact(customer_id=customer.id, sealed=b"")
     db.add(contact)
     db.flush()
-    contact.sealed = keyring.sealer(customer).seal("contact", contact.id, _contact_fields(body))
+    contact.sealed = keyring.sealer(customer).seal(
+        "contact", contact.id, _contact_fields(db, customer, body))
     _log(db, request, admin, "customer.contact_added", customer.id, {"contact": contact.id})
     db.commit()
     return _detail(db, admin, keyring, customer, "full")
@@ -513,7 +570,8 @@ def update_contact(customer_id: int, contact_id: int, body: ContactIn, request: 
     customer, _ = visible_customer(db, request, admin, customer_id)
     keyring = Keyring()
     contact = _contact(db, customer, contact_id)
-    contact.sealed = keyring.sealer(customer).seal("contact", contact.id, _contact_fields(body))
+    contact.sealed = keyring.sealer(customer).seal(
+        "contact", contact.id, _contact_fields(db, customer, body))
     _log(db, request, admin, "customer.contact_changed", customer.id, {"contact": contact.id})
     db.commit()
     return _detail(db, admin, keyring, customer, "full")
@@ -523,7 +581,10 @@ def update_contact(customer_id: int, contact_id: int, body: ContactIn, request: 
 def remove_contact(customer_id: int, contact_id: int, request: Request, admin: Editor, db: DB
                    ) -> CustomerDetail:
     customer, _ = visible_customer(db, request, admin, customer_id)
+    keyring = Keyring()
     db.delete(_contact(db, customer, contact_id))
+    sites = db.scalars(select(CustomerSite).where(CustomerSite.customer_id == customer.id))
+    _unlink(sites, keyring.sealer(customer), "site", "contact_id", contact_id)
     _log(db, request, admin, "customer.contact_removed", customer.id, {"contact": contact_id})
     db.commit()
     return _detail(db, admin, Keyring(), customer, "full")

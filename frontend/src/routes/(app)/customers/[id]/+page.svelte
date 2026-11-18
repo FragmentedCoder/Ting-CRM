@@ -60,7 +60,7 @@
       {:else}
         <p class="muted">No contacts yet.</p>
       {/if}
-      <a class="small" href={resolve("/(app)/customers/[id]/contacts", { id })}>Contacts & sites</a>
+      <a class="small" href={resolve("/(app)/customers/[id]/contacts", { id })}>Contacts and sites</a>
     </section>
 
     <section class="section" aria-labelledby="people-title">
