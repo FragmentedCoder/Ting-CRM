@@ -163,6 +163,7 @@
   </section>
 
   <Dialog bind:open={companyOpen} title={company.id === null ? "Add a company" : "Change company"}>
+    {#if companyOpen}
     <form class="stack" onsubmit={saveCompany}>
       <CustomerFields bind:values={company} retention={false} legal="The company's legal name, such as a subsidiary's." />
       <div class="button-row end">
@@ -170,6 +171,7 @@
         <button class="button button-primary" type="submit" disabled={busy}>Save company</button>
       </div>
     </form>
+    {/if}
   </Dialog>
 
   {#if customer.may_manage}
