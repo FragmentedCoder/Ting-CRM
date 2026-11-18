@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   chooseCustomer,
   clearWorkspace,
+  noteViewed,
+  recentCustomers,
   refreshSoon,
   refreshWorkspace,
   workspace,
@@ -57,6 +59,20 @@ describe("the workspace", () => {
     expect(workspace.customerId).toBe(1);
     expect(workspace.customers?.map((c) => c.name)).toEqual(["Nordlys IT ApS"]);
     expect(workspace.checks).toBe(before);
+  });
+
+  it("remembers the customers looked at last, the latest first, while they're still listed", async () => {
+    serve([nordlys, fjeldstue]);
+    await refreshWorkspace();
+    noteViewed(1);
+    noteViewed(2);
+    noteViewed(1);
+    expect(workspace.recent).toEqual([1, 2]);
+    expect(recentCustomers().map((c) => c.name)).toEqual(["Nordlys IT ApS", "Fjeldstue A/S"]);
+    for (const id of [3, 4, 5, 6, 7]) noteViewed(id);
+    expect(workspace.recent).toEqual([7, 6, 5, 4, 3, 1]);
+    // One that's gone from the list is left out.
+    expect(recentCustomers().map((c) => c.name)).toEqual(["Nordlys IT ApS"]);
   });
 
   it("refreshes on a page change at most every 15 seconds", async () => {

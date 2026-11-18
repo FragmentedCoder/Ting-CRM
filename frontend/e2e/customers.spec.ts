@@ -125,11 +125,12 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(boss.getByRole("main")).toContainText("Covers 1 of 1 services");
   await shot(boss, "2b-agreement");
 
-  // The technician finds the customer on Home and keeps its details and contacts
-  // up to date, but doesn't choose how long its records are kept, its logo or who
-  // works with it, and can't delete it.
+  // The technician starts on My work, opens the customer and keeps its details and
+  // contacts up to date, but doesn't choose how long its records are kept, its logo
+  // or who works with it, and can't delete it.
   const { context: techContext, page: tech } = await signedIn(browser, "e2e-tech", { clock: true });
-  await expect(tech.getByRole("heading", { name: "Your customers" })).toBeVisible();
+  await expect(tech.getByRole("heading", { name: "My tasks" })).toBeVisible();
+  await menu(tech, "All customers").click();
   await tech.getByRole("main").getByRole("link", { name: CUSTOMER }).click();
   await expect(tech.getByRole("heading", { name: CUSTOMER })).toBeVisible();
   await expect(tech.getByRole("note", { name: "Pinned warnings" })).toContainText("Do not update in working hours");
@@ -225,6 +226,29 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(tech.getByRole("menuitem", { name: "Record the decision" })).toHaveCount(0);
   await tech.keyboard.press("Escape");
   await shot(tech, "3c-timeline");
+
+  // My work gathers it: the task that's his, the renewal coming up, the customer that
+  // needs attention because of it, and the customer he just looked at. A task is
+  // added and ticked off from there, for a customer he chooses.
+  await menu(tech, "My work").click();
+  const mine = tech.getByRole("region", { name: "My tasks" });
+  await expect(mine).toContainText("Update the firewall's firmware");
+  await expect(tech.getByRole("region", { name: "Renewals and notice days" })).toContainText("Firewall feature key");
+  await expect(tech.getByRole("region", { name: "Customers needing attention" })).toContainText(
+    /Renewal in \d+ days: Firewall feature key/,
+  );
+  await expect(tech.getByRole("region", { name: "Recently viewed" })).toContainText(CUSTOMER);
+  await tech.getByRole("button", { name: "New task" }).click();
+  await expect(tech.getByRole("dialog").getByLabel("Customer")).toContainText(CUSTOMER);
+  await tech.getByRole("dialog").getByRole("button", { name: "Continue" }).click();
+  await tech.getByRole("dialog").getByLabel("What needs doing").fill("Order a spare switch");
+  await tech.getByRole("dialog").getByLabel("Due").fill(day(2));
+  await tech.getByRole("dialog").getByRole("button", { name: "Add task" }).click();
+  await expect(mine).toContainText("Order a spare switch");
+  await shot(tech, "3d-my-work");
+  await tech.getByRole("button", { name: "Mark “Order a spare switch” as done" }).click();
+  await tech.getByRole("dialog").getByRole("button", { name: "Mark done" }).click();
+  await expect(mine).not.toContainText("Order a spare switch");
   await menu(tech, "People").click();
   await expect(tech.getByRole("checkbox")).toHaveCount(0);
   await expect(tech.getByRole("main")).toContainText("Tor Tekniker");
@@ -233,7 +257,8 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   // details, how long its records are kept, its logo and who works with it. No
   // deleting, and no admin panel.
   const { context: managerContext, page: manager } = await signedIn(browser, "e2e-manager");
-  await expect(manager.getByRole("heading", { name: "Customers", exact: true })).toBeVisible();
+  await expect(manager.getByRole("heading", { name: "For Managers" })).toBeVisible();
+  await menu(manager, "All customers").click();
   await manager.getByRole("main").getByRole("link", { name: CUSTOMER }).click();
   await menu(manager, "Customer settings").click();
   await expect(manager.getByLabel("Keep its records for")).toBeVisible();
@@ -257,6 +282,13 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(coming).toContainText("Firewall feature key");
   await expect(coming).toContainText("Approved");
   await shot(manager, "4b-coming-up");
+  // Approved, it no longer needs attention; and an agreement covers what we provide.
+  await menu(manager, "My work").click();
+  await expect(manager.getByRole("region", { name: "Customers needing attention" })).toContainText("Nothing");
+  await expect(manager.getByRole("region", { name: "Services without agreement" })).toContainText(
+    "An agreement covers every active service.",
+  );
+  await shot(manager, "4c-my-work-manager");
 
   // Limited to the customers he's assigned to, and then unassigned, the technician
   // loses the customer at the next check, without signing in again.

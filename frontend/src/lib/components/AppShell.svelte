@@ -306,7 +306,7 @@
       <nav bind:this={nav} class="nav" aria-label="Main" onwheel={() => (following = false)}
         ontouchmove={() => (following = false)}>
         <ul class="items">
-          <li>{@render link({ href: resolve("/(app)"), label: "Home", icon: House, current: path === "/" })}</li>
+          <li>{@render link({ href: resolve("/(app)"), label: "My work", icon: House, current: path === "/" })}</li>
           {#if sees}
             <li>{@render link({ href: resolve("/(app)/customers"), label: "All customers", icon: Building,
               current: path === "/customers" || path === "/customers/new" })}</li>
