@@ -10,11 +10,13 @@
   import LogOut from "@lucide/svelte/icons/log-out";
   import Plug from "@lucide/svelte/icons/plug";
   import FileSignature from "@lucide/svelte/icons/file-signature";
+  import History from "@lucide/svelte/icons/history";
   import Layers from "@lucide/svelte/icons/layers";
   import Library from "@lucide/svelte/icons/library";
   import Mail from "@lucide/svelte/icons/mail";
   import Menu from "@lucide/svelte/icons/menu";
   import Moon from "@lucide/svelte/icons/moon";
+  import NotebookPen from "@lucide/svelte/icons/notebook-pen";
   import Palette from "@lucide/svelte/icons/palette";
   import ScrollText from "@lucide/svelte/icons/scroll-text";
   import Server from "@lucide/svelte/icons/server";
@@ -107,9 +109,13 @@
     const systems = resolve("/(app)/customers/[id]/systems", { id });
     const services = resolve("/(app)/customers/[id]/services", { id });
     const agreements = resolve("/(app)/customers/[id]/agreements", { id });
+    const workLog = resolve("/(app)/customers/[id]/log", { id });
     const people = resolve("/(app)/customers/[id]/people", { id });
     return [
       { href: base, label: "Overview", icon: LayoutDashboard, current: path === base },
+      { key: "timeline-and-work-log", label: "Timeline and work log", icon: History, items: [
+        { href: workLog, label: "Work log", icon: NotebookPen, current: path === workLog },
+      ] },
       { key: "contacts-and-systems", label: "Contacts and systems", icon: Contact, items: [
         { href: contacts, label: "Contacts and sites", icon: Contact, current: path === contacts },
         { href: systems, label: "Systems", icon: Server, current: path === systems },

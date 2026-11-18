@@ -12,4 +12,5 @@ import app.jobs
 import app.policy
 import app.roles
 import app.services
-import app.users  # noqa: F401
+import app.users
+import app.worklog  # noqa: F401

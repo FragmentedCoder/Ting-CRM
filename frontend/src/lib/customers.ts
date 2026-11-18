@@ -1,4 +1,5 @@
 import type { Role } from "./roles.js";
+import type { LogEntry } from "./worklog.js";
 
 /** How much of a customer someone sees (backend/app/customers.py). */
 export type Visibility = "full" | "metadata";
@@ -357,6 +358,8 @@ export interface CustomerDetail extends CustomerSummary {
   contacts: Contact[] | null;
   /** The systems at the customer: servers, virtual machines on their host, network, cloud. */
   systems: System[] | null;
+  /** The newest work log entries, for the overview. */
+  latest_work: LogEntry[] | null;
   /** What was signed, and which services each agreement covers. */
   agreements: Agreement[] | null;
   /** Create and change agreements (Managers and Administrators). */
