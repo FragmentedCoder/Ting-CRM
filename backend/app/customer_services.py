@@ -111,6 +111,14 @@ class Detail(DetailField):
     kept: bool = False
 
 
+class CoveredBy(BaseModel):
+    """The agreement section that covers a customer service (app/agreements.py)."""
+
+    agreement_id: int
+    name: str
+    section: str
+
+
 class CustomerServiceOut(BaseModel):
     id: int
     standard_service_id: int | None
@@ -127,6 +135,9 @@ class CustomerServiceOut(BaseModel):
     case_kind: CaseKind
     case_history: list[PastCase]
     notes: str
+    # The active agreement that covers it; none means "No agreement", and work on it
+    # is billable.
+    agreement: CoveredBy | None = None
 
 
 def _value(field: DetailField, value: Value) -> Value:
