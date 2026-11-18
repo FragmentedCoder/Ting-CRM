@@ -181,3 +181,27 @@ def test_a_renewed_renewal_moves_to_its_next_date(client, admin, nordlys, person
     assert again.status_code == 409
     # Removing one is the Manager's.
     assert client.delete(f"{url}/renewals/{one_off['id']}", headers=as_astrid).status_code == 403
+
+
+def test_a_task_names_only_people_who_see_the_customer(client, admin, nordlys, person  # noqa: F811
+                                                       ) -> None:
+    boss, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    astrid, as_astrid = person("astrid", T)
+    elsewhere, _ = person("elsewhere", T)
+    client.patch(f"/api/admin/users/{elsewhere.id}", headers=headers,
+                 json={"limited_to_assigned": True})
+    # Everyone who sees the customer in full can be named: not the technician
+    # limited to other customers.
+    names = [who["display_name"] for who in client.get(url, headers=as_astrid).json()["colleagues"]]
+    assert "Astrid" in names and boss.display_name in names and "Elsewhere" not in names
+    body = {"title": "Call back", "due_on": soon(1), "audience": "people",
+            "people": [elsewhere.id]}
+    assert client.post(f"{url}/tasks", headers=as_astrid, json=body).status_code == 422
+    made = client.post(f"{url}/tasks", headers=as_astrid,
+                       json={**body, "people": [astrid.id, boss.id]}).json()
+    assert len(made["tasks"][0]["people"]) == 2
+    # Its maker and a Manager may remove it; another technician may not.
+    assert made["tasks"][0]["may_remove"] is True
+    _, as_mikkel = person("mikkel", T)
+    assert client.get(url, headers=as_mikkel).json()["tasks"][0]["may_remove"] is False

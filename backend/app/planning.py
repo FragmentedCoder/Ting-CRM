@@ -31,8 +31,16 @@ from sqlalchemy import Date, ForeignKey, Integer, LargeBinary, String, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.customer_services import CustomerService
-from app.customers import Customer, CustomerSystem, Sealer
+from app.customers import (
+    Customer,
+    CustomerAssignment,
+    CustomerSystem,
+    Sealer,
+    level_for,
+    sights,
+)
 from app.db import Base, UTCDateTime
+from app.roles import Role, UserRole
 from app.users import User
 
 Audience = Literal["people", "technicians", "managers"]
@@ -143,6 +151,8 @@ class TaskOut(BaseModel):
     every: Every | None
     # The renewal it was made by ("switch off web filtering if the key isn't renewed").
     renewal_id: int | None
+    # Whoever made it, or someone who manages customers, may remove it.
+    may_remove: bool = False
 
 
 class RenewalIn(BaseModel):
@@ -199,16 +209,32 @@ def _named(db: Session, sealer: Sealer, customer: Customer, service_id: int | No
     return service_name, system_name
 
 
-def chosen_people(db: Session, audience: Audience, people: list[int]) -> list[int]:
-    """The people a task or renewal names: active users, and at least one when it's
-    for named people."""
+def colleagues(db: Session, customer_id: int) -> list[Who]:
+    """The people a task or renewal can name: everyone who can sign in and sees this
+    customer in full. That's the Administrators, the Managers and the technicians,
+    except a technician limited to other customers."""
+    assigned = set(db.scalars(select(CustomerAssignment.user_id)
+                              .where(CustomerAssignment.customer_id == customer_id)))
+    rows = db.execute(select(User, UserRole.role).join(UserRole, UserRole.user_id == User.id)
+                      .where(User.is_active).order_by(User.display_name, User.id))
+    found: dict[int, Who] = {}
+    for user, role in rows:
+        sight = sights({Role(role)}, user.limited_to_assigned)
+        if level_for(sight, user.id in assigned) == "full":
+            found.setdefault(user.id, Who(id=user.id, display_name=user.display_name))
+    return list(found.values())
+
+
+def chosen_people(db: Session, customer_id: int, audience: Audience, people: list[int]
+                  ) -> list[int]:
+    """The people a task or renewal names: among the customer's colleagues, and at
+    least one when it's for named people."""
     if audience != "people":
         return []
     ids = list(dict.fromkeys(people))
-    found = set(db.scalars(select(User.id).where(User.id.in_(ids), User.is_active)))
-    if not ids or found != set(ids):
+    if not ids or not set(ids) <= {who.id for who in colleagues(db, customer_id)}:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
-                            "Choose who it's for, among the people who can sign in.")
+                            "Choose who it's for, among the people who work with this customer.")
     return ids
 
 
@@ -248,7 +274,8 @@ def _audience(value: str) -> Audience:
     return "people" if value == "people" else "managers" if value == "managers" else "technicians"
 
 
-def describe_task(db: Session, row: CustomerTask, sealed: dict[str, Any]) -> TaskOut:
+def describe_task(db: Session, row: CustomerTask, sealed: dict[str, Any],
+                  viewer_id: int | None = None, manages: bool = False) -> TaskOut:
     people = list(db.scalars(select(CustomerTaskPerson.user_id)
                              .where(CustomerTaskPerson.task_id == row.id)))
     return TaskOut(
@@ -259,16 +286,19 @@ def describe_task(db: Session, row: CustomerTask, sealed: dict[str, Any]) -> Tas
         ticket=str(sealed.get("ticket", "")),
         every=Every.model_validate(sealed["every"]) if sealed.get("every") else None,
         renewal_id=sealed.get("renewal_id"),
+        may_remove=manages or (viewer_id is not None and row.created_by == viewer_id),
     )
 
 
-def open_tasks(db: Session, sealer: Sealer, customer_id: int) -> list[TaskOut]:
+def open_tasks(db: Session, sealer: Sealer, customer_id: int, viewer_id: int | None = None,
+               manages: bool = False) -> list[TaskOut]:
     """The customer's tasks not yet done, soonest first."""
     rows = db.scalars(select(CustomerTask)
                       .where(CustomerTask.customer_id == customer_id,
                              CustomerTask.done_at.is_(None))
                       .order_by(CustomerTask.due_on, CustomerTask.id))
-    return [describe_task(db, row, sealer.open("task", row.id, row.sealed)) for row in rows]
+    return [describe_task(db, row, sealer.open("task", row.id, row.sealed), viewer_id, manages)
+            for row in rows]
 
 
 def describe_renewal(db: Session, row: CustomerRenewal, sealed: dict[str, Any]) -> RenewalOut:

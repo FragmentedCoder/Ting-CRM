@@ -124,7 +124,7 @@ def _task(db: Session, customer: Customer, task_id: int) -> CustomerTask:
 
 def _new_task(db: Session, sealer: Sealer, customer: Customer, body: TaskIn,
               created_by: int | None, renewal_id: int | None = None) -> CustomerTask:
-    people = chosen_people(db, body.audience, body.people)
+    people = chosen_people(db, customer.id, body.audience, body.people)
     fields = task_fields(db, sealer, customer, body, renewal_id)
     task = CustomerTask(customer_id=customer.id, due_on=body.due_on, audience=body.audience,
                         created_by=created_by, sealed=b"")
@@ -156,7 +156,7 @@ def change_task(customer_id: int, task_id: int, body: TaskIn, request: Request, 
         raise HTTPException(status.HTTP_409_CONFLICT, "That task is done.")
     keyring = Keyring()
     sealer = keyring.sealer(customer)
-    people = chosen_people(db, body.audience, body.people)
+    people = chosen_people(db, customer.id, body.audience, body.people)
     before = sealer.open("task", task.id, task.sealed)
     fields = task_fields(db, sealer, customer, body, before.get("renewal_id"))
     changes: dict[str, object] = {"task": task.id}
@@ -238,7 +238,7 @@ def add_renewal(customer_id: int, body: RenewalIn, request: Request, editor: Edi
     customer, _ = visible_customer(db, request, editor, customer_id)
     keyring = Keyring()
     sealer = keyring.sealer(customer)
-    people = chosen_people(db, body.audience, body.people)
+    people = chosen_people(db, customer.id, body.audience, body.people)
     fields = renewal_fields(db, sealer, customer, body, {})
     renewal = CustomerRenewal(customer_id=customer.id, renews_on=body.renews_on,
                               warn_days=body.warn_days, audience=body.audience, sealed=b"")
@@ -259,7 +259,7 @@ def change_renewal(customer_id: int, renewal_id: int, body: RenewalIn, request: 
     renewal = _renewal(db, customer, renewal_id)
     keyring = Keyring()
     sealer = keyring.sealer(customer)
-    people = chosen_people(db, body.audience, body.people)
+    people = chosen_people(db, customer.id, body.audience, body.people)
     before = sealer.open("renewal", renewal.id, renewal.sealed)
     fields = renewal_fields(db, sealer, customer, body, before)
     changes: dict[str, object] = {"renewal": renewal.id}
