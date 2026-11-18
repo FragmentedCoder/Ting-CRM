@@ -30,6 +30,7 @@ from app.customers import (
     PINS_PER_CUSTOMER,
     Customer,
     CustomerAssignment,
+    CustomerCompany,
     CustomerContact,
     CustomerPin,
     CustomerSite,
@@ -188,6 +189,18 @@ class CustomerUpdate(BaseModel):
         return self
 
 
+class CompanyIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    cvr: str | None = None
+    address: str = Field(default="", max_length=1000)
+
+    _check_cvr = field_validator("cvr")(_cvr)
+
+
+class CompanyOut(CompanyIn):
+    id: int
+
+
 class Person(BaseModel):
     id: int
     username: str
@@ -219,6 +232,8 @@ class CustomerDetail(CustomerSummary):
     created_at: datetime | None = None
     sites: list[SiteOut] | None = None
     contacts: list[ContactOut] | None = None
+    # The other companies in the group (the customer itself is the main one).
+    companies: list[CompanyOut] | None = None
     pins: list[PinOut] | None = None
     assigned: list[Person] | None = None
     may_manage: bool = False
@@ -349,6 +364,12 @@ def contacts_of(db: Session, sealer: Sealer, customer_id: int) -> list[ContactOu
     return sorted(found, key=lambda c: c.name.casefold())
 
 
+def companies_of(db: Session, sealer: Sealer, customer_id: int) -> list[CompanyOut]:
+    rows = db.scalars(select(CustomerCompany).where(CustomerCompany.customer_id == customer_id))
+    found = [CompanyOut(id=c.id, **sealer.open("company", c.id, c.sealed)) for c in rows]
+    return sorted(found, key=lambda c: c.name.casefold())
+
+
 def _pinner(db: Session, user_id: int | None) -> str | None:
     """Who pinned it, with the role that let them: "Henrik Dahl, Manager"."""
     user = db.get(User, user_id) if user_id is not None else None
@@ -385,6 +406,7 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
         created_at=customer.created_at,
         sites=sites_of(db, sealer, customer.id),
         contacts=contacts_of(db, sealer, customer.id),
+        companies=companies_of(db, sealer, customer.id),
         pins=pins_of(db, sealer, customer.id),
         assigned=_people(db, list(held)),
         may_manage=manage,
@@ -623,6 +645,56 @@ def remove_contact(customer_id: int, contact_id: int, request: Request, admin: E
     sites = db.scalars(select(CustomerSite).where(CustomerSite.customer_id == customer.id))
     _unlink(sites, keyring.sealer(customer), "site", "contact_id", contact_id)
     _log(db, request, admin, "customer.contact_removed", customer.id, {"contact": contact_id})
+    db.commit()
+    return _detail(db, admin, Keyring(), customer, "full")
+
+
+# The group's other companies
+
+
+def _company(db: Session, customer: Customer, company_id: int) -> CustomerCompany:
+    company = db.get(CustomerCompany, company_id)
+    if company is None or company.customer_id != customer.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "That company doesn't exist.")
+    return company
+
+
+def _company_fields(body: CompanyIn) -> dict[str, Any]:
+    return {"name": body.name.strip(), "cvr": body.cvr, "address": body.address.strip()}
+
+
+@router.post("/{customer_id}/companies")
+def add_company(customer_id: int, body: CompanyIn, request: Request, admin: Editor, db: DB
+                ) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    keyring = Keyring()
+    company = CustomerCompany(customer_id=customer.id, sealed=b"")
+    db.add(company)
+    db.flush()
+    company.sealed = keyring.sealer(customer).seal("company", company.id, _company_fields(body))
+    _log(db, request, admin, "customer.company_added", customer.id, {"company": company.id})
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.put("/{customer_id}/companies/{company_id}")
+def change_company(customer_id: int, company_id: int, body: CompanyIn, request: Request,
+                   admin: Editor, db: DB) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    keyring = Keyring()
+    company = _company(db, customer, company_id)
+    company.sealed = keyring.sealer(customer).seal("company", company.id, _company_fields(body))
+    _log(db, request, admin, "customer.company_changed", customer.id, {"company": company.id})
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.delete("/{customer_id}/companies/{company_id}")
+def remove_company(customer_id: int, company_id: int, request: Request, admin: Editor, db: DB
+                   ) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    db.delete(_company(db, customer, company_id))
+    _log(db, request, admin, "customer.company_removed", customer.id, {"company": company_id})
     db.commit()
     return _detail(db, admin, Keyring(), customer, "full")
 
