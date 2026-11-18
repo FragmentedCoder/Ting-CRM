@@ -18,20 +18,23 @@ export const ROLES: { role: Role; name: string; description: string }[] = [
     role: "administrator",
     name: "Administrator",
     description:
-      "Everything: all customers, who's assigned to them, users, security, keys and settings.",
+      "Everything: all customers, who usually works with them, users, security, keys and settings.",
   },
   {
     role: "manager",
     name: "Manager",
     description:
-      "Runs customers and what they pay for: adds customers, assigns technicians, and manages " +
+      "Runs customers and what they pay for: adds customers, chooses who usually works with " +
+      "them, and manages " +
       "the service catalog and agreements. Sees every customer. No admin panel, and no deleting " +
       "customers.",
   },
   {
     role: "technician",
     name: "Technician",
-    description: "Works with the customers they're assigned to: reads and updates their records.",
+    description:
+      "Works with every customer, unless an Administrator limits them to the ones they're " +
+      "assigned to: reads and updates their records.",
   },
   {
     role: "auditor",

@@ -50,6 +50,8 @@ export interface UserSummary extends Profile {
   roles: Role[];
   is_active: boolean;
   is_break_glass: boolean;
+  /** A technician limited to the customers they're assigned to. */
+  limited_to_assigned: boolean;
   locked: boolean;
   second_factors: number;
   mfa_required: boolean;

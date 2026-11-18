@@ -6,7 +6,7 @@
   import { api, ApiError, sessionGone } from "#lib/api.js";
   import { pageTitle } from "#lib/branding.svelte.js";
   import Pill from "#lib/components/Pill.svelte";
-  import { formatCvr, type CustomerSummary } from "#lib/customers.js";
+  import { formatCvr, statusPill, type CustomerSummary } from "#lib/customers.js";
   import { can, session } from "#lib/session.svelte.js";
 
   const info = $derived(session.current);
@@ -44,10 +44,10 @@
       <h1 class="title">Customers</h1>
       <p class="small muted">
         {#if mayAdd}
-          Every customer. Each has its own encryption key, and technicians see only the
-          customers they're assigned to.
+          Every customer. Each has its own encryption key, and technicians see every one
+          unless an Administrator limits them to the customers they're assigned to.
         {:else if can(info, "edit_customers")}
-          The customers you work with. An administrator assigns you to customers.
+          Every customer you may see. Who usually works with each is set by a Manager.
         {:else}
           Every customer, as an overview for the audit log.
         {/if}
@@ -86,6 +86,8 @@
                   </a>
                   {#if customer.visibility !== "full"}
                     <Pill tone="neutral" text="Overview only" />
+                  {:else if customer.status && customer.status !== "active"}
+                    <Pill {...statusPill(customer.status)} />
                   {/if}
                 </td>
                 <td class="roomy mono">{customer.visibility === "full" ? formatCvr(customer.cvr) : "—"}</td>

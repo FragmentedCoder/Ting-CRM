@@ -103,7 +103,7 @@
         <h2 class="section-title">Overview only</h2>
         <p class="muted">
           Auditors see that every customer exists, for the audit log. Its details, contacts and
-          records are for Administrators and the technicians assigned to it.
+          records are for the people who work with customers.
         </p>
       </section>
     {/if}

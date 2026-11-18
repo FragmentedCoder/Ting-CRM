@@ -8,17 +8,23 @@ systems, timeline and files. Only IDs and what access needs (assignments) stay
 plain. The audit log names customers by ID. Deleting a customer deletes its key
 with it, so nothing sealed with it can be read again (crypto-shredding).
 
-Who sees which customers follows the roles table: Administrators and Managers all
-of them, technicians the ones they're assigned to, and auditors every customer's
-metadata.
+Who sees which customers follows the roles table: Administrators, Managers and
+technicians all of them (whoever answers the phone helps), and auditors every
+customer's metadata. An Administrator can limit a technician to the customers they
+usually work with (their assignments); otherwise assignments only say who usually
+works with a customer.
+
+A customer is active, departing (with the day it leaves) or former (with the day
+it left). The status and its day stay plain: My work, warnings and retention
+need them without opening the customer.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
-from sqlalchemy import ForeignKey, LargeBinary, select
+from sqlalchemy import Date, ForeignKey, LargeBinary, String, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.crypto.keys import generate_key, load_master_key, unwrap_key, wrap_key
@@ -26,17 +32,21 @@ from app.crypto.sealing import seal, unseal
 from app.db import Base, UTCDateTime
 from app.roles import Capability, Role, can
 from app.settings import settings
+from app.users import User
 
 Visibility = Literal["full", "metadata"]
+Status = Literal["active", "departing", "former"]
 
 # Which customers each role sees. Assigned means full sight of the customers the
-# person is assigned to, and nothing of the others.
+# person is assigned to, and nothing of the others: what a technician an
+# Administrator has limited sees.
 SEES_CUSTOMERS: dict[Role, Literal["all", "assigned", "metadata"]] = {
     Role.ADMINISTRATOR: "all",
     Role.MANAGER: "all",
-    Role.TECHNICIAN: "assigned",
+    Role.TECHNICIAN: "all",
     Role.AUDITOR: "metadata",
 }
+LIMITED_SIGHT: Literal["assigned"] = "assigned"
 
 
 class Customer(Base):
@@ -51,6 +61,9 @@ class Customer(Base):
     sealed: Mapped[bytes] = mapped_column(LargeBinary)
     # How long the customer's records are kept once it's a former customer.
     retention_months: Mapped[int]
+    status: Mapped[str] = mapped_column(String(10), default="active", server_default="active")
+    # The day a departing customer leaves, or a former one left.
+    status_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
@@ -166,8 +179,15 @@ def assigned_customer_ids(db: Session, user_id: int) -> set[int]:
     ))
 
 
-def sights(roles: set[Role]) -> set[str]:
-    return {SEES_CUSTOMERS[role] for role in roles}
+def sights(roles: set[Role], limited: bool = False) -> set[str]:
+    """What these roles see; `limited` narrows a technician's to their assignments."""
+    return {LIMITED_SIGHT if limited and role is Role.TECHNICIAN else SEES_CUSTOMERS[role]
+            for role in roles}
+
+
+def is_limited(db: Session, user_id: int) -> bool:
+    user = db.get(User, user_id)
+    return user is not None and user.limited_to_assigned
 
 
 def level_for(sight: set[str], assigned: bool) -> Visibility | None:
@@ -181,7 +201,8 @@ def level_for(sight: set[str], assigned: bool) -> Visibility | None:
 
 def visibility(db: Session, user_id: int, roles: set[Role], customer_id: int) -> Visibility | None:
     """How much of one customer this person may see, if anything."""
-    return level_for(sights(roles), is_assigned(db, user_id, customer_id))
+    return level_for(sights(roles, is_limited(db, user_id)),
+                     is_assigned(db, user_id, customer_id))
 
 
 def may_manage(roles: set[Role]) -> bool:
