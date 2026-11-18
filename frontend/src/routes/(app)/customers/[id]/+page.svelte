@@ -13,11 +13,11 @@
   import { sharedCustomer } from "#lib/context.js";
   import Pill from "#lib/components/Pill.svelte";
   import {
-    PINS_PER_CUSTOMER, caseNumbers, pinnedLine, supportLevel,
+    PINS_PER_CUSTOMER, caseNumbers, currentVersion, pinnedLine, servicePill, supportLevel,
     type CustomerDetail, type CustomerService, type Pin as PinRecord,
   } from "#lib/customers.js";
   import { CASE_KINDS, showValue } from "#lib/services.js";
-  import { dateTime } from "#lib/format.js";
+  import { date, dateTime } from "#lib/format.js";
   import { toast } from "#lib/toast.svelte.js";
 
   // A customer at a glance: the pinned warnings first, then who decides, who to talk
@@ -158,24 +158,63 @@
       </div>
       <div class="chips" aria-label="Services we provide">
         {#each services as service (service.id)}
-          <Pill tone={service.status === "active" ? "ok" : "critical"}
-            text={service.status === "active" ? service.name : `${service.name}: ended`} />
+          <Pill {...servicePill(service)} />
         {/each}
       </div>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>Service</th><th>At this customer</th><th>Log time on</th></tr></thead>
+          <thead><tr><th>Service</th><th>At this customer</th><th>Log time on</th><th>Agreement</th></tr></thead>
           <tbody>
             {#each services.filter((s) => s.status === "active") as service (service.id)}
               <tr>
                 <td class="strong">{service.name}</td>
                 <td>{atThisCustomer(service)}</td>
                 <td class="mono">{service.case_number || "—"}</td>
+                <td>
+                  {#if service.agreement}
+                    <Pill tone="ok" text={service.agreement.name} />
+                  {:else}
+                    <Pill tone="warning" text="No agreement" />
+                  {/if}
+                </td>
               </tr>
             {/each}
           </tbody>
         </table>
       </div>
+    </section>
+  {/if}
+
+  {#if customer.agreements?.length}
+    <section class="section services" aria-labelledby="agreements-title">
+      <div class="heading-row">
+        <h2 class="section-title" id="agreements-title">Agreements</h2>
+        <a class="small" href={resolve("/(app)/customers/[id]/agreements", { id })}>All agreements</a>
+      </div>
+      <ul class="agreements">
+        {#each customer.agreements.filter((a) => a.status !== "ended") as agreement (agreement.id)}
+          {@const signed = currentVersion(agreement)?.signed_on}
+          <li>
+            <span class="agreement-top">
+              <span class="strong">{agreement.name}</span>
+              <Pill tone={agreement.status === "active" ? "ok" : "warning"}
+                text={agreement.status === "active" ? "Active" : "Waiting for the customer"} />
+            </span>
+            <span class="small muted">
+              {[signed ? `Signed ${date(signed)}` : null,
+                `covers ${new Set(agreement.sections.map((s) => s.service_id).filter((s) => s !== null)).size} of ${services.filter((s) => s.status === "active").length} services`,
+                agreement.ends_on ? `${agreement.auto_renews ? "renews" : "ends"} ${date(agreement.ends_on)}` : null,
+                agreement.notice_by ? `notice by ${date(agreement.notice_by)}` : null].filter(Boolean).join(" · ")}
+            </span>
+          </li>
+        {/each}
+      </ul>
+      {#if services.some((s) => s.status === "active" && !s.agreement)}
+        <p class="alert alert-warning">
+          {services.filter((s) => s.status === "active" && !s.agreement).map((s) => s.name).join(", ")}:
+          no agreement yet.
+        </p>
+      {/if}
     </section>
   {/if}
 
@@ -313,6 +352,27 @@
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-3);
+  }
+  .agreements {
+    display: flex;
+    flex-direction: column;
+    margin: var(--space-2) 0;
+    padding: 0;
+    list-style: none;
+  }
+  .agreements li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2) 0;
+    border-top: 1px solid var(--border);
+  }
+  .agreement-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
   }
   .chips {
     display: flex;

@@ -111,6 +111,20 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(glance).toContainText("Working hours");
   await expect(glance).toContainText("TDSE26114");
 
+  // An agreement whose section covers it: until then Support had no agreement.
+  await expect(boss.getByRole("main")).toContainText("Support: no agreement");
+  await openUnder(boss, "Services and agreements", "Agreements");
+  await boss.getByRole("button", { name: "New agreement" }).click();
+  const agreement = boss.getByRole("dialog");
+  await agreement.getByLabel("Name", { exact: true }).fill("Service agreement 2026");
+  await agreement.getByRole("button", { name: "Add a section" }).click();
+  await agreement.getByLabel("Section", { exact: true }).fill("§ 3.1");
+  await agreement.getByLabel("Covers").selectOption({ label: "Support" });
+  await agreement.getByRole("button", { name: "Save agreement" }).click();
+  await expect(boss.getByRole("heading", { name: "Service agreement 2026" })).toBeVisible();
+  await expect(boss.getByRole("main")).toContainText("Covers 1 of 1 services");
+  await shot(boss, "2b-agreement");
+
   // The technician finds the customer on Home and keeps its details and contacts
   // up to date, but doesn't choose how long its records are kept, its logo or who
   // works with it, and can't delete it.
@@ -150,6 +164,11 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(list.getByRole("link", { name: /DC01/ })).toContainText("VM");
   await list.getByRole("link", { name: /HV01/ }).click();
   await expect(tech.getByRole("region", { name: "Runs on this host" })).toContainText("DC01");
+
+  // Agreements are the Managers': the technician reads them.
+  await openUnder(tech, "Services and agreements", "Agreements");
+  await expect(tech.getByText("Read-only: agreements are changed by a Manager.")).toBeVisible();
+  await expect(tech.getByRole("button", { name: "Change agreement" })).toHaveCount(0);
   await menu(tech, "People").click();
   await expect(tech.getByRole("checkbox")).toHaveCount(0);
   await expect(tech.getByRole("main")).toContainText("Tor Tekniker");

@@ -9,6 +9,7 @@
   import LockKeyhole from "@lucide/svelte/icons/lock-keyhole";
   import LogOut from "@lucide/svelte/icons/log-out";
   import Plug from "@lucide/svelte/icons/plug";
+  import FileSignature from "@lucide/svelte/icons/file-signature";
   import Layers from "@lucide/svelte/icons/layers";
   import Library from "@lucide/svelte/icons/library";
   import Mail from "@lucide/svelte/icons/mail";
@@ -105,6 +106,7 @@
     const contacts = resolve("/(app)/customers/[id]/contacts", { id });
     const systems = resolve("/(app)/customers/[id]/systems", { id });
     const services = resolve("/(app)/customers/[id]/services", { id });
+    const agreements = resolve("/(app)/customers/[id]/agreements", { id });
     const people = resolve("/(app)/customers/[id]/people", { id });
     return [
       { href: base, label: "Overview", icon: LayoutDashboard, current: path === base },
@@ -114,6 +116,7 @@
       ] },
       { key: "services-and-agreements", label: "Services and agreements", icon: Layers, items: [
         { href: services, label: "Services", icon: Layers, current: path === services },
+        { href: agreements, label: "Agreements", icon: FileSignature, current: path === agreements },
       ] },
       { href: people, label: "People", icon: UsersRound, current: path === people },
     ];

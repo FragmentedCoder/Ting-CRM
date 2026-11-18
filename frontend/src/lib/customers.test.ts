@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  caseNumbers, customerFilters, emptySystem, formatCvr, mainRole, supportLevel, systemGroups, mayContactLine, pinnedLine, statusPill, type CustomerService, type CustomerSummary, type Pin,
+  caseNumbers, currentVersion, customerFilters, emptySystem, formatCvr, mainRole, servicePill, supportLevel, systemGroups, mayContactLine, pinnedLine, statusPill, type CustomerService, type CustomerSummary, type Pin,
 } from "./customers.js";
 
 describe("statusPill", () => {
@@ -91,7 +91,7 @@ describe("the overview's support and case numbers", () => {
   const service = (name: string, extra: Partial<CustomerService> = {}): CustomerService => ({
     id: name.length, standard_service_id: 1, name, status: "active", started_on: null, ended_on: null,
     company_id: null, details: [], not_used: [], systems: [], case_number: "", case_kind: "",
-    case_history: [], notes: "", ...extra,
+    case_history: [], notes: "", agreement: null, ...extra,
   });
   const detail = (key: string, value: string) =>
     ({ key, label: key, kind: "text" as const, choices: [], help: "", value, added: false, kept: false });
@@ -115,5 +115,25 @@ describe("the overview's support and case numbers", () => {
       { number: "TDSE26114", kind: "monthly", services: ["Support", "Updates and maintenance"] },
       { number: "TDSE26031", kind: "standing", services: ["Backup"] },
     ]);
+  });
+});
+
+describe("agreements", () => {
+  const version = (number: number, signed_on: string | null) =>
+    ({ number, sent_on: null, signed_on, signed_for_customer: "", signed_for_us: "", note: "" });
+
+  it("take the newest signed version as the current one", () => {
+    expect(currentVersion({ versions: [version(1, "2024-01-10"), version(2, "2024-03-18"), version(3, null)] })?.number).toBe(2);
+    expect(currentVersion({ versions: [version(1, null)] })?.number).toBe(1);
+    expect(currentVersion({ versions: [] })).toBeNull();
+  });
+
+  it("colour a service by whether an agreement covers it", () => {
+    const covered = { agreement_id: 1, name: "Service agreement 2024", section: "§ 3.1" };
+    expect(servicePill({ name: "Backup", status: "active", agreement: covered })).toEqual({ tone: "ok", text: "Backup" });
+    expect(servicePill({ name: "Printers", status: "active", agreement: null }))
+      .toEqual({ tone: "warning", text: "Printers: no agreement" });
+    expect(servicePill({ name: "Antivirus", status: "ended", agreement: null }))
+      .toEqual({ tone: "critical", text: "Antivirus: not provided" });
   });
 });
