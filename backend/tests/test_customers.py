@@ -793,3 +793,121 @@ def test_removing_a_system_takes_it_out_of_services(client, admin, nordlys) -> N
         "standard_service_id": backup["id"], "systems": [{"system_id": app01["id"]}]})
     after = client.delete(f"{url}/systems/{app01['id']}", headers=headers).json()
     assert after["services"][0]["systems"] == []
+
+
+# Agreements
+
+
+def with_services(client, headers, url, *keys):
+    """Give the customer these standard services; returns them by name."""
+    for key in keys:
+        client.post(f"{url}/services", headers=headers,
+                    json={"standard_service_id": standard(client, headers, key)["id"]})
+    return {s["name"]: s for s in client.get(url, headers=headers).json()["services"]}
+
+
+def test_an_agreement_says_what_it_covers_and_when_it_runs_out(client, admin, nordlys, person,
+                                                                session) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    services = with_services(client, headers, url, "support", "backup", "printers")
+    _, as_mona = person("mona", M)
+    added = client.post(f"{url}/agreements", headers=as_mona, json={
+        "name": "Service agreement 2024", "kind": "service", "status": "active",
+        "starts_on": "2024-04-01", "ends_on": "2027-04-01", "notice_by": "2027-01-01",
+        "auto_renews": True, "notice_period": "3 months", "price_section": "§ 5",
+        "versions": [
+            {"number": 2, "sent_on": "2024-03-11", "signed_on": "2024-03-18",
+             "signed_for_customer": "Signe Holm", "signed_for_us": "Henrik Dahl"},
+            {"number": 1, "sent_on": "2024-02-20"},
+        ],
+        "sections": [
+            {"ref": "§ 3.1", "text": "Support in working hours",
+             "service_id": services["Support"]["id"]},
+            {"ref": "§ 3.2", "text": "Backup with restore tests",
+             "service_id": services["Backup"]["id"]},
+            {"ref": "§ 4", "text": "Liability and termination", "terms": True},
+        ],
+    })
+    assert added.status_code == 200, added.text
+    detail = added.json()
+    agreement = detail["agreements"][0]
+    assert (agreement["name"], agreement["status"], agreement["notice_by"]) == (
+        "Service agreement 2024", "active", "2027-01-01")
+    assert [v["number"] for v in agreement["versions"]] == [1, 2]
+    assert detail["may_manage_agreements"] is True
+
+    # Each service says which section covers it; Printers has no agreement.
+    covered = {s["name"]: s["agreement"] for s in detail["services"]}
+    assert covered["Support"] == {"agreement_id": agreement["id"],
+                                  "name": "Service agreement 2024", "section": "§ 3.1"}
+    assert covered["Backup"]["section"] == "§ 3.2"
+    assert covered["Printers"] is None
+    assert [e.details for e in audit_entries(session, "customer.agreement_added")] == [
+        f'{{"agreement":{agreement["id"]},"status":"active"}}']
+
+
+def test_only_an_active_agreement_covers(client, admin, nordlys) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    support = with_services(client, headers, url, "support")["Support"]
+    body = {"name": "Offer 2026", "status": "offer",
+            "sections": [{"ref": "§ 1", "service_id": support["id"]}]}
+    offer = client.post(f"{url}/agreements", headers=headers, json=body).json()
+    assert offer["services"][0]["agreement"] is None
+    agreement_id = offer["agreements"][0]["id"]
+    signed = client.put(f"{url}/agreements/{agreement_id}", headers=headers,
+                        json=body | {"status": "active"}).json()
+    assert signed["services"][0]["agreement"]["section"] == "§ 1"
+    ended = client.put(f"{url}/agreements/{agreement_id}", headers=headers,
+                       json=body | {"status": "ended", "ends_on": "2026-10-01"}).json()
+    assert ended["services"][0]["agreement"] is None
+
+
+@pytest.mark.parametrize(("body", "says"), [
+    ({"status": "ended"}, "day the agreement ended"),
+    ({"starts_on": "2026-01-01", "ends_on": "2025-01-01"}, "ends before it starts"),
+    ({"versions": [{"number": 1}, {"number": 1}]}, "same number"),
+    ({"sections": [{"ref": "§ 1", "service_id": 999}]}, "doesn't have"),
+    ({"sections": [{"ref": "§ 1", "service_id": 1, "terms": True}]}, "not both"),
+    ({"kind": "handshake"}, None),
+])
+def test_an_agreements_dates_versions_and_sections_are_checked(client, admin, nordlys, body, says
+                                                               ) -> None:
+    _, headers = admin
+    refused = client.post(f"{CUSTOMERS}/{nordlys['id']}/agreements", headers=headers,
+                          json={"name": "Agreement"} | body)
+    assert refused.status_code == 422
+    if says:
+        assert says in str(refused.json()["detail"])
+
+
+def test_technicians_read_agreements_but_dont_change_them(client, admin, nordlys, person) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    client.post(f"{url}/agreements", headers=headers, json={"name": "Service agreement 2024"})
+    _, as_astrid = person("astrid", T)
+    seen = client.get(url, headers=as_astrid).json()
+    assert [a["name"] for a in seen["agreements"]] == ["Service agreement 2024"]
+    assert seen["may_manage_agreements"] is False
+    agreement_id = seen["agreements"][0]["id"]
+    assert client.post(f"{url}/agreements", headers=as_astrid,
+                       json={"name": "Mine"}).status_code == 403
+    assert client.put(f"{url}/agreements/{agreement_id}", headers=as_astrid,
+                      json={"name": "Changed"}).status_code == 403
+    assert client.delete(f"{url}/agreements/{agreement_id}",
+                         headers=as_astrid).status_code == 403
+
+
+def test_removing_a_service_leaves_its_section_unlinked(client, admin, nordlys) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    support = with_services(client, headers, url, "support")["Support"]
+    client.post(f"{url}/agreements", headers=headers, json={
+        "name": "Service agreement 2024",
+        "sections": [{"ref": "§ 3.1", "text": "Support", "service_id": support["id"]}]})
+    after = client.delete(f"{url}/services/{support['id']}", headers=headers).json()
+    assert after["agreements"][0]["sections"] == [
+        {"ref": "§ 3.1", "text": "Support", "service_id": None, "terms": False}]
+    gone = client.delete(f"{url}/agreements/{after['agreements'][0]['id']}", headers=headers)
+    assert gone.json()["agreements"] == []

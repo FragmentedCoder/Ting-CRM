@@ -152,6 +152,81 @@ export interface CustomerService {
   case_kind: CaseKind;
   case_history: { number: string; kind: CaseKind; until: string }[];
   notes: string;
+  /** The active agreement section that covers it; null means "No agreement". */
+  agreement: { agreement_id: number; name: string; section: string } | null;
+}
+
+export type AgreementKind = "service" | "dpa" | "quote" | "email" | "other";
+export type AgreementStatus = "offer" | "active" | "ended";
+
+export interface AgreementVersion {
+  number: number;
+  sent_on: string | null;
+  signed_on: string | null;
+  signed_for_customer: string;
+  signed_for_us: string;
+  note: string;
+}
+
+export interface AgreementSection {
+  /** The section's number in the document: "§ 3.1". */
+  ref: string;
+  text: string;
+  /** The customer service it covers. */
+  service_id: number | null;
+  terms: boolean;
+}
+
+/** What was signed, and what it covers (backend/app/agreements.py). */
+export interface Agreement {
+  id: number;
+  name: string;
+  kind: AgreementKind;
+  status: AgreementStatus;
+  starts_on: string | null;
+  /** The end of the current term, or the day it ended. */
+  ends_on: string | null;
+  /** The last day to give notice. */
+  notice_by: string | null;
+  auto_renews: boolean;
+  company_id: number | null;
+  notice_period: string;
+  sla: string;
+  price_section: string;
+  versions: AgreementVersion[];
+  sections: AgreementSection[];
+  notes: string;
+}
+
+export const AGREEMENT_KINDS: Record<AgreementKind, string> = {
+  service: "Service agreement",
+  dpa: "Data processing agreement",
+  quote: "Accepted quote",
+  email: "Confirmed by email",
+  other: "Other",
+};
+
+export const emptyAgreement = (): Omit<Agreement, "id"> => ({
+  name: "", kind: "service", status: "active", starts_on: null, ends_on: null, notice_by: null,
+  auto_renews: false, company_id: null, notice_period: "", sla: "", price_section: "",
+  versions: [], sections: [], notes: "",
+});
+
+/** The newest version that was signed, else the newest. */
+export function currentVersion(agreement: Pick<Agreement, "versions">): AgreementVersion | null {
+  const signed = agreement.versions.filter((v) => v.signed_on);
+  return (signed.length ? signed : agreement.versions).at(-1) ?? null;
+}
+
+/** How a service shows on the overview: green active and covered, yellow active
+ *  with no agreement, red no longer provided. Always with its word. */
+export function servicePill(service: Pick<CustomerService, "name" | "status" | "agreement">): {
+  tone: "ok" | "warning" | "critical";
+  text: string;
+} {
+  if (service.status === "ended") return { tone: "critical", text: `${service.name}: not provided` };
+  if (!service.agreement) return { tone: "warning", text: `${service.name}: no agreement` };
+  return { tone: "ok", text: service.name };
 }
 
 /** The support a customer has, from their Support service's "When it applies". */
@@ -282,6 +357,10 @@ export interface CustomerDetail extends CustomerSummary {
   contacts: Contact[] | null;
   /** The systems at the customer: servers, virtual machines on their host, network, cloud. */
   systems: System[] | null;
+  /** What was signed, and which services each agreement covers. */
+  agreements: Agreement[] | null;
+  /** Create and change agreements (Managers and Administrators). */
+  may_manage_agreements: boolean;
   /** The services we provide, each the customer's own copy of a standard service. */
   services: CustomerService[] | null;
   /** The group's other companies; the customer itself is the main one. */

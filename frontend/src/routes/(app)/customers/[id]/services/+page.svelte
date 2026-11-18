@@ -26,6 +26,7 @@
   const customer = $derived(shared.current);
   const services = $derived(customer?.services ?? []);
   const base = $derived(resolve("/(app)/customers/[id]/services", { id: String(customer?.id ?? "") }));
+  const agreementsHref = $derived(resolve("/(app)/customers/[id]/agreements", { id: String(customer?.id ?? "") }));
   const wanted = $derived(Number(page.url.searchParams.get("service")) || null);
   const chosen = $derived(services.find((s) => s.id === wanted) ?? services[0] ?? null);
   const systemsById = $derived(new Map((customer?.systems ?? []).map((s) => [s.id, s])));
@@ -38,7 +39,8 @@
       label, tone,
       items: services.filter((s) => s.status === status).map((s) => ({
         id: s.id, label: s.name, href: `${base}?service=${s.id}`,
-        note: status === "ended" ? `Ended ${date(s.ended_on)}` : s.case_number || undefined,
+        note: status === "ended" ? `Ended ${date(s.ended_on)}` : s.agreement ? s.case_number || undefined : "No agreement",
+        noteTone: status === "active" && !s.agreement ? "warning" as const : "muted" as const,
       })),
     })));
 
@@ -195,8 +197,14 @@
               </div>
               <div class="tile">
                 <p class="label">Active agreement</p>
-                <span class="strong">Not recorded yet</span>
-                <span class="small muted">Agreements come to Þing next.</span>
+                {#if chosen.agreement}
+                  <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- agreementsHref comes from resolve() -->
+                  <a class="strong" href="{agreementsHref}?agreement={chosen.agreement.agreement_id}">{chosen.agreement.name}</a>
+                  <span class="small muted">{chosen.agreement.section} · work on it is covered</span>
+                {:else}
+                  <Pill tone="warning" text="No agreement" />
+                  <span class="small muted">Work on it is billable; ask a Manager.</span>
+                {/if}
               </div>
             </div>
           </section>

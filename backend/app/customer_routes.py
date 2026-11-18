@@ -24,6 +24,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import audit, clock
+from app.agreements import (
+    AgreementIn,
+    AgreementOut,
+    CustomerAgreement,
+    agreements_of,
+    coverage,
+)
+from app.agreements import sealed_fields as agreement_fields
 from app.auth.dependencies import DB, FullSession, client_ip, require, require_step_up
 from app.auth.sessions import UserSession
 from app.customer_services import (
@@ -65,7 +73,7 @@ from app.images import (
     remove_image,
     store_image,
 )
-from app.roles import Capability, Role, UserRole, roles_of
+from app.roles import Capability, Role, UserRole, can, roles_of
 from app.services import StandardService
 from app.systems import SystemIn, SystemOut, sealed_fields, systems_of, would_loop
 from app.users import User
@@ -75,6 +83,7 @@ router = APIRouter(prefix="/customers")
 Manager = Annotated[UserSession, Depends(require(Capability.MANAGE_CUSTOMERS))]
 Editor = Annotated[UserSession, Depends(require(Capability.EDIT_CUSTOMERS))]
 Deleter = Annotated[UserSession, Depends(require(Capability.DELETE_CUSTOMERS))]
+Agreer = Annotated[UserSession, Depends(require(Capability.MANAGE_AGREEMENTS))]
 
 NOT_FOUND = "That customer doesn't exist."
 ORDER: dict[Visibility, int] = {"metadata": 1, "full": 2}
@@ -246,9 +255,12 @@ class CustomerDetail(CustomerSummary):
     companies: list[CompanyOut] | None = None
     systems: list[SystemOut] | None = None
     services: list[CustomerServiceOut] | None = None
+    agreements: list[AgreementOut] | None = None
     pins: list[PinOut] | None = None
     assigned: list[Person] | None = None
     may_manage: bool = False
+    # Create and change agreements (Managers and Administrators).
+    may_manage_agreements: bool = False
     may_edit: bool = False
     may_delete: bool = False
     # For an Administrator or Manager choosing who's assigned: everyone who may be.
@@ -411,6 +423,11 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
     held = db.scalars(select(CustomerAssignment.user_id)
                       .where(CustomerAssignment.customer_id == customer.id))
     manage = may_manage(roles)
+    agreements = agreements_of(db, sealer, customer.id)
+    covered = coverage(agreements)
+    services = services_of(db, sealer, customer.id)
+    for service in services:
+        service.agreement = covered.get(service.id)
     return CustomerDetail(
         **summary,
         address=keyring.details(customer)["address"],
@@ -420,10 +437,12 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
         contacts=contacts_of(db, sealer, customer.id),
         companies=companies_of(db, sealer, customer.id),
         systems=systems_of(db, sealer, customer.id),
-        services=services_of(db, sealer, customer.id),
+        services=services,
+        agreements=agreements,
         pins=pins_of(db, sealer, customer.id),
         assigned=_people(db, list(held)),
         may_manage=manage,
+        may_manage_agreements=can(roles, Capability.MANAGE_AGREEMENTS),
         may_edit=may_edit(roles),
         may_delete=may_delete(roles),
         assignable=_people(db, _assignable_ids(db)) if manage else None,
@@ -710,6 +729,7 @@ def remove_company(customer_id: int, company_id: int, request: Request, admin: E
                    ) -> CustomerDetail:
     customer, _ = visible_customer(db, request, admin, customer_id)
     _drop_from_services(db, Keyring().sealer(customer), "company_id", company_id)
+    _drop_from_agreements(db, Keyring().sealer(customer), company_id=company_id)
     db.delete(_company(db, customer, company_id))
     _log(db, request, admin, "customer.company_removed", customer.id, {"company": company_id})
     db.commit()
@@ -866,7 +886,89 @@ def remove_service(customer_id: int, service_id: int, request: Request, admin: M
     end it instead."""
     customer, _ = visible_customer(db, request, admin, customer_id)
     db.delete(_service(db, customer, service_id))
+    _drop_from_agreements(db, Keyring().sealer(customer), service_id=service_id)
     _log(db, request, admin, "customer.service_removed", customer.id, {"service": service_id})
+    db.commit()
+    return _detail(db, admin, Keyring(), customer, "full")
+
+
+# Agreements
+
+
+def _agreement(db: Session, customer: Customer, agreement_id: int) -> CustomerAgreement:
+    agreement = db.get(CustomerAgreement, agreement_id)
+    if agreement is None or agreement.customer_id != customer.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "That agreement doesn't exist.")
+    return agreement
+
+
+def _drop_from_agreements(db: Session, sealer: Sealer, *, service_id: int | None = None,
+                          company_id: int | None = None) -> None:
+    """Take a removed service or company out of the customer's agreements: the
+    section stays, no longer linked."""
+    rows = db.scalars(select(CustomerAgreement)
+                      .where(CustomerAgreement.customer_id == sealer.customer_id))
+    for row in rows:
+        value = sealer.open("agreement", row.id, row.sealed)
+        changed = False
+        for section in value.get("sections", []):
+            if service_id is not None and section.get("service_id") == service_id:
+                section["service_id"], changed = None, True
+        if company_id is not None and value.get("company_id") == company_id:
+            value["company_id"], changed = None, True
+        if changed:
+            row.sealed = sealer.seal("agreement", row.id, value)
+
+
+def _set_agreement(agreement: CustomerAgreement, body: AgreementIn) -> None:
+    agreement.status, agreement.starts_on, agreement.ends_on = (
+        body.status, body.starts_on, body.ends_on)
+    agreement.notice_by, agreement.auto_renews = body.notice_by, body.auto_renews
+
+
+@router.post("/{customer_id}/agreements")
+def add_agreement(customer_id: int, body: AgreementIn, request: Request, admin: Agreer, db: DB
+                  ) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    fields = agreement_fields(db, customer, body)
+    keyring = Keyring()
+    agreement = CustomerAgreement(customer_id=customer.id, sealed=b"")
+    _set_agreement(agreement, body)
+    db.add(agreement)
+    db.flush()
+    agreement.sealed = keyring.sealer(customer).seal("agreement", agreement.id, fields)
+    _log(db, request, admin, "customer.agreement_added", customer.id,
+         {"agreement": agreement.id, "status": body.status})
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.put("/{customer_id}/agreements/{agreement_id}")
+def change_agreement(customer_id: int, agreement_id: int, body: AgreementIn, request: Request,
+                     admin: Agreer, db: DB) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    agreement = _agreement(db, customer, agreement_id)
+    fields = agreement_fields(db, customer, body)
+    keyring = Keyring()
+    changes: dict[str, object] = {"agreement": agreement.id}
+    if agreement.status != body.status:
+        changes["status"] = [agreement.status, body.status]
+    _set_agreement(agreement, body)
+    agreement.sealed = keyring.sealer(customer).seal("agreement", agreement.id, fields)
+    _log(db, request, admin, "customer.agreement_changed", customer.id, changes)
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.delete("/{customer_id}/agreements/{agreement_id}")
+def remove_agreement(customer_id: int, agreement_id: int, request: Request, admin: Agreer,
+                     db: DB) -> CustomerDetail:
+    """Remove an agreement entered by mistake. One that ran keeps its history: end
+    it instead."""
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    db.delete(_agreement(db, customer, agreement_id))
+    _log(db, request, admin, "customer.agreement_removed", customer.id,
+         {"agreement": agreement_id})
     db.commit()
     return _detail(db, admin, Keyring(), customer, "full")
 
