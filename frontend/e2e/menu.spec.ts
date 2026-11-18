@@ -73,9 +73,10 @@ test("the side menu, with customers", async ({ browser }) => {
     const shot = shotsOf(mette, theme);
     await mette.goto(`/customers/${fjordlys.id}`);
     await expect(mette.getByRole("heading", { name: "Fjordlys Energi A/S" })).toBeVisible();
-    for (const name of ["Overview", "Contacts & sites", "People", "Customer settings"]) {
+    for (const name of ["Overview", "People", "Customer settings"]) {
       await expect(menu(mette).getByRole("link", { name, exact: true })).toBeVisible();
     }
+    await expect(menu(mette).getByRole("button", { name: "Contacts and systems" })).toBeVisible();
     await shot("1-customer");
 
     // The picker is under its button the moment it opens, never anywhere else
@@ -127,7 +128,7 @@ test("the side menu, with customers", async ({ browser }) => {
   // Opening Admin pushes nothing up: the menu runs from the top. Clicked again on
   // its own pages, a group folds away and opens again.
   await mette.goto(`/customers/${fjordlys.id}`);
-  await expect(menu(mette).getByRole("link", { name: "Contacts & sites" })).toBeVisible();
+  await expect(menu(mette).getByRole("button", { name: "Contacts and systems" })).toBeVisible();
   const adminItem = menu(mette).getByRole("link", { name: "Admin", exact: true });
   const usersItem = menu(mette).getByRole("link", { name: "Users", exact: true });
   const before = await adminItem.boundingBox();
@@ -183,7 +184,7 @@ test("the side menu, with customers", async ({ browser }) => {
   await audPage.goto(`/customers/${fjordlys.id}`);
   await expect(audPage.getByRole("heading", { name: "Overview only" })).toBeVisible();
   await expect(audPage.getByText("Sigrid Holm")).toHaveCount(0);
-  await expect(menu(audPage).getByRole("link", { name: "Contacts & sites" })).toHaveCount(0);
+  await expect(menu(audPage).getByRole("button", { name: "Contacts and systems" })).toHaveCount(0);
   await shotsOf(audPage, "light")("7-auditor");
 
   // Not assertions: every page, in both themes, on a desktop and a phone, written

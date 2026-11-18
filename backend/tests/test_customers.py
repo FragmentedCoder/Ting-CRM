@@ -454,3 +454,90 @@ def test_a_new_customer_can_start_departing(client, admin) -> None:
 ])
 def test_the_town_comes_from_the_postcode_line(address, town) -> None:
     assert town_of(address) == town
+
+
+# Contacts and sites
+
+
+def test_a_contact_says_what_they_are_to_us_and_whether_we_may_call(client, admin, nordlys
+                                                                      ) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    site = nordlys["sites"][0]
+    added = client.post(f"{url}/contacts", headers=headers, json={
+        "name": "Signe Holm", "role": "CEO", "email": "signe@nordlys.example",
+        "roles": ["primary", "decision_maker", "primary"], "site_id": None,
+        "may_contact": True, "preferred_channel": "phone",
+    }).json()
+    signe = next(c for c in added["contacts"] if c["name"] == "Signe Holm")
+    assert (signe["roles"], signe["preferred_channel"], signe["site_id"]) == (
+        ["decision_maker", "primary"], "phone", None)
+
+    karin = client.post(f"{url}/contacts", headers=headers, json={
+        "name": "Karin Østergaard", "role": "Site contact", "site_id": site["id"],
+        "may_contact": False, "may_contact_note": "Only about the server room",
+    }).json()
+    karin = next(c for c in karin["contacts"] if c["name"] == "Karin Østergaard")
+    assert (karin["site_id"], karin["may_contact"], karin["may_contact_note"]) == (
+        site["id"], False, "Only about the server room")
+
+    # An older contact, saved before these fields, reads with their defaults.
+    sigrid = next(c for c in added["contacts"] if c["name"] == "Sigrid Holm")
+    assert (sigrid["roles"], sigrid["may_contact"], sigrid["site_id"]) == ([], True, None)
+
+
+@pytest.mark.parametrize("change", [
+    {"roles": ["owner"]},
+    {"preferred_channel": "fax"},
+    {"site_id": 999},
+])
+def test_a_contacts_roles_channel_and_site_are_checked(client, admin, nordlys, change) -> None:
+    _, headers = admin
+    refused = client.post(f"{CUSTOMERS}/{nordlys['id']}/contacts", headers=headers,
+                          json={"name": "Anders Vang"} | change)
+    assert refused.status_code == 422
+
+
+def test_a_site_has_its_own_contact_hours_access_and_parking(client, admin, nordlys) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    contact = nordlys["contacts"][0]
+    saved = client.post(f"{url}/sites", headers=headers, json={
+        "name": "Randers", "kind": "group_company", "address": "Industrivej 2\n8900 Randers C",
+        "opening_hours": "Mon–Fri 07:00–15:30", "access": "Key box by the gate",
+        "parking": "Visitor spaces by the gate", "note": "Server room in the basement",
+        "contact_id": contact["id"],
+    }).json()
+    randers = next(s for s in saved["sites"] if s["name"] == "Randers")
+    assert (randers["kind"], randers["contact_id"], randers["parking"]) == (
+        "group_company", contact["id"], "Visitor spaces by the gate")
+
+    # A contact of another customer, or none at all, isn't one.
+    other = client.post(CUSTOMERS, headers=headers, json={"name": "Fjeldstue A/S"}).json()
+    theirs = client.post(f"{CUSTOMERS}/{other['id']}/contacts", headers=headers,
+                         json={"name": "Ole Fjeld"}).json()["contacts"][0]
+    for contact_id in (theirs["id"], 999):
+        refused = client.put(f"{url}/sites/{randers['id']}", headers=headers,
+                             json={"name": "Randers", "contact_id": contact_id})
+        assert refused.status_code == 422
+    assert client.post(f"{url}/sites", headers=headers,
+                       json={"name": "Lager", "kind": "basement"}).status_code == 422
+
+
+def test_removing_a_contact_or_site_takes_it_out_of_what_points_at_it(client, admin, nordlys
+                                                                       ) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    contact, site = nordlys["contacts"][0], nordlys["sites"][0]
+    client.put(f"{url}/sites/{site['id']}", headers=headers,
+               json={"name": site["name"], "contact_id": contact["id"]})
+    client.put(f"{url}/contacts/{contact['id']}", headers=headers,
+               json={"name": contact["name"], "site_id": site["id"]})
+    karin = client.post(f"{url}/contacts", headers=headers,
+                        json={"name": "Karin Østergaard", "site_id": site["id"]}).json()
+
+    after = client.delete(f"{url}/contacts/{contact['id']}", headers=headers).json()
+    assert after["sites"][0]["contact_id"] is None
+    after = client.delete(f"{url}/sites/{site['id']}", headers=headers).json()
+    assert [c["site_id"] for c in after["contacts"]] == [None]
+    assert karin

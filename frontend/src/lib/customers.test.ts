@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { customerFilters, formatCvr, statusPill, type CustomerSummary } from "./customers.js";
+import { customerFilters, formatCvr, mainRole, mayContactLine, statusPill, type CustomerSummary } from "./customers.js";
 
 describe("statusPill", () => {
   it("shows every status as a word in its colour", () => {
@@ -36,5 +36,21 @@ describe("customerFilters", () => {
       ["former", ["Grenaa Bådeværft"]],
     ]);
     expect(customerFilters([customer("Birkely")]).map((f) => f.value)).toEqual(["all"]);
+  });
+});
+
+describe("contact cards", () => {
+  it("show the most telling role first", () => {
+    expect(mainRole({ roles: ["billing", "decision_maker"] })).toBe("Decision-maker");
+    expect(mainRole({ roles: [] })).toBeNull();
+  });
+
+  it("say whether we may call, and how", () => {
+    expect(mayContactLine({ may_contact: true, may_contact_note: "", preferred_channel: "phone" }))
+      .toEqual({ tone: "ok", text: "May be contacted, by phone" });
+    expect(mayContactLine({ may_contact: false, may_contact_note: "Only about the server room", preferred_channel: "" }))
+      .toEqual({ tone: "warning", text: "Only about the server room" });
+    expect(mayContactLine({ may_contact: false, may_contact_note: "", preferred_channel: "email" }))
+      .toEqual({ tone: "warning", text: "Don't contact" });
   });
 });
