@@ -162,9 +162,9 @@
         {#if item.entry?.coverage === "billable"}<Pill tone="warning" text="Billable, no agreement" />{/if}
       </span>
       {#if item.agreement}
-        <a class="title" href={resolve("/(app)/customers/[id]/agreements", { id })}>{item.title}</a>
+        <a class="what" href={resolve("/(app)/customers/[id]/agreements", { id })}>{item.title}</a>
       {:else}
-        <span class="title">{item.title}</span>
+        <span class="what">{item.title}</span>
       {/if}
       {#if item.detail}<span class="small muted">{item.detail}</span>{/if}
       {#if item.task?.notes}<span class="small notes">{item.task.notes}</span>{/if}
@@ -461,12 +461,12 @@
   .when {
     color: var(--text-muted);
   }
-  .title {
+  .what {
     white-space: pre-line;
     overflow-wrap: anywhere;
   }
-  .coming .title,
-  .overdue .title {
+  .coming .what,
+  .overdue .what {
     font-weight: 600;
   }
   .notes {

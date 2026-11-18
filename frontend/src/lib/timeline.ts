@@ -196,7 +196,7 @@ export interface WeekRow {
 export interface GapRow {
   kind: "gap";
   key: string;
-  /** "W 50–52", or "W 50" for one week. */
+  /** "W 50–52", "W 50" for one week, or "W 51 2026 – W 6 2027" across a new year. */
   weeks: string;
   future: boolean;
 }
@@ -231,7 +231,11 @@ export function timelineMonths(items: TimelineItem[], now: string, everyWeek = f
   const fold = () => {
     if (!empty.length) return;
     const [latest, earliest] = [empty[0], empty.at(-1)!];
-    const weeks = latest === earliest ? `W ${isoWeek(latest)}` : `W ${isoWeek(earliest)}–${isoWeek(latest)}`;
+    // The weeks' years, when the run crosses a new year: "W 51 2026 – W 6 2027".
+    const [from, to] = [addDays(earliest, 3).slice(0, 4), addDays(latest, 3).slice(0, 4)];
+    const weeks = latest === earliest ? `W ${isoWeek(latest)}`
+      : from === to ? `W ${isoWeek(earliest)}–${isoWeek(latest)}`
+        : `W ${isoWeek(earliest)} ${from} – W ${isoWeek(latest)} ${to}`;
     // A folded run sits under the month above it.
     place(latest, { kind: "gap", key: `gap-${latest}`, weeks, future: latest > thisWeek }, false);
     empty = [];

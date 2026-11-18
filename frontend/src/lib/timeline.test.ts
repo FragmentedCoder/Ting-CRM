@@ -135,6 +135,14 @@ describe("the line by month and week", () => {
     ]);
   });
 
+  it("names the years when a folded run crosses a new year", () => {
+    expect(shape([item("far", "2027-02-18"), item("next", "2026-12-08")])).toEqual([
+      ["February 2027", ["W 7: far", "W 51 2026 – W 6 2027 planned"]],
+      ["December 2026", ["W 50: next", "W 48–49 planned"]],
+      ["November 2026", ["W 47: today"]],
+    ]);
+  });
+
   it("shows every week when asked", () => {
     const rows = shape([item("next", "2026-12-02"), item("old", "2026-11-03")], true);
     expect(rows).toEqual([
