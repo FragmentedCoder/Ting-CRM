@@ -92,6 +92,26 @@ class CustomerContact(Base):
     sealed: Mapped[bytes] = mapped_column(LargeBinary)
 
 
+class CustomerPin(Base):
+    """A pinned warning: one line every technician must see on the customer, pinned by
+    a Manager or Administrator. At most PINS_PER_CUSTOMER per customer."""
+
+    __tablename__ = "customer_pins"
+    __table_args__ = {"sqlite_autoincrement": True}
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    # {"text", "severity"}: what it says, and whether it's a hard rule or a caution.
+    sealed: Mapped[bytes] = mapped_column(LargeBinary)
+    pinned_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    pinned_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+PINS_PER_CUSTOMER = 3
+
+
 class CustomerAssignment(Base):
     __tablename__ = "customer_assignments"
 

@@ -84,6 +84,15 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(boss.getByRole("region", { name: "People on this customer" })).toContainText("Tor Tekniker");
   await shot(boss, "2-overview");
 
+  // A pinned warning: one line every technician sees first.
+  await boss.getByRole("button", { name: "Pin a warning" }).click();
+  await boss.getByRole("dialog").getByLabel("Warning").fill("Do not update in working hours");
+  await boss.getByRole("dialog").getByRole("radio", { name: "A hard rule (red)" }).check();
+  await boss.getByRole("button", { name: "Pin warning" }).click();
+  const pinned = boss.getByRole("note", { name: "Pinned warnings" });
+  await expect(pinned).toContainText("Do not update in working hours");
+  await expect(pinned).toContainText("1 of 3");
+
   // The technician finds the customer on Home and keeps its details and contacts
   // up to date, but doesn't choose how long its records are kept, its logo or who
   // works with it, and can't delete it.
@@ -91,6 +100,8 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(tech.getByRole("heading", { name: "Your customers" })).toBeVisible();
   await tech.getByRole("main").getByRole("link", { name: CUSTOMER }).click();
   await expect(tech.getByRole("heading", { name: CUSTOMER })).toBeVisible();
+  await expect(tech.getByRole("note", { name: "Pinned warnings" })).toContainText("Do not update in working hours");
+  await expect(tech.getByRole("button", { name: "Pin a warning" })).toHaveCount(0);
   await menu(tech, "Customer settings").click();
   await tech.getByLabel("Address").fill("Havnegade 6\n8000 Aarhus C");
   await tech.getByRole("button", { name: "Save details" }).click();

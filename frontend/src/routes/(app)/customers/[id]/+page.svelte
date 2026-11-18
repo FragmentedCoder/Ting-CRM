@@ -2,15 +2,70 @@
   import { resolve } from "$app/paths";
   import Circle from "@lucide/svelte/icons/circle";
   import CircleCheck from "@lucide/svelte/icons/circle-check";
+  import Pin from "@lucide/svelte/icons/pin";
+  import Plus from "@lucide/svelte/icons/plus";
+  import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
+  import X from "@lucide/svelte/icons/x";
+  import { api, ApiError, sessionGone } from "#lib/api.js";
   import { pageTitle } from "#lib/branding.svelte.js";
+  import ContactCard from "#lib/components/ContactCard.svelte";
+  import Dialog from "#lib/components/Dialog.svelte";
   import { sharedCustomer } from "#lib/context.js";
+  import { PINS_PER_CUSTOMER, pinnedLine, type CustomerDetail, type Pin as PinRecord } from "#lib/customers.js";
   import { dateTime } from "#lib/format.js";
+  import { toast } from "#lib/toast.svelte.js";
 
-  // A customer at a glance: who to talk to, who works with it, the details. What they
-  // pay for, coverage, systems and the timeline join it in Phase 2.
+  // A customer at a glance: the pinned warnings first, then who decides, who to talk
+  // to and who works with it. Services, case numbers, systems and the work log join
+  // it as Phase 2 adds them.
   const shared = sharedCustomer();
   const customer = $derived(shared.current);
   const id = $derived(String(customer?.id ?? ""));
+  const pins = $derived(customer?.pins ?? []);
+  const decider = $derived(customer?.contacts?.find((c) => c.roles.includes("decision_maker")) ?? null);
+
+  // Managers and Administrators pin up to three one-line warnings.
+  let pinOpen = $state(false);
+  let pinDraft = $state<{ id: number | null; text: string; severity: PinRecord["severity"] }>(
+    { id: null, text: "", severity: "caution" });
+  let pinError = $state<string | null>(null);
+  let busy = $state(false);
+
+  function editPin(found?: PinRecord) {
+    pinDraft = found ? { id: found.id, text: found.text, severity: found.severity }
+      : { id: null, text: "", severity: "caution" };
+    pinError = null;
+    pinOpen = true;
+  }
+
+  async function run(action: () => Promise<CustomerDetail>, done: string) {
+    busy = true;
+    pinError = null;
+    try {
+      shared.use(await action());
+      pinOpen = false;
+      toast(done, "ok", { key: "saved" });
+    } catch (e) {
+      if (sessionGone(e)) return;
+      const message = e instanceof ApiError ? e.message : "Something went wrong. Try again.";
+      if (pinOpen) pinError = message;
+      else toast(message, "critical");
+    } finally {
+      busy = false;
+    }
+  }
+
+  function savePin(event: SubmitEvent) {
+    event.preventDefault();
+    const { id: pinId, ...body } = pinDraft;
+    const base = `/customers/${customer?.id}/pins`;
+    run(() => pinId === null ? api("POST", base, body) : api("PUT", `${base}/${pinId}`, body),
+      pinId === null ? "Warning pinned." : "Warning saved.");
+  }
+
+  function unpin(found: PinRecord) {
+    run(() => api("DELETE", `/customers/${customer?.id}/pins/${found.id}`), "Warning unpinned.");
+  }
 
   // For administrators, until a new customer is ready for work.
   const steps = $derived(customer ? [
@@ -25,6 +80,36 @@
 <svelte:head><title>{pageTitle(customer?.name ?? "Customer")}</title></svelte:head>
 
 {#if customer}
+  {#if pins.length || customer.may_manage}
+    <div class="pins" role="note" aria-label="Pinned warnings">
+      <div class="pins-head">
+        <span class="small muted one-line">{pins.length ? pinnedLine(pins) : "No pinned warnings"}</span>
+        {#if customer.may_manage && pins.length < PINS_PER_CUSTOMER}
+          <button class="link-button" type="button" onclick={() => editPin()}>
+            <Plus size={14} aria-hidden="true" />Pin a warning
+          </button>
+        {/if}
+      </div>
+      {#each pins as pin (pin.id)}
+        <div class="pin {pin.severity}">
+          {#if pin.severity === "critical"}
+            <TriangleAlert size={18} aria-hidden="true" />
+          {:else}
+            <Pin size={18} aria-hidden="true" />
+          {/if}
+          <span class="visually-hidden">{pin.severity === "critical" ? "Hard rule:" : "Caution:"}</span>
+          {#if customer.may_manage}
+            <button class="pin-text one-line" type="button" title="Change this warning" onclick={() => editPin(pin)}>{pin.text}</button>
+            <button class="icon-button unpin" type="button" aria-label="Unpin “{pin.text}”" title="Unpin"
+              disabled={busy} onclick={() => unpin(pin)}><X size={16} aria-hidden="true" /></button>
+          {:else}
+            <span class="pin-text one-line" title={pin.text}>{pin.text}</span>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  {/if}
+
   <div class="grid">
     {#if gettingStarted}
       <section class="section wide" aria-labelledby="start-title">
@@ -48,6 +133,10 @@
 
     <section class="section" aria-labelledby="contacts-title">
       <h2 class="section-title" id="contacts-title">Contacts</h2>
+      {#if decider}
+        <p class="small muted label">Decision-maker</p>
+        <ContactCard contact={decider} />
+      {/if}
       {#if customer.contacts?.length}
         <ul class="plain">
           {#each customer.contacts.slice(0, 4) as contact (contact.id)}
@@ -96,7 +185,96 @@
   </div>
 {/if}
 
+<Dialog bind:open={pinOpen} title={pinDraft.id === null ? "Pin a warning" : "Change pinned warning"}>
+  <form class="stack" onsubmit={savePin}>
+    {#if pinError}<p class="alert alert-critical" role="alert">{pinError}</p>{/if}
+    <div class="field">
+      <label for="pin-text">Warning</label>
+      <input id="pin-text" class="input" required maxlength="120" bind:value={pinDraft.text} />
+      <span class="hint">One short line every technician sees first, such as “Do not update in working hours”.</span>
+    </div>
+    <fieldset class="checks">
+      <legend class="check-title">Kind</legend>
+      <label class="check"><input type="radio" value="critical" bind:group={pinDraft.severity} /><span>A hard rule (red)</span></label>
+      <label class="check"><input type="radio" value="caution" bind:group={pinDraft.severity} /><span>A caution (yellow)</span></label>
+    </fieldset>
+    <div class="button-row end">
+      <button class="button button-secondary" type="button" onclick={() => (pinOpen = false)}>Cancel</button>
+      <button class="button button-primary" type="submit" disabled={busy}>
+        {pinDraft.id === null ? "Pin warning" : "Save warning"}
+      </button>
+    </div>
+  </form>
+</Dialog>
+
 <style>
+  .pins {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+  .pins-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+  .pins-head .link-button {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .pin {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+  }
+  .pin :global(svg) {
+    flex-shrink: 0;
+  }
+  .critical {
+    background: var(--critical-bg);
+    color: var(--critical-text);
+  }
+  .caution {
+    background: var(--warning-bg);
+    color: var(--warning-text);
+  }
+  .pin-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+  button.pin-text {
+    cursor: pointer;
+  }
+  .unpin {
+    flex-shrink: 0;
+    color: inherit;
+  }
+  .one-line {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .label {
+    margin: 0;
+  }
+  .end {
+    justify-content: flex-end;
+  }
   .grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

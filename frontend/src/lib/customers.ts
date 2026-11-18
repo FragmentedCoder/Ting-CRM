@@ -39,6 +39,26 @@ export interface Contact {
   preferred_channel: Channel;
 }
 
+/** A pinned warning: one line every technician sees first on the customer. */
+export interface Pin {
+  id: number;
+  text: string;
+  severity: "critical" | "caution";
+  /** "Henrik Dahl, Manager"; null once that person is gone. */
+  pinned_by: string | null;
+  pinned_at: string;
+}
+
+export const PINS_PER_CUSTOMER = 3;
+
+/** "Pinned by Henrik Dahl, Manager · 2 of 3": everyone who pinned one, and how many
+ *  of the three are used. */
+export function pinnedLine(pins: Pin[]): string {
+  const by = [...new Set(pins.map((pin) => pin.pinned_by).filter((name) => name !== null))];
+  const who = by.length ? `Pinned by ${by.join(" and ")}` : "Pinned";
+  return `${who} · ${pins.length} of ${PINS_PER_CUSTOMER}`;
+}
+
 export const SITE_KINDS: Record<SiteKind, string> = {
   main: "Main site",
   office: "Office",
@@ -114,6 +134,8 @@ export interface CustomerDetail extends CustomerSummary {
   created_at: string | null;
   sites: Site[] | null;
   contacts: Contact[] | null;
+  /** Pinned warnings, hard rules first; at most PINS_PER_CUSTOMER. */
+  pins: Pin[] | null;
   /** The technicians assigned to the customer. */
   assigned: Person[] | null;
   may_manage: boolean;

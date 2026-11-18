@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { customerFilters, formatCvr, mainRole, mayContactLine, statusPill, type CustomerSummary } from "./customers.js";
+import {
+  customerFilters, formatCvr, mainRole, mayContactLine, pinnedLine, statusPill, type CustomerSummary, type Pin,
+} from "./customers.js";
 
 describe("statusPill", () => {
   it("shows every status as a word in its colour", () => {
@@ -52,5 +54,18 @@ describe("contact cards", () => {
       .toEqual({ tone: "warning", text: "Only about the server room" });
     expect(mayContactLine({ may_contact: false, may_contact_note: "", preferred_channel: "email" }))
       .toEqual({ tone: "warning", text: "Don't contact" });
+  });
+});
+
+describe("pinnedLine", () => {
+  const pin = (id: number, by: string | null): Pin =>
+    ({ id, text: "x", severity: "caution", pinned_by: by, pinned_at: "2026-10-27T12:00:00Z" });
+
+  it("names who pinned them and how many of three are used", () => {
+    expect(pinnedLine([pin(1, "Henrik Dahl, Manager"), pin(2, "Henrik Dahl, Manager")]))
+      .toBe("Pinned by Henrik Dahl, Manager · 2 of 3");
+    expect(pinnedLine([pin(1, "Henrik Dahl, Manager"), pin(2, "Ingrid Admin, Administrator")]))
+      .toBe("Pinned by Henrik Dahl, Manager and Ingrid Admin, Administrator · 2 of 3");
+    expect(pinnedLine([pin(1, null)])).toBe("Pinned · 1 of 3");
   });
 });
