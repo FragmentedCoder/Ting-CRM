@@ -12,6 +12,7 @@ from app import (
     customer_routes,
     cvr,
     maintenance,
+    mywork,
     planning_routes,
     server_routes,
     services,
@@ -56,4 +57,5 @@ app.include_router(cvr.router, prefix="/api")
 app.include_router(services.router, prefix="/api")
 app.include_router(worklog_routes.router, prefix="/api")
 app.include_router(planning_routes.router, prefix="/api")
+app.include_router(mywork.router, prefix="/api")
 app.include_router(server_routes.router, prefix="/api")

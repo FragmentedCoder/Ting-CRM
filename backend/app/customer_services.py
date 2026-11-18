@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import Date, ForeignKey, Integer, LargeBinary, String, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
+from app import clock
 from app.customers import Customer, CustomerCompany, CustomerSystem, Sealer
 from app.db import Base
 from app.services import DetailField, StandardService, details_of
@@ -51,7 +52,7 @@ class CustomerService(Base):
     started_on: Mapped[date | None] = mapped_column(Date)
     ended_on: Mapped[date | None] = mapped_column(Date)
     # {"name", "company_id", "values", "fields", "extra", "not_used", "systems",
-    #  "case_number", "case_kind", "case_history", "notes"}
+    #  "case_number", "case_kind", "case_since", "case_history", "notes"}
     sealed: Mapped[bytes] = mapped_column(LargeBinary)
 
 
@@ -133,6 +134,8 @@ class CustomerServiceOut(BaseModel):
     systems: list[CoveredSystem]
     case_number: str
     case_kind: CaseKind
+    # The day its case number was given; none for one from before Þing kept that.
+    case_since: date | None = None
     case_history: list[PastCase]
     notes: str
     # The active agreement that covers it; none means "No agreement", and work on it
@@ -199,9 +202,14 @@ def sealed_fields(db: Session, customer: Customer, body: CustomerServiceIn,
                             "An added detail has the name of one the standard has.")
     history = [PastCase.model_validate(c).model_dump(mode="json")
                for c in before.get("case_history", [])]
-    if before.get("case_number") and before["case_number"] != body.case_number:
+    number = body.case_number.strip()
+    if before.get("case_number") and before["case_number"] != number:
         history.insert(0, PastCase(number=before["case_number"], kind=before.get("case_kind", ""),
-                                   until=date.today()).model_dump(mode="json"))
+                                   until=clock.utcnow().date()).model_dump(mode="json"))
+    # The day the number it has now was given: a monthly one is replaced each month.
+    since = before.get("case_since") if before.get("case_number") == number else None
+    if number and not since:
+        since = clock.utcnow().date().isoformat()
     return {
         "name": standard.name if standard else str(before.get("name", "")),
         "company_id": body.company_id,
@@ -215,8 +223,9 @@ def sealed_fields(db: Session, customer: Customer, body: CustomerServiceIn,
                   for f in body.extra],
         "not_used": sorted(k for k in set(body.not_used) if k in standard_fields),
         "systems": [s.model_dump() for s in systems.values()],
-        "case_number": body.case_number.strip(),
+        "case_number": number,
         "case_kind": body.case_kind,
+        "case_since": since if number else None,
         "case_history": history[:24],
         "notes": body.notes.strip(),
     }
@@ -254,6 +263,7 @@ def describe(row: CustomerService, sealed: dict[str, Any],
         systems=[CoveredSystem.model_validate(s) for s in sealed.get("systems", [])],
         case_number=str(sealed.get("case_number", "")),
         case_kind=sealed.get("case_kind", ""),
+        case_since=sealed.get("case_since"),
         case_history=[PastCase.model_validate(c) for c in sealed.get("case_history", [])],
         notes=str(sealed.get("notes", "")),
     )
