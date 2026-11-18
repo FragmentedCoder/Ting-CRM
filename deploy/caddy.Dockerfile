@@ -19,7 +19,7 @@ RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.7 \
       --replace golang.org/x/net=golang.org/x/net@v0.62.0 \
       --replace github.com/go-jose/go-jose/v4=github.com/go-jose/go-jose/v4@v4.1.6
 
-FROM caddy:2.11.8-alpine
+FROM caddy:2.11.9-alpine
 # Alpine's fixes since the image was made.
 RUN apk upgrade --no-cache
 COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
