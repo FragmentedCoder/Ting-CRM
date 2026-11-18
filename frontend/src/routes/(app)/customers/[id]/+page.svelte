@@ -10,6 +10,7 @@
   import { pageTitle } from "#lib/branding.svelte.js";
   import ContactCard from "#lib/components/ContactCard.svelte";
   import Dialog from "#lib/components/Dialog.svelte";
+  import LogWorkDialog from "#lib/components/LogWorkDialog.svelte";
   import { sharedCustomer } from "#lib/context.js";
   import Pill from "#lib/components/Pill.svelte";
   import {
@@ -17,6 +18,7 @@
     type CustomerDetail, type CustomerService, type Pin as PinRecord,
   } from "#lib/customers.js";
   import { CASE_KINDS, showValue } from "#lib/services.js";
+  import { LOG_KINDS, type LogEntry } from "#lib/worklog.js";
   import { date, dateTime } from "#lib/format.js";
   import { toast } from "#lib/toast.svelte.js";
 
@@ -31,6 +33,32 @@
   const services = $derived(customer?.services ?? []);
   const support = $derived(supportLevel(services));
   const cases = $derived(caseNumbers(services));
+
+  // Logging work: one line straight from the overview, or the full form.
+  let logOpen = $state(false);
+  let quick = $state("");
+  let logging = $state(false);
+
+  async function refresh() {
+    const detail = await api<CustomerDetail>("GET", `/customers/${customer?.id}`).catch(() => null);
+    if (detail) shared.use(detail);
+  }
+
+  async function logQuick(event: SubmitEvent) {
+    event.preventDefault();
+    if (!quick.trim() || !customer) return;
+    logging = true;
+    try {
+      await api<LogEntry>("POST", `/customers/${customer.id}/log`, { kind: "work", text: quick });
+      quick = "";
+      toast("Work logged.", "ok", { key: "saved" });
+      await refresh();
+    } catch (e) {
+      if (!sessionGone(e)) toast(e instanceof ApiError ? e.message : "Something went wrong.", "critical");
+    } finally {
+      logging = false;
+    }
+  }
 
   // A service at a glance: its first details filled in.
   function atThisCustomer(service: CustomerService): string {
@@ -218,6 +246,40 @@
     </section>
   {/if}
 
+  <section class="section services" aria-labelledby="work-title">
+    <div class="heading-row">
+      <h2 class="section-title" id="work-title">Latest work</h2>
+      <a class="small" href={resolve("/(app)/customers/[id]/log", { id })}>All work logged</a>
+    </div>
+    {#if customer.may_edit}
+      <form class="quick" onsubmit={logQuick}>
+        <label class="visually-hidden" for="quick-log">Log work</label>
+        <input id="quick-log" class="input" maxlength="2000" bind:value={quick}
+          placeholder="What did you do? For example: replaced the switch in the server room" />
+        <button class="button button-accent" type="submit" disabled={logging || !quick.trim()}>Log work</button>
+        <button class="button button-secondary" type="button" onclick={() => (logOpen = true)}>More…</button>
+      </form>
+    {/if}
+    {#if customer.latest_work?.length}
+      <ul class="work">
+        {#each customer.latest_work as entry (entry.id)}
+          <li>
+            <time class="small muted mono" datetime={entry.happened_at}>{date(entry.happened_at)}</time>
+            <span class="work-body">
+              <span>{entry.text}</span>
+              <span class="small muted">
+                {[entry.author, LOG_KINDS[entry.kind], entry.service, entry.case_number || null].filter(Boolean).join(" · ")}
+              </span>
+            </span>
+          </li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="muted">Nothing logged yet.</p>
+    {/if}
+  </section>
+  <LogWorkDialog bind:open={logOpen} {customer} onsaved={refresh} />
+
   <div class="grid">
     {#if gettingStarted}
       <section class="section wide" aria-labelledby="start-title">
@@ -352,6 +414,36 @@
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-3);
+  }
+  .quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-2) 0;
+  }
+  .quick .input {
+    flex: 1 1 260px;
+    min-width: 0;
+  }
+  .work {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .work li {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    border-top: 1px solid var(--border);
+  }
+  .work-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
   }
   .agreements {
     display: flex;

@@ -169,6 +169,27 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await openUnder(tech, "Services and agreements", "Agreements");
   await expect(tech.getByText("Read-only: agreements are changed by a Manager.")).toBeVisible();
   await expect(tech.getByRole("button", { name: "Change agreement" })).toHaveCount(0);
+
+  // The technician logs work: a line from the overview, then with its service, which
+  // fills in the case number and says the work is covered.
+  await menu(tech, "Overview").click();
+  await tech.getByRole("textbox", { name: "Log work" }).fill("Replaced the switch in the server room");
+  await tech.getByRole("button", { name: "Log work", exact: true }).click();
+  await expect(tech.getByRole("region", { name: "Latest work" })).toContainText("Replaced the switch in the server room");
+  await tech.getByRole("button", { name: "More…" }).click();
+  const work = tech.getByRole("dialog");
+  await work.getByLabel("What was done").fill("Reset a password for Sigrid");
+  await work.getByLabel("Type", { exact: true }).selectOption({ label: "Call" });
+  await work.getByLabel("Service", { exact: true }).selectOption({ label: "Support" });
+  await expect(work.getByLabel("Log time on (case number)")).toHaveValue("TDSE26114");
+  await expect(work).toContainText("Covered by Service agreement 2026.");
+  await work.getByRole("button", { name: "Log work" }).click();
+  await openUnder(tech, "Timeline and work log", "Work log");
+  const entries = tech.getByRole("region", { name: "Entries" });
+  await expect(entries).toContainText("Reset a password for Sigrid");
+  await expect(entries).toContainText("Covered");
+  await expect(entries).toContainText("TDSE26114");
+  await shot(tech, "3b-work-log");
   await menu(tech, "People").click();
   await expect(tech.getByRole("checkbox")).toHaveCount(0);
   await expect(tech.getByRole("main")).toContainText("Tor Tekniker");
