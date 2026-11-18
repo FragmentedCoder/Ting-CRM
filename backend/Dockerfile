@@ -1,15 +1,17 @@
 # rclone, for SMB shares (Debian's is too old): its tagged release, built with a
 # current Go, which its own binaries can lag behind; Go checks every module against
 # its checksum database. The image scan in CI keeps watch.
-FROM golang:1.27.3-alpine AS rclone
+FROM golang:1.27.4-alpine AS rclone
 RUN CGO_ENABLED=0 go install -trimpath \
-      -ldflags "-s -w -X github.com/rclone/rclone/fs.Version=v1.75.2" \
-      github.com/rclone/rclone@v1.75.2
+      -ldflags "-s -w -X github.com/rclone/rclone/fs.Version=v1.76.0" \
+      github.com/rclone/rclone@v1.76.0
 
 FROM python:3.13-slim AS base
 
-# Backups: restic from Debian's signed packages, and rclone from above.
+# Debian's fixes since the image was made, then backups: restic from Debian's
+# signed packages, and rclone from above.
 RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
  && apt-get install -y --no-install-recommends restic ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=rclone /go/bin/rclone /usr/local/bin/rclone
