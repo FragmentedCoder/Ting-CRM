@@ -7,6 +7,7 @@ from sqlalchemy import select, text
 
 from app.audit import AuditEntry
 from app.crypto.keys import load_master_key, unwrap_key
+from app.customer_routes import town_of
 from app.customers import (
     LIMITED_SIGHT,
     SEES_CUSTOMERS,
@@ -89,9 +90,11 @@ def test_technicians_see_every_customer(client, admin, nordlys, person, session)
     listed = client.get(CUSTOMERS, headers=as_astrid).json()
     assert [(c["name"], c["visibility"]) for c in listed] == [
         ("Fjeldstue A/S", "full"), ("Nordlys IT ApS", "full")]
-    # The list says how many people usually work with each customer.
-    assert [(c["name"], c["people"]) for c in listed] == [
-        ("Fjeldstue A/S", 0), ("Nordlys IT ApS", 1)]
+    # The list says who usually works with each customer, and whether you do.
+    assert [(c["name"], c["people"], c["worked_on_by"], c["mine"]) for c in listed] == [
+        ("Fjeldstue A/S", 0, [], False), ("Nordlys IT ApS", 1, ["Astrid"], True)]
+    # And the town, from the address's postcode line.
+    assert [c["town"] for c in listed] == [None, "Aarhus C"]
     detail = client.get(f"{CUSTOMERS}/{nordlys['id']}", headers=as_astrid).json()
     assert detail["contacts"][0]["email"] == "sigrid@nordlys.example"
     assert detail["may_edit"] and not detail["may_manage"] and not detail["may_delete"]
@@ -136,8 +139,8 @@ def test_auditors_see_every_customers_metadata_and_nothing_more(
 
     listed = client.get(CUSTOMERS, headers=as_auditor).json()
     assert listed == [{"id": nordlys["id"], "name": "Nordlys IT ApS", "visibility": "metadata",
-                       "cvr": None, "status": None, "status_date": None, "people": None,
-                       "logo_url": None}]
+                       "cvr": None, "status": None, "status_date": None, "town": None,
+                       "people": None, "worked_on_by": None, "mine": None, "logo_url": None}]
     metadata = client.get(f"{CUSTOMERS}/{nordlys['id']}", headers=as_auditor).json()
     assert metadata["visibility"] == "metadata"
     assert metadata["contacts"] is None and metadata["address"] is None
@@ -439,3 +442,15 @@ def test_a_new_customer_can_start_departing(client, admin) -> None:
         "name": "Strandvejens Revision", "status": "departing", "status_date": "2026-12-31",
     }).json()
     assert (made["status"], made["status_date"]) == ("departing", "2026-12-31")
+
+
+@pytest.mark.parametrize(("address", "town"), [
+    ("Havnegade 4\n8000 Aarhus C", "Aarhus C"),
+    ("Havnegade 4, 8000 Aarhus C", "Aarhus C"),
+    ("Postboks 12 8000", None),
+    ("Kongevejen 2\nDK-2800 Kongens Lyngby\n", "Kongens Lyngby"),
+    ("Storgatan 1\n11122 Stockholm", None),
+    ("", None),
+])
+def test_the_town_comes_from_the_postcode_line(address, town) -> None:
+    assert town_of(address) == town
