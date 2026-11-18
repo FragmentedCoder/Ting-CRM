@@ -120,7 +120,7 @@ The visual reference is the [customer page mockup](https://claude.ai/artifact/D5
 - **Wall display** (`/public/dashboard`): a read-only dashboard made for a TV in full screen, across all customers: what is overdue or due in the coming weeks (renewals, updates, restore tests and other recurring work), in large type, refreshing itself. It shows each item's customer, what and when, nothing more. It isn't in the side menu: the TV is signed in as a display account, a service user that can open this page and nothing else.
 - **Standard services** and **compliance frameworks** (Managers): the catalog, with each service's details, recurring tasks and renewals, and each framework's checklist.
 - **Agreements** and **renewals** across customers, filterable by date, status and service.
-- **Admin:** users, roles and which customers a technician is limited to, import, backups, audit log.
+- **Admin:** users, roles and whether a technician is limited to the customers they're assigned to, import, backups, audit log.
 
 Screens the mockup doesn't show (agreements across customers, the admin pages, the New task and Log work forms, the customer picker, the coverage check, Manager versions of the customer pages) follow its style.
 
@@ -134,7 +134,7 @@ The app shell comes from Skjald: a side menu with My work and All customers firs
 
 | Role | When | Can |
 | --- | --- | --- |
-| Administrator | v1 | Everything: users, roles, which customers a technician is limited to, standard services, agreements, keys, backups, imports |
+| Administrator | v1 | Everything: users, roles, whether a technician is limited to the customers they're assigned to, standard services, agreements, keys, backups, imports |
 | Manager | v1 | Every customer: add customers and change them, choose who usually works with them, set retention, pin warnings; standard services and customers' services, case numbers, agreements and SLA, renewal decisions, compliance records, the document library. No admin panel, and no deleting customers |
 | Technician | v1 | Every customer, unless limited to some: read it all; change details, contacts, sites and systems; log work; add, complete and reschedule tasks; mark renewals done; upload a document or email on the timeline; read compliance |
 | Auditor | v1 | Read the audit log and record metadata |
@@ -144,7 +144,7 @@ The app shell comes from Skjald: a side menu with My work and All customers firs
 
 Managers run customers, their services and what they've agreed to, so that isn't left to the admin panel's holders. Technicians do the work and record it, but don't change what was agreed: a customer's services and agreements are the Manager's, and so are the decision not to renew and the compliance records. The later Management role is a different thing, a read-only view across customers for the company's management.
 
-Every technician sees every customer (from Phase 2; until then, the customers they're assigned to), because whoever answers the phone helps, and colleagues cover for one another when someone is ill or away. An Administrator can limit a technician to chosen customers; to them, any other customer answers 404, like one that doesn't exist, with the refusal logged. Who usually works with a customer decides what fills their My work, not what they may open. Views are logged either way. Routes ask for a capability (such as "administer" or "read the audit log"), never a role; `backend/app/roles.py` holds the one table of which roles grant which capability, and a test checks it against this table. A person can hold several roles, and every grant is logged with who made it.
+Every technician sees every customer (from Phase 2; until then, the customers they're assigned to), because whoever answers the phone helps, and colleagues cover for one another when someone is ill or away. An Administrator can limit a technician to the customers they're assigned to (a tick on their account); to them, any other customer answers 404, like one that doesn't exist, with the refusal logged. Who usually works with a customer decides what fills their My work, not what they may open. Views are logged either way. Routes ask for a capability (such as "administer" or "read the audit log"), never a role; `backend/app/roles.py` holds the one table of which roles grant which capability, and a test checks it against this table. A person can hold several roles, and every grant is logged with who made it.
 
 Who changes what about a customer:
 
