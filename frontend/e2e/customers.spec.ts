@@ -190,6 +190,41 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(entries).toContainText("Covered");
   await expect(entries).toContainText("TDSE26114");
   await shot(tech, "3b-work-log");
+
+  // The timeline: an overdue recurring task is ticked off into the work log and comes
+  // back; a renewal is recorded, and waits for a Manager's decision.
+  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  await openUnder(tech, "Timeline and work log", "Timeline");
+  const line = tech.getByRole("group", { name: "The line, the latest first" });
+  await expect(line).toContainText("Today");
+  await expect(line).toContainText("Reset a password for Sigrid");
+  await tech.getByRole("button", { name: "New task" }).click();
+  const task = tech.getByRole("dialog");
+  await task.getByLabel("What needs doing").fill("Update the firewall's firmware");
+  await task.getByLabel("Due").fill(day(-3));
+  await task.getByLabel("It repeats").check();
+  await task.getByLabel("Service", { exact: true }).selectOption({ label: "Support" });
+  await task.getByRole("button", { name: "Add task" }).click();
+  await expect(line).toContainText("Overdue by 3 days");
+  await line.getByRole("button", { name: "Mark done" }).click();
+  const done = tech.getByRole("dialog");
+  await expect(done).toContainText("Every 3 months: the next one will be due");
+  await done.getByLabel("What was done").fill("Updated both nodes to 7.4.2");
+  await done.getByRole("button", { name: "Mark done" }).click();
+  await expect(line).toContainText("Update the firewall's firmware: Updated both nodes to 7.4.2");
+  await expect(line).not.toContainText("Overdue");
+  await expect(line.getByText("Update the firewall's firmware", { exact: true })).toBeVisible();
+  await tech.getByRole("button", { name: "New renewal" }).click();
+  const renewal = tech.getByRole("dialog");
+  await renewal.getByLabel("What renews").fill("Firewall feature key");
+  await renewal.getByLabel("Renews on").fill(day(20));
+  await renewal.getByRole("button", { name: "Add renewal" }).click();
+  await expect(line).toContainText("Renewal open");
+  await tech.getByRole("button", { name: "Actions for “Firewall feature key”" }).click();
+  await expect(tech.getByRole("menuitem", { name: "Mark as renewed" })).toBeVisible();
+  await expect(tech.getByRole("menuitem", { name: "Record the decision" })).toHaveCount(0);
+  await tech.keyboard.press("Escape");
+  await shot(tech, "3c-timeline");
   await menu(tech, "People").click();
   await expect(tech.getByRole("checkbox")).toHaveCount(0);
   await expect(tech.getByRole("main")).toContainText("Tor Tekniker");
@@ -208,6 +243,20 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(manager.getByRole("checkbox", { name: /Tor Tekniker/ })).toBeChecked();
   await expect(menu(manager, "Admin")).toHaveCount(0);
   await shot(manager, "4-manager-people");
+
+  // Deciding on a renewal is the Manager's, in the fixed words; the overview shows it.
+  await openUnder(manager, "Timeline and work log", "Timeline");
+  await manager.getByRole("button", { name: "Actions for “Firewall feature key”" }).click();
+  await manager.getByRole("menuitem", { name: "Record the decision" }).click();
+  const decision = manager.getByRole("dialog");
+  await decision.getByRole("radio", { name: /^Approved/ }).check();
+  await decision.getByRole("button", { name: "Save decision" }).click();
+  await expect(manager.getByRole("group", { name: "The line, the latest first" })).toContainText("Approved");
+  await menu(manager, "Overview").click();
+  const coming = manager.getByRole("region", { name: "Coming up" });
+  await expect(coming).toContainText("Firewall feature key");
+  await expect(coming).toContainText("Approved");
+  await shot(manager, "4b-coming-up");
 
   // Limited to the customers he's assigned to, and then unassigned, the technician
   // loses the customer at the next check, without signing in again.

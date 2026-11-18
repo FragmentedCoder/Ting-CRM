@@ -1,3 +1,4 @@
+import type { Renewal, Task, Who } from "./planning.js";
 import type { Role } from "./roles.js";
 import type { LogEntry } from "./worklog.js";
 
@@ -360,6 +361,12 @@ export interface CustomerDetail extends CustomerSummary {
   systems: System[] | null;
   /** The newest work log entries, for the overview. */
   latest_work: LogEntry[] | null;
+  /** What's coming up: the tasks not yet done, soonest first. */
+  tasks: Task[] | null;
+  /** What runs out on a date: licences, certificates, warranties. */
+  renewals: Renewal[] | null;
+  /** Who a task or renewal can name: everyone who sees this customer in full. */
+  colleagues: Who[] | null;
   /** What was signed, and which services each agreement covers. */
   agreements: Agreement[] | null;
   /** Create and change agreements (Managers and Administrators). */

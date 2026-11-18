@@ -58,8 +58,14 @@ def test_a_technician_adds_a_task_and_ticks_it_off(client, admin, nordlys, perso
         "Send the quote for the new file server: Sent to Signe Holm.")
     again = client.post(f"{url}/tasks/{task['id']}/done", headers=as_astrid, json={})
     assert again.status_code == 409
+    # Done on the person's own day, which may be a day ahead of the server's; no later.
+    later = client.post(f"{url}/tasks", headers=as_astrid,
+                        json={"title": "Call back", "due_on": soon(1)}).json()["tasks"][0]
+    done_url = f"{url}/tasks/{later['id']}/done"
+    assert client.post(done_url, headers=as_astrid, json={"done_on": soon(2)}).status_code == 422
+    assert client.post(done_url, headers=as_astrid, json={"done_on": soon(1)}).status_code == 200
     assert [e.action for e in audit_entries(session, "customer.task_done")] == [
-        "customer.task_done"]
+        "customer.task_done", "customer.task_done"]
 
 
 def test_a_recurring_task_comes_back_from_the_day_it_was_done(client, admin, nordlys  # noqa: F811

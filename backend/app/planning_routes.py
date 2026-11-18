@@ -181,7 +181,8 @@ def finish_task(customer_id: int, task_id: int, body: Done, request: Request, ed
         raise HTTPException(status.HTTP_409_CONFLICT, "That task is already done.")
     today = clock.utcnow().date()
     done_on = body.done_on or today
-    if done_on > today:
+    # The day is the person's own: east of Greenwich it's already tomorrow here.
+    if done_on > today + timedelta(days=1):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
                             "A task is done today or earlier.")
     keyring = Keyring()
