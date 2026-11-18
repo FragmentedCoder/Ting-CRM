@@ -6,13 +6,15 @@ This document describes how Þing is designed. It is the reference for contribut
 
 ## Principles
 
-- **Technicians first.** When a customer calls, a technician answers three questions in seconds: what the customer pays for, whether this task is covered by their agreement or billable, and which systems we run for them. Sales and management views come later, on the same data.
-- **Overview first.** The most important information is visible at a glance; details are one click away. White and simple: neutral surfaces, colour only for status and the one accent, borders rather than shadows.
+- **Technicians first.** When a customer calls, a technician sees in seconds what we do for them (their services, and whether and when they have support), which case number the time goes on, the pinned warnings, and who decides at the customer. Everything else is one click away. Sales and management views come later, on the same data.
+- **Standard, then particular.** Every customer gets the same standard services, but no two look alike: one customer's backup is a NAS copying to S3, another's is Veeam with seven days of encrypted local copies and thirty days of immutable offsite ones. A customer's copy of a service keeps its own details, systems, notes, recurring work and renewals. That is the part most CRMs miss.
+- **Nothing gets lost.** What was promised at a meeting, a visit, in an email or a ticket, and recurring work such as updates and restore tests, becomes a task with an owner and a due date; every renewal has a date and a decision.
+- **Overview first.** The most important information is visible at a glance; details are one click away. White and simple: neutral surfaces, colour only for status and the heather accent, borders rather than shadows.
 - **One company per install.** No multi-tenancy. Another company runs its own install.
 - **Internal network only.** Nothing in Þing faces the internet; integrations are outbound only.
-- **Security first.** Per-customer encryption keys, MFA for every account, need-to-know access by customer assignment and a tamper-evident audit log. The engineering baseline is OWASP ASVS Level 2. Þing holds personal data about customer contacts, and the company holds the Danish D-mærket and has NIS2 customers, so views, exports, imports and deletions are logged.
-- **No secrets.** Þing never stores passwords, OTP secrets or keys for customer systems. Devolutions Remote Desktop Manager is the secret store; a system in Þing holds a reference to its RDM entry.
-- **Þing is the source of truth for agreements.** No accounting or PSA system holds what each customer pays, so Þing owns agreements, agreement lines and prices. It does not do invoicing or time registration.
+- **Security first.** Per-customer encryption keys, MFA for every account, need-to-know access and a tamper-evident audit log. The engineering baseline is OWASP ASVS Level 2. Þing holds personal data about customer contacts, and the company holds the Danish D-mærket and has NIS2 customers, so views, exports, imports and deletions are logged.
+- **No secrets.** Þing never stores passwords, OTP secrets, licence keys or other keys for customer systems; those stay in the team's password manager. A renewal records dates, never the key.
+- **Agreements live in Þing.** No accounting or PSA system records which agreements each customer has and what they cover, so Þing does, down to which section of the signed document covers which service. Work on a service an agreement covers is Covered, anything else is Billable. Þing stores no prices, and does no invoicing or time registration: time goes on case numbers in the company's own system, and Þing shows which case number to use.
 - **Retention from the start.** Retention and deletion rules per customer are part of the data model, not added later.
 - **Easy to install.** One command on a fresh Ubuntu Server LTS VM, plus a verifiable install path.
 
@@ -22,107 +24,132 @@ The name follows the *þing*, the Norse assembly in a ring of standing stones. T
 
 | Tagline word | Part of the product |
 | --- | --- |
-| **Gather** | Customers, sites, contacts, the systems we run |
-| **Agree** | Agreements, what they pay for, what is covered, renewals |
-| **Remember** | Timeline of calls, meetings, notes and tasks (later mail); compliance records |
+| **Gather** | Customers (and the companies in a group), sites, contacts and their roles, the systems at each customer |
+| **Agree** | Standard services and each customer's own version of them, support, case numbers, agreements and SLA, renewals |
+| **Remember** | The work log, tasks and recurring work, documents and emails, compliance checklists |
 
-Users in v1 are the technicians, a Manager who runs customers and their agreements, an Administrator and an Auditor. Everyday situations Þing must make fast:
+Users in v1 are the technicians, a Manager who runs customers, their services and agreements, an Administrator and an Auditor. Everyday situations Þing must make fast:
 
-1. **The phone rings.** The technician searches by company name, CVR number, contact name, phone number or email domain. The customer page opens on an overview: what they pay for, what is covered, pinned warnings, the latest notes. The technician checks coverage (*Covered*, *Billable* or *Not covered*, with the rule text) and logs the call on the timeline in a few clicks.
-2. **Something we manage breaks.** The technician opens the system (firewall, server, Microsoft 365 tenant). It shows the agreement line that pays for it, the SLA response time, its site, and a link to its entry in RDM. A system that **no agreement line pays for** is flagged, because that is unbilled work.
-3. **Before an on-site visit.** Sites, the systems at that site, the on-site contacts, open tasks and recent notes are on one screen.
-4. **Agreements need attention.** The home screen lists notice deadlines and renewals coming up, and agreements that have ended while systems still point at them.
-5. **A NIS2 customer asks for supplier documentation.** The compliance tab shows their NIS2 class, data processing agreement status, review dates and what has been delivered.
+1. **The phone rings.** The technician searches by company name, CVR number, contact name, phone number, email domain or case number. The customer page opens on what matters in the first five seconds: the support they have (working hours, any time, or none), the services we provide, the case number the time goes on, pinned warnings and the decision-maker. With no support, it says so, and that the job needs a case number of its own. Afterwards the technician logs what was done in a line of plain text.
+2. **Something we manage breaks.** The customer's systems show what runs on what (two virtual machines on a Hyper-V host), where each one is, and which of the customer's services covers it, with that service's details: for backup, where the copies go and how long they're kept.
+3. **Recurring work comes due.** Updates every three months, a restore test every six, a yearly update of the NIS2 documentation: My work lists them for the customers the technician works with, with the notes on what's special ("also update the booking service on the app server"). Ticking one off logs it and schedules the next.
+4. **Something must be renewed.** A firewall feature key runs out in 30 days. Þing warns the people chosen for it, in Þing and by email. The renewal records the decision: renewed, or not renewed because the customer declined, didn't approve or didn't pay, and then what must be done before it lapses (switch off the firewall features, or the customer loses the internet).
+5. **The month turns.** Managers get the list of monthly case numbers to replace, since invoices go out at the end of each month, and type in the new ones; the old ones stay in the service's history.
+6. **A customer is audited.** A NIS2 or TISAX auditor picks things at random, and the customer asks us for documentation of our part. The customer's compliance checklist says, for each thing an auditor may ask for, where to find it: a document, a system, a service or the work log.
+7. **On the wall.** A TV in the department shows what is most pressing across all customers: certificates and feature keys about to run out, updates and restore tests due.
 
-The team tracks server updates in a spreadsheet today (Appendix A). That becomes a maintenance view on systems after 1.0; the system model leaves room for it.
+The team tracks server updates in a spreadsheet today (Appendix A). Its columns become the details and recurring tasks of the Updates and Backup services.
 
 ## Scope
 
 | | What |
 | --- | --- |
-| **v1** | Customers, sites and contacts · service catalog · agreements, agreement lines and coverage rules · systems we provide, with RDM references · timeline and tasks · global search · customer overview page · home overview · compliance tracking (NIS2 class, data processing agreement, reviews) · import from CSV/Excel |
-| **After 1.0** | Microsoft 365 mail on the timeline (to confirm) · CVR lookup · reminders by email · maintenance and update tracking per system · sales role with pipeline and quotes · management role with revenue and renewals across customers |
-| **Out of scope** | Storing passwords or other secrets · ticketing/PSA · invoicing · time registration · marketing · multi-tenancy |
+| **v1** | Customers with their companies, sites, contacts, tags and pinned warnings; CVR lookup · systems · standard services and customer services · support and case numbers · agreements and SLA · the timeline and work log, with PDF and CSV export · tasks, recurring tasks and renewals, with warnings in Þing and by email · My work, All customers, the customer pages, the wall display · documents and uploaded emails (the library for Managers) · compliance frameworks and checklists · global search · import from CSV/Excel |
+| **After 1.0** | Danish · warnings through NTFY and other services · prices, if the company wants them in Þing · "candidate for" lists for sales · sales and management roles |
+| **Out of scope** | Storing passwords, licence keys or other secrets · ticketing/PSA (a ticket ID is plain text) · invoicing · time registration · marketing · multi-tenancy · syncing Microsoft 365 mailboxes (emails are uploaded instead) |
 
 ## Data model
 
 ```mermaid
 erDiagram
+  CUSTOMER ||--|{ COMPANY : "is made of"
   CUSTOMER ||--o{ SITE : has
   CUSTOMER ||--o{ CONTACT : has
-  CUSTOMER ||--o{ AGREEMENT : signs
-  AGREEMENT ||--|{ AGREEMENT_LINE : contains
-  AGREEMENT_LINE ||--o{ COVERAGE_RULE : defines
-  SERVICE ||--o{ AGREEMENT_LINE : "priced as"
-  CUSTOMER ||--o{ SYSTEM : "we run"
-  AGREEMENT_LINE |o--o{ SYSTEM : "pays for"
-  SITE |o--o{ SYSTEM : "located at"
-  CUSTOMER ||--o{ TIMELINE_ENTRY : has
+  SITE }o--|| CONTACT : "contact here"
+  CUSTOMER ||--o{ SYSTEM : has
+  SYSTEM |o--o{ SYSTEM : "runs on"
+  STANDARD_SERVICE ||--o{ CUSTOMER_SERVICE : "copied into"
+  CUSTOMER ||--o{ CUSTOMER_SERVICE : has
+  CUSTOMER_SERVICE }o--o{ SYSTEM : covers
+  CUSTOMER ||--o{ AGREEMENT : has
+  AGREEMENT ||--|{ AGREEMENT_VERSION : "signed as"
+  AGREEMENT ||--o{ AGREEMENT_SECTION : says
+  AGREEMENT_SECTION }o--o| CUSTOMER_SERVICE : covers
+  CUSTOMER_SERVICE ||--o{ RENEWAL : has
+  CUSTOMER_SERVICE ||--o{ TASK : "recurring work"
   CUSTOMER ||--o{ TASK : has
-  CUSTOMER ||--|| COMPLIANCE : has
+  CUSTOMER ||--o{ LOG_ENTRY : has
+  CUSTOMER ||--o{ DOCUMENT : has
+  FRAMEWORK ||--o{ CUSTOMER_COMPLIANCE : "applied as"
+  CUSTOMER ||--o{ CUSTOMER_COMPLIANCE : "is under"
 ```
 
-The key link is **System → Agreement line ("paid by")**. It is what lets a technician open a customer's firewall and see "covered by agreement 2026-014, line 3: firewall management; includes rule changes, excludes on-site visits".
+The key idea is **standard service → customer service**: Backup is one entry in the catalog, and each customer who has it gets a copy of its own to fill in, change and add to. The copy is what a technician reads when the customer calls.
 
 | Entity | Main fields |
 | --- | --- |
-| **Customer** | Name, CVR, address, main phone, email domains (for search and later mail matching), status (prospect / active / former), account owner (a technician), NIS2 class, pinned notes, retention period, custom fields. Has its own encryption key. |
-| **Site** | Name, address, access notes. |
-| **Contact** | Name, title, roles (primary, technical, billing, decision-maker, security/NIS2 contact), email, phone, site, **may contact** (yes/no plus a note), preferred channel. |
-| **Service** (catalog) | Name, category, description, default unit and price, **default coverage rules**. Shared by all customers. |
-| **Agreement** | Number, type (service agreement, project, hourly), status (draft / active / ending / ended), start and end dates, notice period, renewal (automatic / manual), SLA level and response times, signed PDF, owner. |
-| **Agreement line** | Service, description, quantity, unit, unit price (DKK), billing interval, start and end dates. |
-| **Coverage rule** | Belongs to a line. Subject (a type of work or a system type), verdict (included / not included / limited), limit (for example 5 hours a month) and rule text. **Copied from the service's defaults when the line is created**, so later catalog changes never alter a signed agreement. |
-| **System** | Type (server, firewall, switch, wireless, Microsoft 365 tenant, backup, …), name, site, vendor and model, serial number, host name/IP, role, status (active / retired), **paid by** (an agreement line; empty is flagged), **RDM reference** (never a credential). Room for later maintenance fields: updates itself, maintenance window, last maintenance, may update in working hours. |
-| **Timeline entry** | Type (note, call, meeting, visit, email), date, author, body, linked contacts, systems or agreement, optional follow-up task. |
-| **Task** | Title, due date, assignee, status, customer, linked entry. |
-| **Compliance** | NIS2 class (essential / important / not covered / unknown), data processing agreement (status, signed date, next review), supplier documentation (requested and delivered dates), next security review. |
-| **Attachment** | Encrypted with the customer's key, scanned with ClamAV, checked against the file type blocklist. |
+| **Customer** | Name, kind (company, or a private person for the rare one-off), address, main phone, email domains (for search), status (**active**, **departing** with the day they leave, or **former** with the day they left; Þing has no prospects), **pinned warnings** (at most three, one line each, critical or caution, pinned by Managers), free tags, the technicians who usually work with it, retention period. Has its own encryption key. |
+| **Company** | The companies a customer is made of, each with its name, CVR number (optional, filled in from the CVR registry) and address; most customers are one. A group with subsidiaries is one customer, treated as one, and its services and agreements cover the whole group unless limited to one company, so a subsidiary with its own agreement fits without becoming a customer of its own. |
+| **Site** | Name, type (main site, production, group company), address, opening hours, access, parking, a note, and **its own contact** (required; it may be the same person as at another site). |
+| **Contact** | Name, title, company, site, email, phone, roles (primary, technical, billing, decision-maker, security/NIS2 contact), **may contact** (yes/no plus a note), preferred channel. |
+| **System** | Group (servers, network, cloud, printers), type (physical server, virtual machine, NAS, backup server, firewall, router, switch, wireless, printer, Microsoft 365 tenant, other), name, role ("DC and file server"), site, host name and IP, hardware (vendor and model), serial number, operating system or firmware version, in service since and warranty end, **runs on** (a virtual machine's host), status (active, or retired with the date), maintenance (updates itself, may update in working hours, rhythm, last and next update), monitoring and backup notes, notes. |
+| **Standard service** | The catalog, kept by Managers: name, description, the details worth recording (each with a label, a kind — text, number, date, yes/no or a choice — and help text), and the recurring tasks and renewals that usually come with it. Þing starts with the team's list (Support, Microsoft 365 management, Backup, Servers, Networking, Switches, Firewall management, Printers, Updates and maintenance, Hardware, Licensing, Vulnerability scanning) for Managers to change, add to and remove from. |
+| **Customer service** | A customer's copy of a standard service: status (active, or ended with the date), start date, the company it's for, the details filled in (plus any added for this customer, and standard ones marked not used here), the systems it covers with a note per system, the **case number** its work goes on ("Log time on") with its kind (monthly, standing or project), the agreement section that covers it (none means "No agreement"), its recurring tasks and renewals. **Support** is a customer service like the others; its main detail is when it applies: working hours, any time (a fixed price), or none, where each job gets a case number of its own. A later change to a standard service never rewrites a customer's copy: details added to the standard appear on the copies, empty, to fill in. |
+| **Agreement** | Name, kind (service agreement, data processing agreement, accepted quote, confirmed by email, other), status (offer waiting for the customer, active, or ended), start and end dates, notice period and the last notice day, automatic renewal or not, SLA (the standard one, or its own), and the section on price and invoicing. **Versions**: number, file, sent and signed dates, who signed for each side. **Sections**: each section of the document (§ 3.1 …) with its agreed text and the customer service it covers, or marked as terms. The emails and meetings around it come from the timeline. |
+| **SLA** | Response targets by kind of work, from a stopped business to a password reset to a new server. The company has a standard SLA, which a technician falls back on; an agreement can set its own. |
+| **Renewal** | What (licence, antivirus, feature key, certificate, warranty, subscription, domain, other), the customer service and system it belongs to, supplier, renews on, how often, how long before to warn and whom, and the decision: **Approved** (the customer and a Manager agreed), **Waiting for the customer**, **Renewed** (with the next date), or **Won't be renewed**, with the reason (declined, not approved, no answer or not paid) and what must be done before it runs out, which becomes a task. Dates only: no prices, and never the key itself. |
+| **Task** | Title, customer, service or system, due date, who (named people, the customer's technicians or the Managers), notes or a checklist, an optional ticket ID (plain text), status. A recurring task has a rhythm and instructions; ticking it off writes a work log entry with its notes and schedules the next one, counted from the day it was done. |
+| **Work log entry** | What was done for the customer: type (call, work, visit, meeting, email, document), date and time, author, text ("added a 5G backup router on the firewall's port 3 as failover"), service, systems, case number, coverage (**Covered**, or **Billable** when no agreement covers the service), on site or not, an optional ticket ID. No durations: Þing does no time registration. Completed tasks, renewal decisions and uploaded emails add entries too. |
+| **Document** | A file on the customer: type (PDF, email, Word …), name, uploaded at and by, a preview of the first page, linked to **exactly one** customer service, agreement or compliance record (and shown there too), and a status (signed, current, sent to the customer, renewal open, update overdue, waiting for the customer, replaced by a newer version). An uploaded email (`.eml` or `.msg`) also makes a work log entry, dated when it was sent, with its sender and subject. Encrypted with the customer's key, scanned with ClamAV, checked against the file type blocklist. |
+| **Compliance framework** | NIS2, GDPR, ISO 27001, TISAX or any other, kept by Managers: a description, and a checklist of what an auditor may ask for, with guidance. |
+| **Customer compliance** | A framework applied to a customer: class or role (for NIS2, essential or important), status (**active** or **pending**; ended ones move to the history), since, why them, what we do, their contact, the next action and its date, the document. Per checklist item: where to find it for this customer (text, plus links to documents, systems, services or work log entries) and when it was last checked. Plus **rules for technicians** (each naming the framework it comes from) and **questions technicians may get on the phone**, with answers. Managers keep it all current; technicians read it. A customer's frameworks show as badges. |
+| **Warning** | Who is warned of what, and how: in Þing and by email in v1, with room for NTFY and other services. |
 | **User, role, assignment, audit event** | As in the platform (below). |
 
-- **A customer is a sealed container**, as in Skjald: everything that says who the customer is or what we know about them (name, CVR, address, sites, contacts, agreements and their lines, systems, timeline, compliance and files) is sealed with the customer's key, each value bound to its record. Only IDs, numbers and what access needs (assignments, status, dates that drive the home screen) stay plain. The audit log names customers by ID, so deleting a customer leaves nothing readable behind. Which fields stay plain is decided per entity in Phase 2, and recorded here.
-- **Search** opens the sealed fields of the customers the searcher may see and matches them in memory. At an MSP's scale (hundreds of customers, a few thousand contacts and systems) that takes milliseconds. If it ever doesn't, the fallback is a blind index: an HMAC of each normalised CVR number, phone number and email domain under a key wrapped by the master key.
-- **Coverage in v1 is deliberately simple:** a structured verdict and limit plus free text, with no rules engine. Þing does not do time registration, so a "limited" rule shows the limit but not how much of it is used.
-- **Prices** are DKK, stored as whole øre.
+- **A customer is a sealed container**, as in Skjald: everything that says who the customer is or what we know about them (name, companies, CVR numbers, address, sites, contacts, systems, services and their details and case numbers, agreements, renewals, tasks, the work log, documents and compliance) is sealed with the customer's key, each value bound to its record. Only IDs, numbers and what access needs (assignments, status, and the dates that drive My work, warnings and the wall display) stay plain. The audit log names customers by ID, so deleting a customer leaves nothing readable behind. Which fields stay plain is decided per entity in Phase 2, and recorded here.
+- **Search** opens the sealed fields of the customers the searcher may see and matches them in memory. At an MSP's scale (hundreds of customers, a few thousand contacts and systems) that takes milliseconds. If it ever doesn't, the fallback is a blind index: an HMAC of each normalised CVR number, case number, phone number and email domain under a key wrapped by the master key.
+- **Worked out, not stored:** overdue counts and "n days ago" come from today's date; whether work is covered comes from the service's agreement section; and **what needs attention** comes from rules: overdue compliance tasks, renewals waiting within 30 days, services or systems no agreement covers, notice dates within 60 days, a departing customer without a hand-over plan. A customer shows at most three, most urgent first.
+- **Prices** aren't stored: an agreement points to the section of its document on price and invoicing.
 
 ## Screens
 
-- **Home ("Today")**: my open tasks and follow-ups; notice deadlines and renewals in the next 60 days; customers needing attention (compliance review due, data processing agreement missing, systems no agreement line pays for); recently viewed customers.
-- **Customer page**, the heart of Þing:
-  - **Header:** name, CVR, status, NIS2 class badge, primary contact and **pinned notes**: short warnings that must never be missed, such as "Do not update in working hours" or "Only contact the owner".
-  - **Overview:** what they pay for (agreement lines, with the monthly total in DKK), a short coverage summary, the systems we run, the latest timeline entries and open tasks.
-  - **Agreements and coverage:** agreements, lines, coverage rules, dates and the signed PDF.
-  - **Systems:** each system with the line that pays for it, its site and the RDM link.
-  - **Contacts and sites:** contacts with roles and the "may contact" flag, plus sites.
-  - **Timeline:** calls, meetings, notes, visits, tasks (and mail later), filterable.
-  - **Compliance:** NIS2 class, data processing agreement, review dates, supplier documentation delivered.
-- **Coverage check:** from the customer page, pick a system or a type of work. Þing answers **Covered**, **Billable** or **Not covered**, with any limit ("Covered, up to 5 hours a month"), and quotes the rule text and the agreement line.
-- **Agreements:** all agreements across customers, filterable by renewal or notice date, status and owner.
-- **Admin:** users, roles, assignments, service catalog, custom fields, import, backups, audit log.
+The visual reference is the [customer page mockup](https://claude.ai/artifact/D5ZKBr1gqTzK2EcueKeDqo) (a Design canvas of 11 screens for the fictional Nordlys ApS, open each in Play mode), and its written companion, the UI handoff. Þing matches their layout, wording and hierarchy; the mockup's markup is not production code. Where this document and the mockup differ, this document wins: technicians see every customer unless limited (the mockup's All customers footnote says otherwise), systems hold no RDM reference or button, and compliance is kept by Managers.
+
+- **My work** (start page): today's date and "Good morning, Astrid"; **New task** and **Log work**; four counts (overdue, due this week, renewals and notice dates in the next 60 days, customers needing attention); then two rows whose panels share their height: **My tasks** (assigned to me across customers, with a tick box, customer, service and a date badge) beside **Customers needing attention** (up to three badges each), and **Renewals and notice dates** for my customers beside **Recently viewed**. Managers also get the monthly case numbers to replace, renewals waiting on a customer's answer and active services no agreement covers.
+- **All customers**: search (name, CVR, contact, phone, email domain) and chips with counts (All, Mine, Needs attention, NIS2, Departing, Former); a table of customer (name, CVR and town), status (Active, Departing, Former, the former greyed), compliance (NIS2 class, or GDPR only), services (count, and how many have no agreement), usually worked on by, and needs attention (up to three badges, or "Nothing").
+- **Customer pages**, the heart of Þing:
+  - **Overview** (the first five seconds): the name with **New task** and **Log work**; CVR, group company, address and usual technicians; status and compliance badges; **pinned warnings** (red for a hard rule, yellow for a caution, one line each, at most three, with "Pinned by Henrik Dahl, Manager · 2 of 3" above them); tiles for **Support** (hours and SLA), **Log time on** (case numbers tagged Monthly, Standing or Project) and the decision-maker's contact card; the services as chips (green active and covered, yellow needs attention, red not provided, each with its word) and as a table (service, at this customer, log time on, agreement); **Latest work** with a one-line Log work box; **Coming up**; **Agreements**; and a **Systems** preview with virtual machines under their host.
+  - **Services**: a side list of the customer's services (filter box, Active and Ended groups with counts, a note such as "No agreement" under a service); the chosen service with **Change service** (Managers) and **Log work**; tiles for log time on, the active agreement and what's up next; its details (standard ones, ones "Added for Nordlys", and a line naming standard ones not used here), the systems it covers with a note each, recurring work, renewals and the work on it.
+  - **Timeline**: one continuous line of planned and done items, the future above and the past below, opening at today. Only the line scrolls, inside its card; month headings stick to its top, weeks with entries carry their number and dates, empty weeks fold into one line ("W 50–52 · Nothing planned"). Entries are dots on the line (open ring coming up, grey done, red overdue with **Mark done**, today a dark dot in a heather ring) with a type badge (agreement, renewal, recurring, case, task, call, visit, meeting, work log, email, document). Filters by service, system and type, and a legend.
+  - **Work log**: everything done for the customer, newest first, grouped by day, each entry with its time, who (initials), type, what was done, and its service, system, case number and coverage badge. Search, a summary of the last 90 days and filters (period, technician, service, system, type, only billable); **Export** as PDF (for the customer) or CSV (for Excel), of the entries shown.
+  - **Agreements**: a side list (Active, Offers, Ended); the agreement's versions, term and renewal (the last notice day, who is warned), who signed, and **what the document says we provide**: each section mapped to a service in Þing, with services we provide that no agreement covers flagged ("work on them is billable"). Technicians read it ("Read-only: agreements are changed by a Manager"); Managers create and change agreements, upload new versions and add services to them.
+  - **Compliance**: one card per active or pending framework, every card with the same six rows (since, why them, what we do, their contact, next, document); **what it means for your work** (rules for technicians, each naming its framework); **questions you may get on the phone**; coming up, who to ask, documents; **Report a security incident**.
+  - **Systems**: a side list grouped Servers, Network, Cloud, Printers and Retired (virtual machines under their host, tagged VM and Host; filter by name, IP or serial; **Add a system**); the chosen system with a pinned warning that applies to it, tiles for paid by (the agreement section, and what is billable), log time on, what's up next and the on-site contact; its details (each with a small Edit), maintenance and backup, what runs on it, what it's connected to, and the work on it.
+  - **Contacts and sites**: contacts for the whole company, then one card per site, all the same size with their rows lined up: the site's header and type, its contact, opening hours, access, parking, a note, the systems there.
+  - **Documents** (Managers only): every document of the customer as a card (preview, name, who added it and when, what it's linked to, a status row), with search, chips (services, agreements, compliance) and sorting.
+- **Wall display** (`/public/dashboard`): a read-only dashboard made for a TV in full screen, across all customers: what is overdue or due in the coming weeks (renewals, updates, restore tests and other recurring work), in large type, refreshing itself. It shows each item's customer, what and when, nothing more. It isn't in the side menu: the TV is signed in as a display account, a service user that can open this page and nothing else.
+- **Standard services** and **compliance frameworks** (Managers): the catalog, with each service's details, recurring tasks and renewals, and each framework's checklist.
+- **Agreements** and **renewals** across customers, filterable by date, status and service.
+- **Admin:** users, roles and whether a technician is limited to the customers they're assigned to, import, backups, audit log.
+
+Screens the mockup doesn't show (agreements across customers, the admin pages, the New task and Log work forms, the customer picker, the coverage check, Manager versions of the customer pages) follow its style.
+
+Shared parts are built once: the **status badge** (OK, warning, critical, info and plain, always with a word), the **contact card** (the same five lines everywhere: name and role badge, one role line, phone, email, may contact), the **side list** (Services, Systems, Agreements), **tiles**, **data tables** that scroll inside their card, **fold-out menu groups** and **filter chips**. Fills in the heather accent (the main action of a view, and the selected item of a side list) use a deeper heather, `#6E4F85`, with white text (6.7:1, WCAG AA); the stones of the mark keep Lyng `#9A78B0`.
 
 Global search opens on `Ctrl+K` or `/` from every screen. Labels are plain English in sentence case, and every status shows a word, never colour alone.
 
-The app shell comes from Skjald: a side menu with Home and All customers first, then a customer picker and the open customer's sections, then Admin, with the account, light or dark, and Sign out at the bottom. The menu lists only what the person may open, refreshes the customers someone may see every minute while the page is in view, and takes a customer out of view at once when access ends. At phone width it slides in over the page. The browser remembers which customer was open by its ID only, never its name. Þing is light unless someone chooses dark or their device's setting in Your account; the sign-in and setup pages, where nobody is known yet, are light. They show a fjord scene behind their card. Which Þing this is (its version) is the last line of the side menu, just above the account.
+The app shell comes from Skjald: a side menu with My work and All customers first, then a customer picker (which stays when My work or All customers is open, since a customer can still be open) and the open customer's pages: Overview, then fold-out groups **Timeline and work log** (Timeline, Work log), **Contacts and systems** (Contacts and sites, Systems) and **Services and agreements** (Services, Agreements), then Compliance (for Managers, a group **Documents and compliance** with Documents and Compliance); the group holding the open page unfolds by itself. Then Admin, and at the bottom the version, the account, a light or dark button and Sign out. The menu lists only what the person may open, refreshes the customers someone may see every minute while the page is in view, and takes a customer out of view at once when access ends. At phone width it slides in over the page. The browser remembers which customer was open by its ID only, never its name. Þing is light unless someone chooses dark or their device's setting in Your account; the sign-in and setup pages, where nobody is known yet, are light. They show a fjord scene behind their card.
 
 ## Roles
 
 | Role | When | Can |
 | --- | --- | --- |
-| Administrator | v1 | Everything: users, roles, assignments, service catalog, agreements, keys, backups, imports |
-| Manager | v1 | Every customer: add customers and change them, assign technicians, set retention; manage the service catalog and the agreements, their lines and coverage rules. No admin panel, and no deleting customers |
-| Technician | v1 | Read and update the customers they're assigned to: contacts, sites, systems, timeline, tasks and compliance; read their agreements and coverage |
+| Administrator | v1 | Everything: users, roles, whether a technician is limited to the customers they're assigned to, standard services, agreements, keys, backups, imports |
+| Manager | v1 | Every customer: add customers and change them, choose who usually works with them, set retention, pin warnings; standard services and customers' services, case numbers, agreements and SLA, renewal decisions, compliance records, the document library. No admin panel, and no deleting customers |
+| Technician | v1 | Every customer, unless limited to some: read it all; change details, contacts, sites and systems; log work; add, complete and reschedule tasks; mark renewals done; upload a document or email on the timeline; read compliance |
 | Auditor | v1 | Read the audit log and record metadata |
-| Sales | Later | Prospects, pipeline and quotes; read agreements |
-| Management | Later | Revenue, renewals and coverage across all customers, read-only |
+| Display | v1 | A service user for the TV: opens the wall display at `/public/dashboard` and nothing else |
+| Sales | Later | Prospects, "candidate for" lists, pipeline and quotes; read agreements |
+| Management | Later | Renewals and agreements across all customers, read-only |
 
-Managers run customers and what they pay for, so that isn't left to the admin panel's holders: agreements decide what is billed, so technicians read them but don't change them. The later Management role is a different thing, a read-only view across customers for the company's management.
+Managers run customers, their services and what they've agreed to, so that isn't left to the admin panel's holders. Technicians do the work and record it, but don't change what was agreed: a customer's services and agreements are the Manager's, and so are the decision not to renew and the compliance records. The later Management role is a different thing, a read-only view across customers for the company's management.
 
-Access to customer data is assignment-based: Administrators and Managers see every customer, technicians see the customers they're assigned to, and a customer someone may not see answers 404, like one that doesn't exist, with the refusal logged. Routes ask for a capability (such as "administer" or "read the audit log"), never a role; `backend/app/roles.py` holds the one table of which roles grant which capability, and a test checks it against this table. A person can hold several roles, and every grant is logged with who made it.
+Every technician sees every customer (from Phase 2; until then, the customers they're assigned to), because whoever answers the phone helps, and colleagues cover for one another when someone is ill or away. An Administrator can limit a technician to the customers they're assigned to (a tick on their account); to them, any other customer answers 404, like one that doesn't exist, with the refusal logged. Who usually works with a customer decides what fills their My work, not what they may open. Views are logged either way. Routes ask for a capability (such as "administer" or "read the audit log"), never a role; `backend/app/roles.py` holds the one table of which roles grant which capability, and a test checks it against this table. A person can hold several roles, and every grant is logged with who made it.
 
 Who changes what about a customer:
 
-- **Administrators and Managers** add customers, choose which technicians are assigned (only active technicians can be), and set how long a customer's records are kept and its logo. Only Administrators delete customers (the name typed, and a fresh confirmation that it's them).
-- **Technicians** change the details, sites and contacts of the customers they're assigned to. A request to change retention is refused for them and logged, like any refusal.
+- **Administrators and Managers** add customers, choose which technicians usually work with them (only active technicians can be chosen), and set how long a customer's records are kept and its logo. Only Administrators delete customers (the name typed, and a fresh confirmation that it's them).
+- **Technicians** change the details, sites, contacts and systems of the customers they may see. A request to change retention is refused for them and logged, like any refusal.
 - **Auditors** see every customer's name, and nothing more of it, so they can follow the audit log, which names customers by ID.
 
 ### Administration
@@ -138,10 +165,12 @@ Who changes what about a customer:
 
 All integrations are outbound only; nothing reaches into Þing from outside.
 
-- **Devolutions Remote Desktop Manager (v1).** A system holds a reference to its RDM entry or vault so the technician can jump there, never a credential. RDM opens entries from `rdm://` links (its release notes for 2026.3 fix a bug in them), so the reference will most likely be such a link plus the entry's name; Phase 2 confirms the link format against the team's Devolutions Cloud workspace before the field is built.
+- **CVR lookup (v1).** When a customer or a company is added, its CVR number or name fills in the name and address from [cvrapi.dk](https://cvrapi.dk); only the number or name typed is sent, and Þing never looks a customer up again by itself. Its terms (a daily limit, and a User-Agent that names who is asking) are checked when the lookup is built, and a customer can always be typed in by hand.
+- **Email (v1).** Warnings, and a summary of what's due, go out through the mail server set up in Admin → Email, as worker jobs, like the platform's notices.
 - **Import (v1).** CSV and Excel import for customers, contacts, sites and systems, with a mapping step and a dry run before anything is written. Imports run as worker jobs and are logged. The team's server update spreadsheet (Appendix A) is the likely first source; its free-text cells ("ja, server opdater selv.") need a review step.
-- **Microsoft 365 mail (after 1.0, to confirm).** Microsoft Graph with an Entra app registration, limited to chosen mailboxes with Exchange RBAC for Applications rather than the whole tenant. Only mail to or from known customer contacts or domains is filed, encrypted with that customer's key.
-- **CVR lookup (after 1.0).** Fills in name and address from a CVR number. The source is chosen with the user, after checking the terms of the official data distribution; results are cached.
+- **More warning channels (after 1.0).** NTFY and other services, beside Þing and email.
+
+Þing has no integration with the team's password manager or ticket system: a ticket is referred to by its ID in plain text ("Ticket ID: 3395"), and passwords stay where they are. Emails reach the timeline by being uploaded, not by syncing mailboxes.
 
 ## Security model
 
@@ -188,8 +217,8 @@ Sign-ins, admin and permission changes, every view of a customer's records, ever
 - Containers run as non-root with no extra capabilities.
 - Rich text and SVG are sanitised; the browser gets a strict Content-Security-Policy. Scripts, styles, fonts, images and connections are limited to Þing's own origin; the frontend build writes the policy into each page with the hash of SvelteKit's one inline script, and Caddy adds `frame-ancestors 'none'`. The only inline style allowed is SvelteKit's screen-reader route announcer, by its exact hash (`'unsafe-hashes'`, not `'unsafe-inline'`); a test fails if a SvelteKit upgrade changes it. Fonts are bundled, and Vite never inlines assets as `data:` URLs.
 - Browser tests (Playwright, `frontend/e2e/run.sh`) run against the real stack behind Caddy on every pull request, including passkeys through Chrome's virtual authenticator, and fail on any CSP violation.
-- Þing stores no secrets for customer systems: a system's RDM reference points to where they are kept.
-- Uploads are checked against an admin-managed file type blocklist (by extension and content) and scanned with ClamAV. ClamAV joins the stack with the first uploads, the signed agreement PDFs in Phase 2.
+- Þing stores no secrets for customer systems: passwords and keys stay in the team's password manager, and a renewal records dates, never the key.
+- Uploads are checked against an admin-managed file type blocklist (by extension and content) and scanned with ClamAV. ClamAV joins the stack with the first uploads, documents and emails in Phase 3.
 
 ## Components
 
@@ -202,7 +231,7 @@ flowchart TB
         App --> Data[("Encrypted data<br/>SQLCipher + files")]
         Worker["Worker<br/>backups, imports, reminders, email"] --> Data
     end
-    VM -->|outbound only| Outside["Mail, timestamps, backup targets;<br/>later Microsoft Graph and CVR"]
+    VM -->|outbound only| Outside["Mail, timestamps, backup targets,<br/>CVR lookup"]
 ```
 
 Caddy is the single front door: it is the only open port, obtains and renews HTTPS certificates, and applies security headers and upload limits before a request reaches the app. The IP allowlists are enforced in the app, which sees the client's real address because Caddy replaces any forwarded one it doesn't trust. The admin panel's allowlist is enforced at Caddy as well: the app writes it into the settings volume they share (as it does the TLS settings), and Caddy refuses requests to `/api/admin` from elsewhere before they reach the app. The app and worker exchange jobs through a table in the encrypted database, so no separate queue server is needed. The worker is the app's image run as `python -m app.worker`, with the same limits; it claims a job in a transaction that takes the write lock at its start, so two workers never take the same one, retries a failed job three times with a growing wait, puts back jobs a stopped worker left running, and queues scheduled work once per slot (a nightly backup is one job per day, however often the worker restarts). It reports a heartbeat that Server health checks.
@@ -244,16 +273,26 @@ docs/        documentation and brand assets
 install.sh   the installer (the one-line install's; deploy/install.sh links to it)
 ```
 
+## Open questions
+
+Answers the design waits for:
+
+- **The display account.** How the wall display's service user signs in on a TV nobody sits at: most likely without multifactor but only from the office's addresses, with a session that renews itself while the page is open, every sign-in logged, and nothing but `/public/dashboard` open to it. Customer names then show on a screen in the office.
+- **The standard SLA.** The company's own targets per kind of work.
+- **A coverage check by kind of work** ("is a password reset covered?"), beyond Covered or Billable per service: whether the company wants one, and what it would answer from.
+
 ## Roadmap
 
 | Step | Scope |
 | --- | --- |
 | Phase 0 | Repository from Skjald's platform, renamed and rebranded; CI and signed builds; README, CLAUDE.md, CONTRIBUTING, SECURITY, licence; this document; `docs/brand/` |
 | Phase 1 | The platform made Þing's: Skjald's projects, classification and report roles removed (see below); Þing's roles (Administrator, Manager, Technician, Auditor) and plain assignments; technicians keep their customers' details up to date; a first pre-release |
-| Phase 2 | Core CRM: customers, sites, contacts; service catalog; agreements, lines and coverage rules; systems with RDM references and the "paid by" link; timeline and tasks; global search; customer page; home |
-| Phase 3 | Compliance tab and its reminders, coverage check, CSV/Excel import, "systems no agreement pays for" and renewal warnings |
+| Phase 2 | Core CRM, in this order: the app shell, side menu and shared parts; customers (active, departing, former; companies; CVR lookup), every technician seeing every customer unless limited; All customers → Customer overview → Contacts and sites → Systems → Services (standard services, customer services, case numbers) → Agreements (read-only for Technicians) → Timeline and Work log (tasks, recurring work, renewals) → My work; global search |
+| Phase 3 | Compliance; Documents (Managers) with uploads and ClamAV; PDF and CSV export; the "needs attention" rules; warnings in Þing and by email; the wall display; CSV/Excel import |
 | 1.0 | Release gate: one-command install, ASVS Level 2 test plan passes, restore test green, imported sample data from the fictional demo company works end to end |
-| After 1.0 | Microsoft 365 mail, CVR lookup, maintenance and update tracking per system, sales and management roles |
+| After 1.0 | Danish; NTFY and other warning channels; prices, if wanted; "candidate for" lists for sales; sales and management roles |
+
+After each screen, it is compared side by side with its artboard in the mockup.
 
 ## Inherited from Skjald
 
@@ -265,7 +304,7 @@ install.sh   the installer (the one-line install's; deploy/install.sh links to i
 - **Skjald's tag line**, where an install saved it in Branding, becomes Þing's (migration 0015); a tag line someone chose stays.
 - **The sign-in scene** showed a horn blower and a longship; the fjord now has a ring of standing stones on the headland instead, in the scene's own greys (the mark itself is never used as decoration).
 
-Still to come: retention is recorded per customer, but deleting a former customer's records when it runs out needs the customer's status (prospect, active, former), which arrives with the CRM in Phase 2. Home lists the customers someone works with until tasks, deadlines and renewals join it.
+Still to come: retention is recorded per customer, but deleting a former customer's records when it runs out needs the customer's status (active, departing, former), which arrives with the CRM in Phase 2. Home lists the customers someone works with until it becomes My work at the end of Phase 2.
 
 Skjald's spikes (expression language, PDF signing, builder prototype) aren't needed and were left out. Its [SQLCipher spike](https://github.com/FragmentedCoder/Skjald-Reporting/tree/main/spikes/sqlcipher) chose `sqlcipher3-binary` and raw 256-bit keys, which Þing uses unchanged.
 
@@ -288,3 +327,5 @@ The team tracks when each customer's servers and infrastructure were last update
 | MÅ kontaktes | May be contacted (ok) |
 | Andet info | Other info, such as update windows and restrictions |
 | Kommentar | Latest contact, such as "mail sendt 16-10-2026" |
+
+In Þing these columns become: *Server?* and *Firewall*, systems; *M365 vedligehold*, *Restore test*, *Opdater selv?*, *Sidste Update* and *Opdate tid?*, the details and recurring tasks of the Microsoft 365, Backup and Updates services (the 90-day formula is the recurring task's interval); *SAG*, a case; *Kontakt mail / Kontakt person* and *MÅ kontaktes*, a contact and its may-contact flag; *Andet info*, the Updates service's notes and pinned warnings; *Kommentar*, log entries.
