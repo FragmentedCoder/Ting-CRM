@@ -120,7 +120,7 @@ The visual reference is the [customer page mockup](https://claude.ai/artifact/D5
 - **Wall display** (`/public/dashboard`): a read-only dashboard made for a TV in full screen, across all customers: what is overdue or due in the coming weeks (renewals, updates, restore tests and other recurring work), in large type, refreshing itself. It shows each item's customer, what and when, nothing more. It isn't in the side menu: the TV is signed in as a display account, a service user that can open this page and nothing else.
 - **Standard services** and **compliance frameworks** (Managers): the catalog, with each service's details, recurring tasks and renewals, and each framework's checklist.
 - **Agreements** and **renewals** across customers, filterable by date, status and service.
-- **Admin:** users, roles and whether a technician is limited to the customers they're assigned to, import, backups, audit log.
+- **Admin:** users, roles and whether a technician is limited to the customers they're assigned to, integrations (the CVR lookup), import, backups, audit log.
 
 Screens the mockup doesn't show (agreements across customers, the admin pages, the New task and Log work forms, the customer picker, the coverage check, Manager versions of the customer pages) follow its style.
 
@@ -165,7 +165,7 @@ Who changes what about a customer:
 
 All integrations are outbound only; nothing reaches into Þing from outside.
 
-- **CVR lookup (v1).** When a customer or a company is added, its CVR number or name fills in the name and address from [cvrapi.dk](https://cvrapi.dk); only the number or name typed is sent, and Þing never looks a customer up again by itself. Its terms (a daily limit, and a User-Agent that names who is asking) are checked when the lookup is built, and a customer can always be typed in by hand.
+- **CVR lookup (v1).** When a customer or one of its group's companies is added or changed, "Look up" fills in the name and address from [cvrapi.dk](https://cvrapi.dk) by CVR number, or by name without one; only what was typed is sent, and Þing never looks a customer up again by itself. It is off until an Administrator switches it on in Admin → Integrations (confirming it's them) and gives the contact person cvrapi.dk's terms ask for: every lookup carries a User-Agent of the company's name, "Ting CRM" and that contact, in ASCII. cvrapi.dk allows 50 free lookups a day, never got round by changing address; Þing keeps each answer for a day, and when the day's lookups are used up, or the register can't be reached, the form says so and the details are typed in. Each lookup is logged with what was searched.
 - **Email (v1).** Warnings, and a summary of what's due, go out through the mail server set up in Admin → Email, as worker jobs, like the platform's notices.
 - **Import (v1).** CSV and Excel import for customers, contacts, sites and systems, with a mapping step and a dry run before anything is written. Imports run as worker jobs and are logged. The team's server update spreadsheet (Appendix A) is the likely first source; its free-text cells ("ja, server opdater selv.") need a review step.
 - **More warning channels (after 1.0).** NTFY and other services, beside Þing and email.

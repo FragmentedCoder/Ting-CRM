@@ -39,6 +39,14 @@ export interface Contact {
   preferred_channel: Channel;
 }
 
+/** Another company in a group that is one customer, such as a subsidiary. */
+export interface Company {
+  id: number;
+  name: string;
+  cvr: string | null;
+  address: string;
+}
+
 /** A pinned warning: one line every technician sees first on the customer. */
 export interface Pin {
   id: number;
@@ -134,6 +142,8 @@ export interface CustomerDetail extends CustomerSummary {
   created_at: string | null;
   sites: Site[] | null;
   contacts: Contact[] | null;
+  /** The group's other companies; the customer itself is the main one. */
+  companies: Company[] | null;
   /** Pinned warnings, hard rules first; at most PINS_PER_CUSTOMER. */
   pins: Pin[] | null;
   /** The technicians assigned to the customer. */

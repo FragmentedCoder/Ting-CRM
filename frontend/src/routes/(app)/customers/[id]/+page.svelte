@@ -171,6 +171,10 @@
       <dl class="facts">
         <dt>Address</dt>
         <dd class="address">{customer.address || "—"}</dd>
+        {#if customer.companies?.length}
+          <dt>Group companies</dt>
+          <dd>{customer.companies.map((c) => c.name).join(", ")}</dd>
+        {/if}
         <dt>Sites</dt>
         <dd>{customer.sites?.map((s) => s.name).join(", ") || "—"}</dd>
         <dt>Records kept</dt>

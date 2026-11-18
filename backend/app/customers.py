@@ -92,6 +92,21 @@ class CustomerContact(Base):
     sealed: Mapped[bytes] = mapped_column(LargeBinary)
 
 
+class CustomerCompany(Base):
+    """Another company in a group that is one customer, such as a subsidiary. The
+    customer's own name, CVR number and address are its main company."""
+
+    __tablename__ = "customer_companies"
+    __table_args__ = {"sqlite_autoincrement": True}
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    # {"name", "cvr", "address"}
+    sealed: Mapped[bytes] = mapped_column(LargeBinary)
+
+
 class CustomerPin(Base):
     """A pinned warning: one line every technician must see on the customer, pinned by
     a Manager or Administrator. At most PINS_PER_CUSTOMER per customer."""

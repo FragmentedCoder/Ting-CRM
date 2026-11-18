@@ -596,3 +596,24 @@ def test_technicians_see_pinned_warnings_but_dont_pin(client, admin, nordlys, pe
         "Ingrid Admin, Administrator"]
     assert client.post(f"{url}/pins", headers=as_astrid,
                        json={"text": "Mine"}).status_code == 403
+
+
+# The group's other companies
+
+
+def test_a_group_lists_its_other_companies(client, admin, nordlys, person, session) -> None:
+    _, as_astrid = person("astrid", T)
+    url = f"{CUSTOMERS}/{nordlys['id']}/companies"
+    added = client.post(url, headers=as_astrid, json={
+        "name": "Nordlys Drift ApS", "cvr": "8765 4321", "address": "Industrivej 2\n8900 Randers C",
+    }).json()
+    assert [(c["name"], c["cvr"]) for c in added["companies"]] == [
+        ("Nordlys Drift ApS", "87654321")]
+    company = added["companies"][0]
+    changed = client.put(f"{url}/{company['id']}", headers=as_astrid,
+                         json={"name": "Nordlys Drift A/S", "cvr": None}).json()
+    assert [(c["name"], c["cvr"]) for c in changed["companies"]] == [("Nordlys Drift A/S", None)]
+    assert client.post(url, headers=as_astrid, json={"name": "X", "cvr": "123"}).status_code == 422
+    assert client.delete(f"{url}/{company['id']}", headers=as_astrid).json()["companies"] == []
+    assert [e.action for e in audit_entries(session, "customer.company_added")] == [
+        "customer.company_added"]
