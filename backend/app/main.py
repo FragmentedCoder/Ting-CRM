@@ -13,6 +13,7 @@ from app import (
     cvr,
     maintenance,
     server_routes,
+    services,
     setup_routes,
 )
 from app.api import health
@@ -50,4 +51,5 @@ app.include_router(audit_routes.router, prefix="/api")
 app.include_router(backup_routes.router, prefix="/api")
 app.include_router(customer_routes.router, prefix="/api")
 app.include_router(cvr.router, prefix="/api")
+app.include_router(services.router, prefix="/api")
 app.include_router(server_routes.router, prefix="/api")

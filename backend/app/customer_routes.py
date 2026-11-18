@@ -26,6 +26,13 @@ from sqlalchemy.orm import Session
 from app import audit, clock
 from app.auth.dependencies import DB, FullSession, client_ip, require, require_step_up
 from app.auth.sessions import UserSession
+from app.customer_services import (
+    CustomerService,
+    CustomerServiceIn,
+    CustomerServiceOut,
+    services_of,
+)
+from app.customer_services import sealed_fields as service_fields
 from app.customers import (
     PINS_PER_CUSTOMER,
     Customer,
@@ -59,6 +66,7 @@ from app.images import (
     store_image,
 )
 from app.roles import Capability, Role, UserRole, roles_of
+from app.services import StandardService
 from app.systems import SystemIn, SystemOut, sealed_fields, systems_of, would_loop
 from app.users import User
 
@@ -237,6 +245,7 @@ class CustomerDetail(CustomerSummary):
     # The other companies in the group (the customer itself is the main one).
     companies: list[CompanyOut] | None = None
     systems: list[SystemOut] | None = None
+    services: list[CustomerServiceOut] | None = None
     pins: list[PinOut] | None = None
     assigned: list[Person] | None = None
     may_manage: bool = False
@@ -411,6 +420,7 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
         contacts=contacts_of(db, sealer, customer.id),
         companies=companies_of(db, sealer, customer.id),
         systems=systems_of(db, sealer, customer.id),
+        services=services_of(db, sealer, customer.id),
         pins=pins_of(db, sealer, customer.id),
         assigned=_people(db, list(held)),
         may_manage=manage,
@@ -699,6 +709,7 @@ def change_company(customer_id: int, company_id: int, body: CompanyIn, request: 
 def remove_company(customer_id: int, company_id: int, request: Request, admin: Editor, db: DB
                    ) -> CustomerDetail:
     customer, _ = visible_customer(db, request, admin, customer_id)
+    _drop_from_services(db, Keyring().sealer(customer), "company_id", company_id)
     db.delete(_company(db, customer, company_id))
     _log(db, request, admin, "customer.company_removed", customer.id, {"company": company_id})
     db.commit()
@@ -769,8 +780,93 @@ def remove_system(customer_id: int, system_id: int, request: Request, admin: Edi
     system = _system(db, customer, system_id)
     for guest in db.scalars(select(CustomerSystem).where(CustomerSystem.parent_id == system.id)):
         guest.parent_id = None
+    _drop_from_services(db, Keyring().sealer(customer), "systems", system.id)
     db.delete(system)
     _log(db, request, admin, "customer.system_removed", customer.id, {"system": system_id})
+    db.commit()
+    return _detail(db, admin, Keyring(), customer, "full")
+
+
+# The customer's services
+
+
+def _service(db: Session, customer: Customer, service_id: int) -> CustomerService:
+    service = db.get(CustomerService, service_id)
+    if service is None or service.customer_id != customer.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "That service doesn't exist.")
+    return service
+
+
+def _drop_from_services(db: Session, sealer: Sealer, field: str, removed_id: int) -> None:
+    """Take a removed system or company out of the customer's services."""
+    rows = db.scalars(select(CustomerService)
+                      .where(CustomerService.customer_id == sealer.customer_id))
+    for row in rows:
+        value = sealer.open("service", row.id, row.sealed)
+        if field == "systems":
+            kept = [s for s in value.get("systems", []) if s.get("system_id") != removed_id]
+            changed = len(kept) != len(value.get("systems", []))
+            value["systems"] = kept
+        else:
+            changed = value.get(field) == removed_id
+            value[field] = None if changed else value.get(field)
+        if changed:
+            row.sealed = sealer.seal("service", row.id, value)
+
+
+@router.post("/{customer_id}/services")
+def add_service(customer_id: int, body: CustomerServiceIn, request: Request, admin: Manager,
+                db: DB) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    standard = db.get(StandardService, body.standard_service_id or -1)
+    if standard is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                            "Choose a standard service to start from.")
+    fields = service_fields(db, customer, body, standard, {})
+    keyring = Keyring()
+    service = CustomerService(customer_id=customer.id, standard_service_id=standard.id,
+                              status=body.status, started_on=body.started_on,
+                              ended_on=body.ended_on, sealed=b"")
+    db.add(service)
+    db.flush()
+    service.sealed = keyring.sealer(customer).seal("service", service.id, fields)
+    _log(db, request, admin, "customer.service_added", customer.id,
+         {"service": service.id, "standard": standard.id})
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.put("/{customer_id}/services/{service_id}")
+def change_service(customer_id: int, service_id: int, body: CustomerServiceIn, request: Request,
+                   admin: Manager, db: DB) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    service = _service(db, customer, service_id)
+    keyring = Keyring()
+    sealer = keyring.sealer(customer)
+    before = sealer.open("service", service.id, service.sealed)
+    standard = db.get(StandardService, service.standard_service_id or -1)
+    fields = service_fields(db, customer, body, standard, before)
+    changes: dict[str, object] = {"service": service.id}
+    if service.status != body.status:
+        changes["status"] = [service.status, body.status]
+    if before.get("case_number") != fields["case_number"]:
+        changes["case_number_changed"] = True
+    service.status, service.started_on, service.ended_on = (
+        body.status, body.started_on, body.ended_on)
+    service.sealed = sealer.seal("service", service.id, fields)
+    _log(db, request, admin, "customer.service_changed", customer.id, changes)
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.delete("/{customer_id}/services/{service_id}")
+def remove_service(customer_id: int, service_id: int, request: Request, admin: Manager, db: DB
+                   ) -> CustomerDetail:
+    """Remove a service entered by mistake. One the customer had keeps its history:
+    end it instead."""
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    db.delete(_service(db, customer, service_id))
+    _log(db, request, admin, "customer.service_removed", customer.id, {"service": service_id})
     db.commit()
     return _detail(db, admin, Keyring(), customer, "full")
 

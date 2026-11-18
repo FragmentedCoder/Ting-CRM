@@ -4,9 +4,11 @@ import app.audit
 import app.audit_stamps
 import app.auth.mfa
 import app.auth.sessions
+import app.customer_services
 import app.customers
 import app.images
 import app.jobs
 import app.policy
 import app.roles
+import app.services
 import app.users  # noqa: F401
