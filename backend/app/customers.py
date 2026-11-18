@@ -107,6 +107,30 @@ class CustomerCompany(Base):
     sealed: Mapped[bytes] = mapped_column(LargeBinary)
 
 
+class CustomerSystem(Base):
+    """A system at the customer: a server, a virtual machine on its host, a firewall,
+    a Microsoft 365 tenant. What it is and everything about it is sealed; what drives
+    warnings and the tree stays plain: its host, whether it's retired, its warranty end."""
+
+    __tablename__ = "customer_systems"
+    __table_args__ = {"sqlite_autoincrement": True}
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    # The host a virtual machine runs on.
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customer_systems.id", ondelete="SET NULL")
+    )
+    retired_on: Mapped[date | None] = mapped_column(Date)
+    warranty_end: Mapped[date | None] = mapped_column(Date)
+    # {"group", "type", "name", "role", "site_id", "hostname", "ip", "hardware", "serial",
+    #  "os", "in_service_since", "updates_itself", "may_update_in_working_hours",
+    #  "update_rhythm", "last_update", "monitoring", "backup", "notes"}
+    sealed: Mapped[bytes] = mapped_column(LargeBinary)
+
+
 class CustomerPin(Base):
     """A pinned warning: one line every technician must see on the customer, pinned by
     a Manager or Administrator. At most PINS_PER_CUSTOMER per customer."""

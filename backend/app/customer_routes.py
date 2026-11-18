@@ -34,6 +34,7 @@ from app.customers import (
     CustomerContact,
     CustomerPin,
     CustomerSite,
+    CustomerSystem,
     Keyring,
     Sealer,
     Status,
@@ -58,6 +59,7 @@ from app.images import (
     store_image,
 )
 from app.roles import Capability, Role, UserRole, roles_of
+from app.systems import SystemIn, SystemOut, sealed_fields, systems_of, would_loop
 from app.users import User
 
 router = APIRouter(prefix="/customers")
@@ -234,6 +236,7 @@ class CustomerDetail(CustomerSummary):
     contacts: list[ContactOut] | None = None
     # The other companies in the group (the customer itself is the main one).
     companies: list[CompanyOut] | None = None
+    systems: list[SystemOut] | None = None
     pins: list[PinOut] | None = None
     assigned: list[Person] | None = None
     may_manage: bool = False
@@ -407,6 +410,7 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
         sites=sites_of(db, sealer, customer.id),
         contacts=contacts_of(db, sealer, customer.id),
         companies=companies_of(db, sealer, customer.id),
+        systems=systems_of(db, sealer, customer.id),
         pins=pins_of(db, sealer, customer.id),
         assigned=_people(db, list(held)),
         may_manage=manage,
@@ -572,6 +576,8 @@ def remove_site(customer_id: int, site_id: int, request: Request, admin: Editor,
     db.delete(_site(db, customer, site_id))
     contacts = db.scalars(select(CustomerContact).where(CustomerContact.customer_id == customer.id))
     _unlink(contacts, keyring.sealer(customer), "contact", "site_id", site_id)
+    systems = db.scalars(select(CustomerSystem).where(CustomerSystem.customer_id == customer.id))
+    _unlink(systems, keyring.sealer(customer), "system", "site_id", site_id)
     _log(db, request, admin, "customer.site_removed", customer.id, {"site": site_id})
     db.commit()
     return _detail(db, admin, Keyring(), customer, "full")
@@ -598,8 +604,8 @@ def _contact_fields(db: Session, customer: Customer, body: ContactIn) -> dict[st
                      "preferred_channel": body.preferred_channel}
 
 
-def _unlink(records: Iterable[CustomerSite | CustomerContact], sealer: Sealer, kind: str,
-            field: str, removed_id: int) -> None:
+def _unlink(records: Iterable[CustomerSite | CustomerContact | CustomerSystem], sealer: Sealer,
+            kind: str, field: str, removed_id: int) -> None:
     """Take a removed site or contact out of the records that point at it (the
     references are sealed, so the database can't do it)."""
     for record in records:
@@ -695,6 +701,76 @@ def remove_company(customer_id: int, company_id: int, request: Request, admin: E
     customer, _ = visible_customer(db, request, admin, customer_id)
     db.delete(_company(db, customer, company_id))
     _log(db, request, admin, "customer.company_removed", customer.id, {"company": company_id})
+    db.commit()
+    return _detail(db, admin, Keyring(), customer, "full")
+
+
+# Systems
+
+
+def _system(db: Session, customer: Customer, system_id: int,
+            missing: int = status.HTTP_404_NOT_FOUND) -> CustomerSystem:
+    system = db.get(CustomerSystem, system_id)
+    if system is None or system.customer_id != customer.id:
+        raise HTTPException(missing, "That system doesn't exist.")
+    return system
+
+
+def _check_system(db: Session, customer: Customer, body: SystemIn, system_id: int | None
+                  ) -> None:
+    """Its host and site are the same customer's, and it never runs on itself."""
+    if body.site_id is not None:
+        site = db.get(CustomerSite, body.site_id)
+        if site is None or site.customer_id != customer.id:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "That site doesn't exist.")
+    if body.parent_id is not None:
+        _system(db, customer, body.parent_id, status.HTTP_422_UNPROCESSABLE_CONTENT)
+        if would_loop(db, system_id, body.parent_id):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                                "A system can't run on itself, or on what runs on it.")
+
+
+@router.post("/{customer_id}/systems")
+def add_system(customer_id: int, body: SystemIn, request: Request, admin: Editor, db: DB
+               ) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    _check_system(db, customer, body, None)
+    keyring = Keyring()
+    system = CustomerSystem(customer_id=customer.id, parent_id=body.parent_id, sealed=b"",
+                            warranty_end=body.warranty_end, retired_on=body.retired_on)
+    db.add(system)
+    db.flush()
+    system.sealed = keyring.sealer(customer).seal("system", system.id, sealed_fields(body))
+    _log(db, request, admin, "customer.system_added", customer.id, {"system": system.id})
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.put("/{customer_id}/systems/{system_id}")
+def change_system(customer_id: int, system_id: int, body: SystemIn, request: Request,
+                  admin: Editor, db: DB) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    system = _system(db, customer, system_id)
+    _check_system(db, customer, body, system.id)
+    keyring = Keyring()
+    system.parent_id, system.warranty_end, system.retired_on = (
+        body.parent_id, body.warranty_end, body.retired_on)
+    system.sealed = keyring.sealer(customer).seal("system", system.id, sealed_fields(body))
+    _log(db, request, admin, "customer.system_changed", customer.id, {"system": system.id})
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.delete("/{customer_id}/systems/{system_id}")
+def remove_system(customer_id: int, system_id: int, request: Request, admin: Editor, db: DB
+                  ) -> CustomerDetail:
+    """Remove a system; what ran on it stays, without a host."""
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    system = _system(db, customer, system_id)
+    for guest in db.scalars(select(CustomerSystem).where(CustomerSystem.parent_id == system.id)):
+        guest.parent_id = None
+    db.delete(system)
+    _log(db, request, admin, "customer.system_removed", customer.id, {"system": system_id})
     db.commit()
     return _detail(db, admin, Keyring(), customer, "full")
 
