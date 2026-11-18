@@ -43,6 +43,8 @@
   --link: #2B5D8A;
   --accent: #9A78B0;
   --on-accent: #0F1B2D;
+  --accent-fill: #6E4F85;
+  --on-accent-fill: #FFFFFF;
   --button-bg: #0F1B2D;
   --button-text: #FFFFFF;
   --ok-bg: #E3F1E8;
@@ -69,6 +71,8 @@
     --link: #5B9BD5;
     --accent: #B898C8;
     --on-accent: #0B1420;
+    --accent-fill: #B898C8;
+    --on-accent-fill: #0B1420;
     --button-bg: #E8ECF0;
     --button-text: #0B1420;
     --ok-bg: #16352A;
@@ -94,6 +98,8 @@
   --link: #5B9BD5;
   --accent: #B898C8;
   --on-accent: #0B1420;
+  --accent-fill: #B898C8;
+  --on-accent-fill: #0B1420;
   --button-bg: #E8ECF0;
   --button-text: #0B1420;
   --ok-bg: #16352A;
