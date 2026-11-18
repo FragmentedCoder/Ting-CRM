@@ -115,6 +115,8 @@ class UserSummary(Profile):
     roles: list[Role]
     is_active: bool
     is_break_glass: bool
+    # Sees only the customers they're assigned to (technicians see every one otherwise).
+    limited_to_assigned: bool
     locked: bool
     second_factors: int
     mfa_required: bool
@@ -148,6 +150,7 @@ class NewUser(ProfileUpdate, PasswordChoice):
 class UserUpdate(ProfileUpdate):
     roles: list[Role] | None = None
     is_active: bool | None = None
+    limited_to_assigned: bool | None = None
 
 
 class PasswordResult(BaseModel):
@@ -187,6 +190,7 @@ def _summary_fields(db: Session, user: User, policy: SecurityPolicy) -> dict[str
         "roles": sorted(roles_of(db, user.id)),
         "is_active": user.is_active,
         "is_break_glass": user.is_break_glass,
+        "limited_to_assigned": user.limited_to_assigned,
         "locked": locked_until is not None and locked_until > clock.utcnow(),
         "second_factors": len(confirmed_factors(db, user.id)),
         "mfa_required": mfa_required(db, user.id, policy),
@@ -314,6 +318,10 @@ def update_user(user_id: int, body: UserUpdate, request: Request, admin: Admin, 
         if not body.is_active:
             # Disabling locks them out at once: every session ends.
             changes["sessions_ended"] = end_sessions(db, user.id, "disabled")
+    limit = body.limited_to_assigned
+    if limit is not None and limit != user.limited_to_assigned:
+        changes["limited_to_assigned"] = [user.limited_to_assigned, limit]
+        user.limited_to_assigned = limit
     ip = client_ip(request)
     for role in sorted(wanted - current):
         grant_role(db, user, role, actor=admin.user, ip=ip)

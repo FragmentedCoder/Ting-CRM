@@ -24,6 +24,7 @@
   let user = $state<UserDetail | null>(null);
   let form = $state<ProfileForm | null>(null);
   let roles = $state<Role[]>([]);
+  let limited = $state(false);
   let error = $state<string | null>(null);
   let busy = $state(false);
   let actions: UserActions;
@@ -36,6 +37,7 @@
     user = detail;
     form = profileForm(detail);
     roles = [...detail.roles];
+    limited = detail.limited_to_assigned;
   }
 
   onMount(async () => {
@@ -61,7 +63,9 @@
   function save(event: SubmitEvent) {
     event.preventDefault();
     run(async () => {
-      use(await api<UserDetail>("PATCH", `/admin/users/${id}`, { ...form, roles }));
+      use(await api<UserDetail>("PATCH", `/admin/users/${id}`, {
+        ...form, roles, limited_to_assigned: limited,
+      }));
       toast("Saved.", "ok", { key: "saved" });
     });
   }
@@ -147,6 +151,18 @@
           </label>
         {/each}
       </fieldset>
+      {#if roles.includes("technician")}
+        <label class="check">
+          <input type="checkbox" bind:checked={limited} />
+          <span>
+            <span class="check-title">Only the customers they're assigned to</span>
+            <span class="small muted">
+              Technicians see every customer. Ticked, this one sees only the customers a Manager
+              has assigned them to.
+            </span>
+          </span>
+        </label>
+      {/if}
     </div>
     <div><button class="button button-primary" type="submit" disabled={busy}>Save changes</button></div>
   </form>

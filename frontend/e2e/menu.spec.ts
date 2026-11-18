@@ -153,8 +153,9 @@ test("the side menu, with customers", async ({ browser }) => {
   await mette.keyboard.press("Escape");
   await expect(menu(mette).getByRole("link", { name: "Overview" })).toBeHidden();
 
-  // Bob, a technician on two customers, sees those two and changes their details,
-  // but not the third customer, and has no Admin.
+  // Bob, a technician limited to the two customers he's assigned to, sees those two
+  // and changes their details, but not the third customer, and has no Admin.
+  await call(mette, "PATCH", `/admin/users/${bob}`, { limited_to_assigned: true });
   const bobContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const bobPage = await bobContext.newPage();
   await signIn(bobPage, "e2e-bob");

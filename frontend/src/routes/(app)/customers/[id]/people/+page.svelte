@@ -34,8 +34,9 @@
   <section class="section" aria-labelledby="people-title">
     <h2 class="section-title" id="people-title">Who works with this customer</h2>
     <p class="small muted">
-      Technicians see only the customers they're assigned to, and read and update their records.
-      Administrators see every customer.
+      The technicians who usually work with this customer: its work shows up on their My work.
+      Every technician sees every customer, unless an Administrator limits them to the customers
+      they're assigned to.
     </p>
     {#if customer.may_manage}
       <form class="stack" onsubmit={save}>

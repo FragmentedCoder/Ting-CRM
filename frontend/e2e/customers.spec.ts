@@ -108,8 +108,17 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(menu(manager, "Admin")).toHaveCount(0);
   await shot(manager, "4-manager-people");
 
-  // Unassigned, the technician loses the customer at the next check, without
-  // signing in again.
+  // Limited to the customers he's assigned to, and then unassigned, the technician
+  // loses the customer at the next check, without signing in again.
+  const customerPage = boss.url();
+  await boss.goto("/admin/users");
+  await boss.getByRole("link", { name: "Tor Tekniker" }).click();
+  const limit = boss.getByRole("checkbox", { name: /Only the customers they're assigned to/ });
+  await expect(limit).not.toBeChecked();
+  await limit.check();
+  await boss.getByRole("button", { name: "Save changes" }).click();
+  await expect(toastWith(boss, "Saved.")).toBeVisible();
+  await boss.goto(customerPage);
   await menu(boss, "People").click();
   await boss.getByRole("checkbox", { name: /Tor Tekniker/ }).uncheck();
   await boss.getByRole("button", { name: "Save", exact: true }).click();

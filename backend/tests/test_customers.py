@@ -8,6 +8,7 @@ from sqlalchemy import select, text
 from app.audit import AuditEntry
 from app.crypto.keys import load_master_key, unwrap_key
 from app.customers import (
+    LIMITED_SIGHT,
     SEES_CUSTOMERS,
     Customer,
     CustomerContact,
@@ -70,35 +71,62 @@ def assign(client, admin, customer_id, *users):
 
 
 def test_who_sees_customers_follows_the_roles_table() -> None:
-    # docs/architecture.md, Roles: Administrators and Managers every customer,
-    # technicians the ones they're assigned to, auditors every customer's metadata.
+    # docs/architecture.md, Roles: Administrators, Managers and technicians every
+    # customer, auditors every customer's metadata; a limited technician only the
+    # customers they're assigned to.
     assert {role.value: sight for role, sight in SEES_CUSTOMERS.items()} == {
-        A: "all", M: "all", T: "assigned", U: "metadata",
+        A: "all", M: "all", T: "all", U: "metadata",
     }
+    assert LIMITED_SIGHT == "assigned"
 
 
-def test_technicians_see_only_the_customers_they_are_assigned_to(
+def test_technicians_see_every_customer(client, admin, nordlys, person, session) -> None:
+    _, headers = admin
+    client.post(CUSTOMERS, headers=headers, json={"name": "Fjeldstue A/S"})
+    astrid, as_astrid = person("astrid", T)
+    assign(client, admin, nordlys["id"], astrid)
+
+    listed = client.get(CUSTOMERS, headers=as_astrid).json()
+    assert [(c["name"], c["visibility"]) for c in listed] == [
+        ("Fjeldstue A/S", "full"), ("Nordlys IT ApS", "full")]
+    # The list says how many people usually work with each customer.
+    assert [(c["name"], c["people"]) for c in listed] == [
+        ("Fjeldstue A/S", 0), ("Nordlys IT ApS", 1)]
+    detail = client.get(f"{CUSTOMERS}/{nordlys['id']}", headers=as_astrid).json()
+    assert detail["contacts"][0]["email"] == "sigrid@nordlys.example"
+    assert detail["may_edit"] and not detail["may_manage"] and not detail["may_delete"]
+
+
+def test_a_limited_technician_sees_only_the_customers_they_are_assigned_to(
     client, admin, nordlys, person, session
 ) -> None:
     _, headers = admin
     other = client.post(CUSTOMERS, headers=headers, json={"name": "Fjeldstue A/S"}).json()
     astrid, as_astrid = person("astrid", T)
     assign(client, admin, nordlys["id"], astrid)
+    limited = client.patch(f"/api/admin/users/{astrid.id}", headers=headers,
+                           json={"limited_to_assigned": True})
+    assert limited.json()["limited_to_assigned"] is True
 
     listed = client.get(CUSTOMERS, headers=as_astrid).json()
     assert [(c["name"], c["visibility"]) for c in listed] == [("Nordlys IT ApS", "full")]
-    # The list says how many people work with each customer.
-    everyone = client.get(CUSTOMERS, headers=headers).json()
-    assert [(c["name"], c["people"]) for c in everyone] == [
-        ("Fjeldstue A/S", 0), ("Nordlys IT ApS", 1)]
-    detail = client.get(f"{CUSTOMERS}/{nordlys['id']}", headers=as_astrid).json()
-    assert detail["contacts"][0]["email"] == "sigrid@nordlys.example"
-    assert detail["may_edit"] and not detail["may_manage"] and not detail["may_delete"]
-
     hidden = client.get(f"{CUSTOMERS}/{other['id']}", headers=as_astrid)
     assert hidden.status_code == 404
     assert hidden.json()["detail"] == "That customer doesn't exist."
     assert len(audit_entries(session, "customer.access_denied")) == 1
+    changes = [e.details for e in audit_entries(session, "admin.user_updated")]
+    assert changes == ['{"limited_to_assigned":[false,true]}']
+
+
+def test_the_limit_narrows_only_the_technician_role(client, admin, nordlys, person) -> None:
+    _, headers = admin
+    mona, as_mona = person("mona", T, M)
+    client.patch(f"/api/admin/users/{mona.id}", headers=headers,
+                 json={"limited_to_assigned": True})
+    # Her Manager role still sees every customer.
+    assert [c["name"] for c in client.get(CUSTOMERS, headers=as_mona).json()] == [
+        "Nordlys IT ApS"]
+    assert client.get(f"{CUSTOMERS}/{nordlys['id']}", headers=as_mona).status_code == 200
 
 
 def test_auditors_see_every_customers_metadata_and_nothing_more(
@@ -108,7 +136,8 @@ def test_auditors_see_every_customers_metadata_and_nothing_more(
 
     listed = client.get(CUSTOMERS, headers=as_auditor).json()
     assert listed == [{"id": nordlys["id"], "name": "Nordlys IT ApS", "visibility": "metadata",
-                       "cvr": None, "people": None, "logo_url": None}]
+                       "cvr": None, "status": None, "status_date": None, "people": None,
+                       "logo_url": None}]
     metadata = client.get(f"{CUSTOMERS}/{nordlys['id']}", headers=as_auditor).json()
     assert metadata["visibility"] == "metadata"
     assert metadata["contacts"] is None and metadata["address"] is None
@@ -187,13 +216,19 @@ def test_technicians_change_the_details_sites_and_contacts_of_their_customers(
                        json={"name": "Sigrid Holm", "role": "CTO"})
     assert moved.json()["contacts"][0]["role"] == "CTO"
 
-    # Not how long the records are kept, and not customers they aren't assigned to.
+    # Not how long the records are kept. Customers they aren't assigned to too,
+    # unless an Administrator limits them.
     kept = client.patch(f"{CUSTOMERS}/{cid}", headers=as_astrid, json={"retention_months": 60})
     assert kept.status_code == 403
     same = client.patch(f"{CUSTOMERS}/{cid}", headers=as_astrid, json={"retention_months": 12})
     assert same.status_code == 200
     assert client.patch(f"{CUSTOMERS}/{other['id']}", headers=as_astrid,
-                        json={"name": "Mine"}).status_code == 404
+                        json={"name": "Mine"}).status_code == 200
+    _, headers = admin
+    client.patch(f"/api/admin/users/{astrid.id}", headers=headers,
+                 json={"limited_to_assigned": True})
+    assert client.patch(f"{CUSTOMERS}/{other['id']}", headers=as_astrid,
+                        json={"name": "Not mine"}).status_code == 404
     denied = [e.details for e in audit_entries(session, "auth.access_denied")]
     assert denied == [f'{{"capability":"manage_customers","path":"/api/customers/{cid}"}}']
 
@@ -293,7 +328,10 @@ def test_a_logo_is_shown_only_to_those_who_see_the_customer(
                         headers=headers | {"Content-Type": "application/octet-stream"}).json()
     url = detail["logo_url"]
     assert client.get(url, headers=headers).headers["content-type"] == "image/png"
-    _, as_stranger = person("astrid", T)
+    # A technician an Administrator has limited to other customers doesn't get it.
+    stranger, as_stranger = person("astrid", T)
+    client.patch(f"/api/admin/users/{stranger.id}", headers=headers,
+                 json={"limited_to_assigned": True})
     assert client.get(url, headers=as_stranger).status_code == 404
 
 
@@ -338,3 +376,66 @@ def test_search_finds_sealed_names_and_cvr_numbers(client, admin, nordlys) -> No
     assert found("nordlys") == ["Nordlys IT ApS"]
     assert found("5678") == ["Nordlys IT ApS"]
     assert found("") == ["Fjeldstue A/S", "Nordlys IT ApS"]
+
+
+# Status
+
+
+def test_a_customer_is_active_departing_or_former(client, admin, nordlys, person, session
+                                                   ) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    assert client.get(url, headers=headers).json()["status"] == "active"
+
+    leaving = client.patch(url, headers=headers,
+                           json={"status": "departing", "status_date": "2026-12-31"}).json()
+    assert (leaving["status"], leaving["status_date"]) == ("departing", "2026-12-31")
+    gone = client.patch(url, headers=headers,
+                        json={"status": "former", "status_date": "2027-01-01"}).json()
+    assert (gone["status"], gone["status_date"]) == ("former", "2027-01-01")
+    back = client.patch(url, headers=headers, json={"status": "active"}).json()
+    assert (back["status"], back["status_date"]) == ("active", None)
+    logged = [e.details for e in audit_entries(session, "customer.status_changed")]
+    assert logged == [
+        '{"date":"2026-12-31","from":"active","to":"departing"}',
+        '{"date":"2027-01-01","from":"departing","to":"former"}',
+        '{"date":null,"from":"former","to":"active"}',
+    ]
+    # The list carries it too, for All customers.
+    listed = client.get(CUSTOMERS, headers=headers).json()
+    assert [(c["status"], c["status_date"]) for c in listed] == [("active", None)]
+
+
+@pytest.mark.parametrize("body", [
+    {"status": "departing"},
+    {"status": "former", "status_date": None},
+    {"status": "active", "status_date": "2026-12-31"},
+    {"status_date": "2026-12-31"},
+    {"status": "prospect"},
+])
+def test_a_status_comes_with_its_day(client, admin, nordlys, body) -> None:
+    _, headers = admin
+    refused = client.patch(f"{CUSTOMERS}/{nordlys['id']}", headers=headers, json=body)
+    assert refused.status_code == 422
+
+
+def test_only_managers_change_a_customers_status(client, admin, nordlys, person) -> None:
+    _, as_astrid = person("astrid", T)
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    refused = client.patch(url, headers=as_astrid,
+                           json={"status": "departing", "status_date": "2026-12-31"})
+    assert refused.status_code == 403
+    # Sending the status it already has changes nothing, so it isn't refused.
+    same = client.patch(url, headers=as_astrid, json={"status": "active", "name": "Nordlys ApS"})
+    assert same.status_code == 200 and same.json()["name"] == "Nordlys ApS"
+    _, as_mona = person("mona", M)
+    assert client.patch(url, headers=as_mona, json={
+        "status": "departing", "status_date": "2026-12-31"}).status_code == 200
+
+
+def test_a_new_customer_can_start_departing(client, admin) -> None:
+    _, headers = admin
+    made = client.post(CUSTOMERS, headers=headers, json={
+        "name": "Strandvejens Revision", "status": "departing", "status_date": "2026-12-31",
+    }).json()
+    assert (made["status"], made["status_date"]) == ("departing", "2026-12-31")

@@ -13,11 +13,11 @@ for those allowed to see it; the audit log names customers by ID only.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Annotated, Any
+from datetime import date, datetime
+from typing import Annotated, Any, Self
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -31,8 +31,10 @@ from app.customers import (
     CustomerSite,
     Keyring,
     Sealer,
+    Status,
     Visibility,
     assigned_customer_ids,
+    is_limited,
     level_for,
     may_delete,
     may_edit,
@@ -95,24 +97,51 @@ def _cvr(value: str | None) -> str | None:
     return digits
 
 
+def _status_day(status: Status | None, day: date | None) -> None:
+    """A departing customer needs the day it leaves, a former one the day it left;
+    an active one has neither."""
+    if status in ("departing", "former") and day is None:
+        raise ValueError("Give the day the customer leaves or left.")
+    if status == "active" and day is not None:
+        raise ValueError("An active customer has no leaving day.")
+
+
 class CustomerIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     cvr: str | None = None
     address: str = Field(default="", max_length=1000)
     # Months the records are kept once it's a former customer.
     retention_months: int = Field(default=12, ge=1, le=120)
+    status: Status = "active"
+    status_date: date | None = None
 
     _check_cvr = field_validator("cvr")(_cvr)
+
+    @model_validator(mode="after")
+    def _check_status(self) -> Self:
+        _status_day(self.status, self.status_date)
+        return self
 
 
 class CustomerUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     cvr: str | None = None
     address: str | None = Field(default=None, max_length=1000)
-    # Only those who manage customers change this.
+    # Only those who manage customers change these.
     retention_months: int | None = Field(default=None, ge=1, le=120)
+    # Given together: the status and its day (none for an active customer).
+    status: Status | None = None
+    status_date: date | None = None
 
     _check_cvr = field_validator("cvr")(_cvr)
+
+    @model_validator(mode="after")
+    def _check_status(self) -> Self:
+        if self.status is not None:
+            _status_day(self.status, self.status_date)
+        elif "status_date" in self.model_fields_set:
+            raise ValueError("Give the status with its day.")
+        return self
 
 
 class Person(BaseModel):
@@ -128,6 +157,8 @@ class CustomerSummary(BaseModel):
     visibility: Visibility
     # Only with full sight.
     cvr: str | None = None
+    status: Status | None = None
+    status_date: date | None = None
     people: int | None = None
     logo_url: str | None = None
 
@@ -202,6 +233,7 @@ def _summary(db: Session, keyring: Keyring, customer: Customer, level: Visibilit
     fields: dict[str, Any] = {"id": customer.id, "name": details["name"], "visibility": level}
     if level == "full":
         fields |= {"cvr": details["cvr"], "logo_url": _logo_url(db, customer.id),
+                   "status": customer.status, "status_date": customer.status_date,
                    "people": people.get(customer.id, 0)}
     return fields
 
@@ -277,7 +309,7 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
 def list_customers(record: FullSession, db: DB, q: str = "") -> list[CustomerSummary]:
     """The customers this person sees, by name; q searches names and CVR numbers.
     Names are sealed, so the search runs here, over the opened ones."""
-    sight = sights(roles_of(db, record.user_id))
+    sight = sights(roles_of(db, record.user_id), is_limited(db, record.user_id))
     assigned = assigned_customer_ids(db, record.user_id)
     people = _people_counts(db)
     keyring = Keyring()
@@ -299,6 +331,7 @@ def list_customers(record: FullSession, db: DB, q: str = "") -> list[CustomerSum
 def create_customer(body: CustomerIn, request: Request, admin: Manager, db: DB) -> CustomerDetail:
     customer = Customer(
         wrapped_key=b"", sealed=b"", retention_months=body.retention_months,
+        status=body.status, status_date=body.status_date,
         created_at=clock.utcnow(),
         created_by=admin.user_id,
     )
@@ -324,7 +357,9 @@ def get_customer(customer_id: int, request: Request, record: FullSession, db: DB
 def update_customer(customer_id: int, body: CustomerUpdate, request: Request, admin: Editor,
                     db: DB) -> CustomerDetail:
     customer, _ = visible_customer(db, request, admin, customer_id)
-    if body.retention_months not in (None, customer.retention_months):
+    new_status = body.status is not None and (
+        (body.status, body.status_date) != (customer.status, customer.status_date))
+    if body.retention_months not in (None, customer.retention_months) or new_status:
         require(Capability.MANAGE_CUSTOMERS)(request, admin, db)
     keyring = Keyring()
     details = dict(keyring.details(customer))
@@ -341,6 +376,12 @@ def update_customer(customer_id: int, body: CustomerUpdate, request: Request, ad
     if retention is not None and retention != customer.retention_months:
         customer.retention_months = retention
         changed.append("retention_months")
+    if new_status:
+        _log(db, request, admin, "customer.status_changed", customer.id, {
+            "from": customer.status, "to": body.status,
+            "date": body.status_date.isoformat() if body.status_date else None,
+        })
+        customer.status, customer.status_date = body.status or "active", body.status_date
     if changed:
         _log(db, request, admin, "customer.updated", customer.id, {"fields": changed})
     db.commit()

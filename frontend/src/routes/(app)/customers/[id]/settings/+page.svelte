@@ -7,16 +7,19 @@
   import CustomerFields from "#lib/components/CustomerFields.svelte";
   import Dialog from "#lib/components/Dialog.svelte";
   import { sharedCustomer } from "#lib/context.js";
-  import type { CustomerDetail } from "#lib/customers.js";
+  import { STATUS_NAMES, type CustomerDetail, type CustomerStatus } from "#lib/customers.js";
   import { withStepUp } from "#lib/stepUp.svelte.js";
   import { toast } from "#lib/toast.svelte.js";
   import { refreshWorkspace } from "#lib/workspace.svelte.js";
 
-  // The customer's own details, for Administrators and the technicians assigned to
-  // it; how long its records are kept, its logo and deleting it, for Administrators.
+  // The customer's own details, for everyone who may change them; its status, how long
+  // its records are kept and its logo for Administrators and Managers; deleting it for
+  // Administrators.
   const shared = sharedCustomer();
   const customer = $derived(shared.current);
   let details = $state({ name: "", cvr: "", address: "", retention_months: 12 });
+  let status = $state<CustomerStatus>("active");
+  let statusDate = $state("");
   let logoInput = $state<HTMLInputElement>();
   let busy = $state(false);
   let deleteOpen = $state(false);
@@ -31,6 +34,8 @@
       address: customer.address ?? "",
       retention_months: customer.retention_months ?? 12,
     };
+    status = customer.status ?? "active";
+    statusDate = customer.status_date ?? "";
   });
 
   async function run(action: () => Promise<CustomerDetail>, done: string) {
@@ -48,6 +53,12 @@
   function save(event: SubmitEvent) {
     event.preventDefault();
     run(() => api("PATCH", `/customers/${customer?.id}`, details), "Details saved.");
+  }
+
+  function saveStatus(event: SubmitEvent) {
+    event.preventDefault();
+    const body = { status, status_date: status === "active" ? null : statusDate || null };
+    run(() => api("PATCH", `/customers/${customer?.id}`, body), "Status saved.");
   }
 
   function uploadLogo() {
@@ -79,7 +90,7 @@
 
 {#if customer && !customer.may_edit}
   <p class="alert alert-warning">
-    Only Administrators and the technicians assigned to a customer change its details.
+    Only Administrators, Managers and technicians change a customer's details.
   </p>
 {:else if customer}
   <section class="section" aria-labelledby="details-title">
@@ -94,6 +105,32 @@
   </section>
 
   {#if customer.may_manage}
+  <section class="section" aria-labelledby="status-title">
+    <h2 class="section-title" id="status-title">Status</h2>
+    <p class="small muted">
+      A departing customer leaves on the day given; a former one has left, and its records are
+      kept for the months set above from that day.
+    </p>
+    <form class="stack form-wide" onsubmit={saveStatus}>
+      <div class="field">
+        <label for="customer-status">Status</label>
+        <select id="customer-status" class="input status" bind:value={status}>
+          {#each Object.entries(STATUS_NAMES) as [value, name] (value)}
+            <option {value}>{name}</option>
+          {/each}
+        </select>
+      </div>
+      {#if status !== "active"}
+        <div class="field">
+          <label for="customer-status-date">{status === "departing" ? "Leaves on" : "Left on"}</label>
+          <input id="customer-status-date" class="input status" type="date" required
+            bind:value={statusDate} />
+        </div>
+      {/if}
+      <div><button class="button button-primary" type="submit" disabled={busy}>Save status</button></div>
+    </form>
+  </section>
+
   <section class="section" aria-labelledby="logo-title">
     <h2 class="section-title" id="logo-title">Logo</h2>
     <p class="small muted">Shown beside the customer's name. A PNG, JPEG, WebP or GIF up to 2 MB.</p>
@@ -151,6 +188,9 @@
 {/if}
 
 <style>
+  .status {
+    max-width: 16rem;
+  }
   .form-wide {
     max-width: 640px;
   }

@@ -113,7 +113,10 @@ def test_existing_customers_and_projects_are_sealed_on_upgrade(data_dir, master_
     upgrade(engine, "0013")
 
     with Session(engine) as db:
-        customer = db.get(Customer, 1)
+        # Read in SQL, not through the model: the model has columns 0013 doesn't.
+        wrapped_key, sealed = db.execute(
+            text("SELECT wrapped_key, sealed FROM customers WHERE id = 1")).one()
+        customer = Customer(id=1, wrapped_key=wrapped_key, sealed=sealed)
         keyring = Keyring()
         assert keyring.details(customer) == {
             "name": "Nordlys IT ApS", "cvr": "12345678", "address": "Fjordvej 1"}
@@ -243,3 +246,27 @@ def test_skjalds_saved_tag_line_becomes_things_and_a_chosen_one_stays(
                 text("SELECT value FROM settings WHERE key = 'branding'")).scalar())
         assert stored == branding | {"tagline": after}
         engine.dispose()
+
+
+def test_customers_start_active_and_nobody_is_limited_on_upgrade(
+    data_dir, master_key_path
+) -> None:
+    """0017: existing customers become active, existing people unlimited."""
+    engine = make_engine(data_dir, master_key_path)
+    upgrade(engine, "0016")
+    with engine.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO users (username, display_name, is_active, is_break_glass, "
+            "failed_sign_ins, must_change_password, theme, created_at) "
+            "VALUES ('astrid', 'Astrid', 1, 0, 0, 0, 'light', '2026-10-27 12:00:00')"))
+        conn.execute(text(
+            "INSERT INTO customers (wrapped_key, sealed, retention_months, created_at) "
+            "VALUES (x'00', x'00', 12, '2026-10-27 12:00:00')"))
+
+    upgrade(engine)
+
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT status, status_date FROM customers")).one() == (
+            "active", None)
+        assert conn.execute(text("SELECT limited_to_assigned FROM users")).scalar() == 0
+    engine.dispose()

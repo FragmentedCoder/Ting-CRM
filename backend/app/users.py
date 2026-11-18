@@ -48,6 +48,9 @@ class User(Base):
     # The setup wizard's local Administrator, for when the directory is down. Every
     # use is flagged in the audit log.
     is_break_glass: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # Technicians see every customer; an Administrator can limit one to the customers
+    # they usually work with (app/customers.py).
+    limited_to_assigned: Mapped[bool] = mapped_column(default=False, server_default=false())
     failed_sign_ins: Mapped[int] = mapped_column(default=0)
     locked_until: Mapped[datetime | None] = mapped_column(UTCDateTime)
     password_changed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
