@@ -31,10 +31,10 @@ Minimum size 16 px; clear space of 25% of the tile width on every side. Do not r
 
 ## Colour
 
-- Neutral surfaces; colour is kept for the mark, one accent action and status.
+- Neutral surfaces; colour is kept for the mark, the accent (the main action and the selected item) and status.
 - Light mode uses a neutral off-white background (`sne`, #F7F7F7) with white cards, never a pure white page or a blue or warm cast. Borders, not shadows.
 - Primary buttons are "ink and snow" (`button-bg` / `button-text`), neutral so they are never mistaken for a status.
-- Lyng (`accent`, #9A78B0 light, #B898C8 dark) fills the stones, highlights and at most **one** confirming action per view, such as "Confirm agreement". Text on it is `on-accent` (Midnat: 4.7:1 light, 7.4:1 dark). Never Lyng body text on light, and never on regular buttons or badges.
+- Lyng (`accent`, #9A78B0 light, #B898C8 dark) fills the stones and highlights. **Filled controls in the accent** (the main action of a view, such as "New task", and the selected item of a side list, so at most two per view) use `accent-fill`: a deeper heather, #6E4F85, with white text (6.7:1, WCAG AA) in light mode, and #B898C8 with `on-accent` (#0B1420, 7.4:1) in dark mode. The user chose the deeper fill on 18 November 2026 over white text on #9A78B0 (3.7:1, below AA). Never Lyng body text on light, and never on regular buttons or badges.
 - Status colours (`ok`, `warning`, `critical`, `info`) always appear with their word, never colour alone. Every text pair meets 4.5:1 contrast.
 - Rav (amber) is Skjald's and not part of Þing.
 
@@ -60,6 +60,6 @@ A 4 px spacing scale, borders instead of shadows, and radii of 8 px (buttons, in
 
 The three starting components:
 
-- **Button**: primary (ink and snow), accent (Lyng, one per view) and secondary (outlined).
+- **Button**: primary (ink and snow), accent (`accent-fill`, the main action of a view) and secondary (outlined).
 - **StatusBadge**: OK, Warning, Critical and Info, showing the record's own word ("Active", "Ending", "Ended").
 - **AgreementRow**: one agreement in a list: number, customer, type, status, dates and the next notice deadline. Þing's counterpart to Skjald's ReportRow.

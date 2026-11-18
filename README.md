@@ -58,9 +58,8 @@ On the server, `sudo ting help` lists what the web UI can't do: status, logs, ba
 | --- | --- |
 | Phase 0 ✓ | Repository from Skjald's platform, renamed and rebranded; CI and signed builds; documentation and brand |
 | Phase 1 ✓ | The platform made Þing's: Skjald's projects and report roles removed; Þing's roles (Administrator, Manager, Technician, Auditor) and plain assignments; the first pre-release |
-| Phase 2 | Core CRM: customers and their companies, CVR lookup, sites, contacts, pinned warnings; systems; standard services and each customer's own; support and case numbers; agreements and SLA; the work log; the customer page and its timeline; global search |
-| Phase 3 | Tasks, recurring tasks and renewals; warnings in Þing and by email; My work; the wall display |
-| Phase 4 | Documents and uploaded emails; compliance frameworks and checklists; CSV/Excel import |
+| Phase 2 | Core CRM: the app shell and side menu; customers (active, departing, former) and their companies, CVR lookup; All customers, the customer overview, contacts and sites, systems, services and case numbers, agreements, the timeline and work log, My work; global search |
+| Phase 3 | Compliance, documents, PDF and CSV export, "needs attention" rules, warnings in Þing and by email, the wall display, CSV/Excel import |
 | 1.0 | Release gate: one-command install, ASVS Level 2 test plan passes, restore test green, the fictional demo company's data imports and works end to end |
 | After 1.0 | Danish, more warning channels (such as NTFY), prices once decided, sales and management roles |
 
