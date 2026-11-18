@@ -15,6 +15,7 @@ from app import (
     server_routes,
     services,
     setup_routes,
+    worklog_routes,
 )
 from app.api import health
 from app.auth import mfa_routes
@@ -52,4 +53,5 @@ app.include_router(backup_routes.router, prefix="/api")
 app.include_router(customer_routes.router, prefix="/api")
 app.include_router(cvr.router, prefix="/api")
 app.include_router(services.router, prefix="/api")
+app.include_router(worklog_routes.router, prefix="/api")
 app.include_router(server_routes.router, prefix="/api")

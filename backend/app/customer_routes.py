@@ -77,6 +77,7 @@ from app.roles import Capability, Role, UserRole, can, roles_of
 from app.services import StandardService
 from app.systems import SystemIn, SystemOut, sealed_fields, systems_of, would_loop
 from app.users import User
+from app.worklog import LogEntryOut, entries_of
 
 router = APIRouter(prefix="/customers")
 
@@ -256,6 +257,8 @@ class CustomerDetail(CustomerSummary):
     systems: list[SystemOut] | None = None
     services: list[CustomerServiceOut] | None = None
     agreements: list[AgreementOut] | None = None
+    # The newest work log entries, for the overview.
+    latest_work: list[LogEntryOut] | None = None
     pins: list[PinOut] | None = None
     assigned: list[Person] | None = None
     may_manage: bool = False
@@ -439,6 +442,8 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
         systems=systems_of(db, sealer, customer.id),
         services=services,
         agreements=agreements,
+        latest_work=entries_of(db, sealer, customer.id, viewer_id=record.user_id,
+                               manages=manage, limit=3),
         pins=pins_of(db, sealer, customer.id),
         assigned=_people(db, list(held)),
         may_manage=manage,
