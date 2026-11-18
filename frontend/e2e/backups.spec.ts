@@ -22,10 +22,12 @@ test("backups: back up, test a restore, and switch them off only after confirmin
     timeout: 90_000,
   });
   const runs = page.getByRole("region", { name: "Recent runs" });
-  // The list reloads once the toast has shown. The schedule may start a restore test of
-  // its own once there's a backup to test, so look at the one asked for here.
-  const asked = runs.getByRole("row", { name: /Restore test/ }).filter({ hasNotText: "The schedule" });
-  await expect(asked.first()).toContainText("OK", { timeout: 20_000 });
+  // The list reloads once the toast has shown. The schedule tests a restore of its own
+  // once there's a backup: asking for one while that's waiting joins it (the row then
+  // says "The schedule"), and one it starts afterwards may still be running. Either
+  // way, the restore test the toast reported is in the list as OK.
+  const went = runs.getByRole("row", { name: /Restore test/ }).filter({ has: page.getByText("OK", { exact: true }) });
+  await expect(went.first()).toBeVisible({ timeout: 20_000 });
   await page.screenshot({ path: "e2e-results/screens/backups-1-page.png", fullPage: true });
 
   // Server health reports both; a backup on this server only is a warning.
