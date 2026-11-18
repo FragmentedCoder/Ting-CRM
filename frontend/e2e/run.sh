@@ -28,7 +28,7 @@ elif [[ ! -d "$TING_ETC" ]]; then
 	echo "No $TING_ETC with a master key: run this as root once, or see CONTRIBUTING.md." >&2
 	exit 1
 fi
-PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.64.1-noble
+PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.65.1-noble
 E2E_PASSWORD="e2e passphrase by the fjord $(date +%s)"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"; "${COMPOSE[@]}" down -v >/dev/null 2>&1 || true' EXIT
