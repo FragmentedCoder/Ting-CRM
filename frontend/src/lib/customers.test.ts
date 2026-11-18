@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  customerFilters, emptySystem, formatCvr, mainRole, systemGroups, mayContactLine, pinnedLine, statusPill, type CustomerSummary, type Pin,
+  caseNumbers, customerFilters, emptySystem, formatCvr, mainRole, supportLevel, systemGroups, mayContactLine, pinnedLine, statusPill, type CustomerService, type CustomerSummary, type Pin,
 } from "./customers.js";
 
 describe("statusPill", () => {
@@ -83,6 +83,37 @@ describe("systemGroups", () => {
       ["Servers", ["HV01", "  DC01"]],
       ["Network", ["FW01"]],
       ["Retired", ["SRV01"]],
+    ]);
+  });
+});
+
+describe("the overview's support and case numbers", () => {
+  const service = (name: string, extra: Partial<CustomerService> = {}): CustomerService => ({
+    id: name.length, standard_service_id: 1, name, status: "active", started_on: null, ended_on: null,
+    company_id: null, details: [], not_used: [], systems: [], case_number: "", case_kind: "",
+    case_history: [], notes: "", ...extra,
+  });
+  const detail = (key: string, value: string) =>
+    ({ key, label: key, kind: "text" as const, choices: [], help: "", value, added: false, kept: false });
+
+  it("shows the support from the Support service, or none", () => {
+    const support = service("Support", { details: [detail("when", "Working hours"), detail("hours", "08:00 to 16:00")] });
+    expect(supportLevel([support])).toEqual({ tone: "ok", text: "Working hours", hours: "08:00 to 16:00" });
+    expect(supportLevel([]).text).toBe("No support");
+    expect(supportLevel([service("Support", { details: [detail("when", "None: each job its own case")] })]).text)
+      .toBe("No support");
+  });
+
+  it("lists each active service's case number once", () => {
+    const found = caseNumbers([
+      service("Support", { case_number: "TDSE26114", case_kind: "monthly" }),
+      service("Updates and maintenance", { case_number: "TDSE26114", case_kind: "monthly" }),
+      service("Backup", { case_number: "TDSE26031", case_kind: "standing" }),
+      service("Antivirus", { case_number: "TDSE25002", status: "ended" }),
+    ]);
+    expect(found).toEqual([
+      { number: "TDSE26114", kind: "monthly", services: ["Support", "Updates and maintenance"] },
+      { number: "TDSE26031", kind: "standing", services: ["Backup"] },
     ]);
   });
 });

@@ -118,6 +118,65 @@ export function systemGroups(systems: System[]): { key: SystemGroup | "retired";
   return [...groups, { key: "retired" as const, label: "Retired", systems: retired }].filter((g) => g.systems.length);
 }
 
+export type CaseKind = "" | "monthly" | "standing" | "project";
+
+/** A detail of a customer's service, filled in. */
+export interface ServiceDetail {
+  key: string;
+  label: string;
+  kind: "text" | "number" | "date" | "yes_no" | "choice";
+  choices: string[];
+  help: string;
+  value: string | number | boolean | null;
+  /** Added for this customer, not from the standard. */
+  added: boolean;
+  /** Dropped from the standard since, kept with what was filled in. */
+  kept: boolean;
+}
+
+/** A customer's copy of a standard service (backend/app/customer_services.py). */
+export interface CustomerService {
+  id: number;
+  standard_service_id: number | null;
+  name: string;
+  status: "active" | "ended";
+  started_on: string | null;
+  ended_on: string | null;
+  company_id: number | null;
+  details: ServiceDetail[];
+  /** Standard details this customer doesn't need. */
+  not_used: { key: string; label: string }[];
+  systems: { system_id: number; note: string }[];
+  /** The case number its work goes on ("Log time on"). */
+  case_number: string;
+  case_kind: CaseKind;
+  case_history: { number: string; kind: CaseKind; until: string }[];
+  notes: string;
+}
+
+/** The support a customer has, from their Support service's "When it applies". */
+export function supportLevel(services: CustomerService[]): { tone: "ok" | "warning"; text: string; hours: string | null } {
+  const support = services.find((s) => s.status === "active" && s.details.some((d) => d.key === "when"));
+  const when = support?.details.find((d) => d.key === "when")?.value;
+  const hours = support?.details.find((d) => d.key === "hours")?.value;
+  if (!support || !when || String(when).startsWith("None")) {
+    return { tone: "warning", text: "No support", hours: "Each job needs a case number of its own." };
+  }
+  return { tone: "ok", text: String(when), hours: hours ? String(hours) : null };
+}
+
+/** The case numbers to log time on: each active service's, once. */
+export function caseNumbers(services: CustomerService[]): { number: string; kind: CaseKind; services: string[] }[] {
+  const found = new Map<string, { number: string; kind: CaseKind; services: string[] }>();
+  for (const service of services) {
+    if (service.status !== "active" || !service.case_number) continue;
+    const entry = found.get(service.case_number) ?? { number: service.case_number, kind: service.case_kind, services: [] };
+    entry.services.push(service.name);
+    found.set(service.case_number, entry);
+  }
+  return [...found.values()];
+}
+
 /** Another company in a group that is one customer, such as a subsidiary. */
 export interface Company {
   id: number;
@@ -223,6 +282,8 @@ export interface CustomerDetail extends CustomerSummary {
   contacts: Contact[] | null;
   /** The systems at the customer: servers, virtual machines on their host, network, cloud. */
   systems: System[] | null;
+  /** The services we provide, each the customer's own copy of a standard service. */
+  services: CustomerService[] | null;
   /** The group's other companies; the customer itself is the main one. */
   companies: Company[] | null;
   /** Pinned warnings, hard rules first; at most PINS_PER_CUSTOMER. */

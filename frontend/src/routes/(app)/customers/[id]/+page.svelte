@@ -11,7 +11,12 @@
   import ContactCard from "#lib/components/ContactCard.svelte";
   import Dialog from "#lib/components/Dialog.svelte";
   import { sharedCustomer } from "#lib/context.js";
-  import { PINS_PER_CUSTOMER, pinnedLine, type CustomerDetail, type Pin as PinRecord } from "#lib/customers.js";
+  import Pill from "#lib/components/Pill.svelte";
+  import {
+    PINS_PER_CUSTOMER, caseNumbers, pinnedLine, supportLevel,
+    type CustomerDetail, type CustomerService, type Pin as PinRecord,
+  } from "#lib/customers.js";
+  import { CASE_KINDS, showValue } from "#lib/services.js";
   import { dateTime } from "#lib/format.js";
   import { toast } from "#lib/toast.svelte.js";
 
@@ -23,6 +28,15 @@
   const id = $derived(String(customer?.id ?? ""));
   const pins = $derived(customer?.pins ?? []);
   const decider = $derived(customer?.contacts?.find((c) => c.roles.includes("decision_maker")) ?? null);
+  const services = $derived(customer?.services ?? []);
+  const support = $derived(supportLevel(services));
+  const cases = $derived(caseNumbers(services));
+
+  // A service at a glance: its first details filled in.
+  function atThisCustomer(service: CustomerService): string {
+    const filled = service.details.filter((d) => d.value !== null && d.value !== "");
+    return filled.slice(0, 2).map((d) => showValue(d, d.value)).join("; ") || "—";
+  }
 
   // Managers and Administrators pin up to three one-line warnings.
   let pinOpen = $state(false);
@@ -110,6 +124,61 @@
     </div>
   {/if}
 
+  <div class="tiles" aria-label="At a glance">
+    <div class="tile">
+      <p class="small muted label">Support</p>
+      <Pill tone={support.tone} text={support.text} />
+      {#if support.hours}<span class="small">{support.hours}</span>{/if}
+    </div>
+    <div class="tile">
+      <p class="small muted label">Log time on</p>
+      {#each cases as found (found.number)}
+        <span class="case"><span class="mono strong">{found.number}</span>
+          <span class="small">{found.services.join(", ")}</span>
+          {#if found.kind}<Pill tone="info" text={CASE_KINDS[found.kind]} />{/if}</span>
+      {:else}
+        <span class="small muted">No case numbers yet.</span>
+      {/each}
+    </div>
+    <div class="tile">
+      <p class="small muted label">Decision-maker</p>
+      {#if decider}
+        <ContactCard contact={decider} inset />
+      {:else}
+        <span class="small muted">Nobody is marked as the decision-maker.</span>
+      {/if}
+    </div>
+  </div>
+
+  {#if services.length}
+    <section class="section services" aria-labelledby="services-title">
+      <div class="heading-row">
+        <h2 class="section-title" id="services-title">Services</h2>
+        <a class="small" href={resolve("/(app)/customers/[id]/services", { id })}>All details</a>
+      </div>
+      <div class="chips" aria-label="Services we provide">
+        {#each services as service (service.id)}
+          <Pill tone={service.status === "active" ? "ok" : "critical"}
+            text={service.status === "active" ? service.name : `${service.name}: ended`} />
+        {/each}
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Service</th><th>At this customer</th><th>Log time on</th></tr></thead>
+          <tbody>
+            {#each services.filter((s) => s.status === "active") as service (service.id)}
+              <tr>
+                <td class="strong">{service.name}</td>
+                <td>{atThisCustomer(service)}</td>
+                <td class="mono">{service.case_number || "—"}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {/if}
+
   <div class="grid">
     {#if gettingStarted}
       <section class="section wide" aria-labelledby="start-title">
@@ -133,10 +202,6 @@
 
     <section class="section" aria-labelledby="contacts-title">
       <h2 class="section-title" id="contacts-title">Contacts</h2>
-      {#if decider}
-        <p class="small muted label">Decision-maker</p>
-        <ContactCard contact={decider} />
-      {/if}
       {#if customer.contacts?.length}
         <ul class="plain">
           {#each customer.contacts.slice(0, 4) as contact (contact.id)}
@@ -212,6 +277,49 @@
 </Dialog>
 
 <style>
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+  .tile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+  }
+  .tile > :global(.person) {
+    align-self: stretch;
+  }
+  .case {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .strong {
+    font-weight: 600;
+  }
+  .services {
+    margin-bottom: var(--space-4);
+  }
+  .heading-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-2) 0 var(--space-3);
+  }
   .pins {
     display: flex;
     flex-direction: column;

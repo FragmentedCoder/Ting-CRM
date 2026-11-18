@@ -9,6 +9,8 @@
   import LockKeyhole from "@lucide/svelte/icons/lock-keyhole";
   import LogOut from "@lucide/svelte/icons/log-out";
   import Plug from "@lucide/svelte/icons/plug";
+  import Layers from "@lucide/svelte/icons/layers";
+  import Library from "@lucide/svelte/icons/library";
   import Mail from "@lucide/svelte/icons/mail";
   import Menu from "@lucide/svelte/icons/menu";
   import Moon from "@lucide/svelte/icons/moon";
@@ -102,12 +104,16 @@
     const base = resolve("/(app)/customers/[id]", { id });
     const contacts = resolve("/(app)/customers/[id]/contacts", { id });
     const systems = resolve("/(app)/customers/[id]/systems", { id });
+    const services = resolve("/(app)/customers/[id]/services", { id });
     const people = resolve("/(app)/customers/[id]/people", { id });
     return [
       { href: base, label: "Overview", icon: LayoutDashboard, current: path === base },
       { key: "contacts-and-systems", label: "Contacts and systems", icon: Contact, items: [
         { href: contacts, label: "Contacts and sites", icon: Contact, current: path === contacts },
         { href: systems, label: "Systems", icon: Server, current: path === systems },
+      ] },
+      { key: "services-and-agreements", label: "Services and agreements", icon: Layers, items: [
+        { href: services, label: "Services", icon: Layers, current: path === services },
       ] },
       { href: people, label: "People", icon: UsersRound, current: path === people },
     ];
@@ -292,6 +298,10 @@
           {#if sees}
             <li>{@render link({ href: resolve("/(app)/customers"), label: "All customers", icon: Building,
               current: path === "/customers" || path === "/customers/new" })}</li>
+          {/if}
+          {#if can(current, "manage_service_catalog")}
+            <li>{@render link({ href: resolve("/(app)/services"), label: "Standard services", icon: Library,
+              current: path === "/services" })}</li>
           {/if}
         </ul>
 
