@@ -685,3 +685,111 @@ def test_a_system_on_another_customers_host_is_refused(client, admin, nordlys) -
     refused = client.post(f"{CUSTOMERS}/{nordlys['id']}/systems", headers=headers,
                           json={"name": "VM", "parent_id": theirs["id"]})
     assert refused.status_code == 422
+
+
+# The customer's services
+
+
+def standard(client, headers, key):
+    return next(s for s in client.get("/api/services", headers=headers).json() if s["key"] == key)
+
+
+def test_a_customers_backup_is_their_own_copy(client, admin, nordlys, person, session) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    backup = standard(client, headers, "backup")
+    host = client.post(f"{url}/systems", headers=headers,
+                       json={"name": "APP01"}).json()["systems"][0]
+    _, as_mona = person("mona", M)
+    added = client.post(f"{url}/services", headers=as_mona, json={
+        "standard_service_id": backup["id"], "started_on": "2024-04-01",
+        "values": {"product": "Veeam Backup and Replication 12",
+                   "local_copy": "On BCK01, kept 7 days, encrypted"},
+        "extra": [{"label": "Who approves a restore", "value": "Jonas Berg"}],
+        "not_used": ["restore_test"],
+        "systems": [{"system_id": host["id"], "note": "Stop the booking service before a restore"}],
+        "case_number": "TDSE26031", "case_kind": "standing",
+    })
+    assert added.status_code == 200, added.text
+    service = added.json()["services"][0]
+    assert (service["name"], service["status"], service["case_number"]) == (
+        "Backup", "active", "TDSE26031")
+    details = {d["key"]: (d["value"], d["added"]) for d in service["details"]}
+    assert details["product"] == ("Veeam Backup and Replication 12", False)
+    assert details["who_approves_a_restore"] == ("Jonas Berg", True)
+    assert details["offsite_copy"] == (None, False)
+    assert "restore_test" not in details
+    assert [f["key"] for f in service["not_used"]] == ["restore_test"]
+    assert service["systems"] == [{"system_id": host["id"],
+                                   "note": "Stop the booking service before a restore"}]
+
+
+def test_a_standard_change_never_rewrites_a_copy(client, admin, nordlys) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    backup = standard(client, headers, "backup")
+    client.post(f"{url}/services", headers=headers, json={
+        "standard_service_id": backup["id"], "values": {"product": "Veeam"}})
+    # The standard gains a detail and drops "product".
+    details = [d for d in backup["details"] if d["key"] != "product"]
+    client.put(f"/api/services/{backup['id']}", headers=headers, json={
+        "name": "Backup", "details": details + [{"label": "Encryption"}]})
+    service = client.get(url, headers=headers).json()["services"][0]
+    found = {d["key"]: d for d in service["details"]}
+    assert found["encryption"]["value"] is None
+    assert (found["product"]["value"], found["product"]["kept"], found["product"]["label"]) == (
+        "Veeam", True, "Product")
+
+
+def test_a_replaced_case_number_is_kept_as_history(client, admin, nordlys) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    support = standard(client, headers, "support")
+    made = client.post(f"{url}/services", headers=headers, json={
+        "standard_service_id": support["id"], "values": {"when": "Working hours"},
+        "case_number": "TDSE26114", "case_kind": "monthly"}).json()["services"][0]
+    after = client.put(f"{url}/services/{made['id']}", headers=headers, json={
+        "values": {"when": "Working hours"}, "case_number": "TDSE26131",
+        "case_kind": "monthly"}).json()["services"][0]
+    assert after["case_number"] == "TDSE26131"
+    assert [(c["number"], c["kind"]) for c in after["case_history"]] == [("TDSE26114", "monthly")]
+
+
+@pytest.mark.parametrize(("body", "says"), [
+    ({"values": {"when": "Sometimes"}}, "doesn't fit"),
+    ({"values": {"nonsense": "x"}}, "has no detail"),
+    ({"status": "ended"}, None),
+    ({"systems": [{"system_id": 999}]}, "system"),
+    ({"case_number": "TDSE 26114"}, None),
+])
+def test_a_services_details_are_checked(client, admin, nordlys, body, says) -> None:
+    _, headers = admin
+    support = standard(client, headers, "support")
+    refused = client.post(f"{CUSTOMERS}/{nordlys['id']}/services", headers=headers,
+                          json={"standard_service_id": support["id"]} | body)
+    assert refused.status_code == 422
+    if says:
+        assert says in str(refused.json()["detail"])
+
+
+def test_technicians_read_services_but_dont_change_them(client, admin, nordlys, person) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    support = standard(client, headers, "support")
+    client.post(f"{url}/services", headers=headers, json={"standard_service_id": support["id"]})
+    _, as_astrid = person("astrid", T)
+    assert [s["name"] for s in client.get(url, headers=as_astrid).json()["services"]] == ["Support"]
+    assert client.post(f"{url}/services", headers=as_astrid,
+                       json={"standard_service_id": support["id"]}).status_code == 403
+
+
+def test_removing_a_system_takes_it_out_of_services(client, admin, nordlys) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    backup = standard(client, headers, "backup")
+    app01 = client.post(f"{url}/systems", headers=headers,
+                        json={"name": "APP01"}).json()["systems"][0]
+    client.post(f"{url}/services", headers=headers, json={
+        "standard_service_id": backup["id"], "systems": [{"system_id": app01["id"]}]})
+    after = client.delete(f"{url}/systems/{app01['id']}", headers=headers).json()
+    assert after["services"][0]["systems"] == []

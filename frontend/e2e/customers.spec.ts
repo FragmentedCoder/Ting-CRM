@@ -14,12 +14,14 @@ function menu(page: Page, name: string | RegExp) {
     .getByRole("link", { name, exact: typeof name === "string" });
 }
 
-/** Contacts and sites, under its fold-out group in the side menu. */
-async function openContacts(page: Page) {
-  const group = page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Contacts and systems" });
+/** A page under one of the customer's fold-out groups in the side menu. */
+async function openUnder(page: Page, groupName: string, name: string) {
+  const group = page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: groupName });
   if ((await group.getAttribute("aria-expanded")) !== "true") await group.click();
-  await menu(page, "Contacts and sites").click();
+  await menu(page, name).click();
 }
+
+const openContacts = (page: Page) => openUnder(page, "Contacts and systems", "Contacts and sites");
 
 /** Someone signed in, in a browser of their own, with an authenticator app set up. */
 async function signedIn(browser: Browser, username: string, options: { clock?: boolean } = {}) {
@@ -92,6 +94,22 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   const pinned = boss.getByRole("note", { name: "Pinned warnings" });
   await expect(pinned).toContainText("Do not update in working hours");
   await expect(pinned).toContainText("1 of 3");
+
+  // Its support, copied from the standard Support service, with the case number
+  // time goes on; the overview shows both in its first tiles.
+  await openUnder(boss, "Services and agreements", "Services");
+  await boss.getByRole("button", { name: "Add a service" }).click();
+  const service = boss.getByRole("dialog");
+  await service.getByLabel("Standard service").selectOption({ label: "Support" });
+  await service.getByLabel("When it applies").selectOption({ label: "Working hours" });
+  await service.getByLabel("Log time on (case number)").fill("TDSE26114");
+  await service.getByLabel("Kind of case").selectOption({ label: "Monthly" });
+  await service.getByRole("button", { name: "Save service" }).click();
+  await expect(boss.getByRole("heading", { name: "Support", exact: true })).toBeVisible();
+  await menu(boss, "Overview").click();
+  const glance = boss.getByLabel("At a glance");
+  await expect(glance).toContainText("Working hours");
+  await expect(glance).toContainText("TDSE26114");
 
   // The technician finds the customer on Home and keeps its details and contacts
   // up to date, but doesn't choose how long its records are kept, its logo or who
