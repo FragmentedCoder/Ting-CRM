@@ -20,16 +20,18 @@ from typing import Annotated, Any, Literal, Self
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import audit, clock
 from app.auth.dependencies import DB, FullSession, client_ip, require, require_step_up
 from app.auth.sessions import UserSession
 from app.customers import (
+    PINS_PER_CUSTOMER,
     Customer,
     CustomerAssignment,
     CustomerContact,
+    CustomerPin,
     CustomerSite,
     Keyring,
     Sealer,
@@ -111,6 +113,20 @@ class ContactIn(BaseModel):
 
 class ContactOut(ContactIn):
     id: int
+
+
+class PinIn(BaseModel):
+    # One line: short enough to read at a glance, never wrapped.
+    text: str = Field(min_length=1, max_length=120, pattern=r"^[^\r\n]*$")
+    # A hard rule (red) or a caution (yellow).
+    severity: Literal["critical", "caution"] = "caution"
+
+
+class PinOut(PinIn):
+    id: int
+    # "Henrik Dahl, Manager"; None once that person is gone.
+    pinned_by: str | None
+    pinned_at: datetime
 
 
 def _cvr(value: str | None) -> str | None:
@@ -203,6 +219,7 @@ class CustomerDetail(CustomerSummary):
     created_at: datetime | None = None
     sites: list[SiteOut] | None = None
     contacts: list[ContactOut] | None = None
+    pins: list[PinOut] | None = None
     assigned: list[Person] | None = None
     may_manage: bool = False
     may_edit: bool = False
@@ -332,6 +349,25 @@ def contacts_of(db: Session, sealer: Sealer, customer_id: int) -> list[ContactOu
     return sorted(found, key=lambda c: c.name.casefold())
 
 
+def _pinner(db: Session, user_id: int | None) -> str | None:
+    """Who pinned it, with the role that let them: "Henrik Dahl, Manager"."""
+    user = db.get(User, user_id) if user_id is not None else None
+    if user is None:
+        return None
+    roles = roles_of(db, user.id)
+    role = "Manager" if Role.MANAGER in roles else "Administrator"
+    return f"{user.display_name}, {role}"
+
+
+def pins_of(db: Session, sealer: Sealer, customer_id: int) -> list[PinOut]:
+    pins = db.scalars(select(CustomerPin).where(CustomerPin.customer_id == customer_id)
+                      .order_by(CustomerPin.id))
+    found = [PinOut(id=pin.id, pinned_by=_pinner(db, pin.pinned_by), pinned_at=pin.pinned_at,
+                    **sealer.open("pin", pin.id, pin.sealed)) for pin in pins]
+    # Hard rules first, then cautions, each in the order they were pinned.
+    return sorted(found, key=lambda pin: pin.severity != "critical")
+
+
 def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Customer,
             level: Visibility) -> CustomerDetail:
     summary = _summary(db, keyring, customer, level, Team(db), record.user_id)
@@ -349,6 +385,7 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
         created_at=customer.created_at,
         sites=sites_of(db, sealer, customer.id),
         contacts=contacts_of(db, sealer, customer.id),
+        pins=pins_of(db, sealer, customer.id),
         assigned=_people(db, list(held)),
         may_manage=manage,
         may_edit=may_edit(roles),
@@ -586,6 +623,62 @@ def remove_contact(customer_id: int, contact_id: int, request: Request, admin: E
     sites = db.scalars(select(CustomerSite).where(CustomerSite.customer_id == customer.id))
     _unlink(sites, keyring.sealer(customer), "site", "contact_id", contact_id)
     _log(db, request, admin, "customer.contact_removed", customer.id, {"contact": contact_id})
+    db.commit()
+    return _detail(db, admin, Keyring(), customer, "full")
+
+
+# Pinned warnings
+
+
+def _pin(db: Session, customer: Customer, pin_id: int) -> CustomerPin:
+    pin = db.get(CustomerPin, pin_id)
+    if pin is None or pin.customer_id != customer.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "That pinned warning doesn't exist.")
+    return pin
+
+
+@router.post("/{customer_id}/pins")
+def add_pin(customer_id: int, body: PinIn, request: Request, admin: Manager, db: DB
+            ) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    pinned = db.scalar(select(func.count()).select_from(CustomerPin)
+                       .where(CustomerPin.customer_id == customer.id)) or 0
+    if pinned >= PINS_PER_CUSTOMER:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"A customer has at most {PINS_PER_CUSTOMER} pinned warnings: unpin one first.",
+        )
+    keyring = Keyring()
+    pin = CustomerPin(customer_id=customer.id, sealed=b"", pinned_by=admin.user_id,
+                      pinned_at=clock.utcnow())
+    db.add(pin)
+    db.flush()
+    pin.sealed = keyring.sealer(customer).seal("pin", pin.id, {
+        "text": body.text.strip(), "severity": body.severity})
+    _log(db, request, admin, "customer.pin_added", customer.id, {"pin": pin.id})
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.put("/{customer_id}/pins/{pin_id}")
+def change_pin(customer_id: int, pin_id: int, body: PinIn, request: Request, admin: Manager,
+               db: DB) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    keyring = Keyring()
+    pin = _pin(db, customer, pin_id)
+    pin.sealed = keyring.sealer(customer).seal("pin", pin.id, {
+        "text": body.text.strip(), "severity": body.severity})
+    _log(db, request, admin, "customer.pin_changed", customer.id, {"pin": pin.id})
+    db.commit()
+    return _detail(db, admin, keyring, customer, "full")
+
+
+@router.delete("/{customer_id}/pins/{pin_id}")
+def remove_pin(customer_id: int, pin_id: int, request: Request, admin: Manager, db: DB
+               ) -> CustomerDetail:
+    customer, _ = visible_customer(db, request, admin, customer_id)
+    db.delete(_pin(db, customer, pin_id))
+    _log(db, request, admin, "customer.pin_removed", customer.id, {"pin": pin_id})
     db.commit()
     return _detail(db, admin, Keyring(), customer, "full")
 

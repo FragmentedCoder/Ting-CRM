@@ -541,3 +541,58 @@ def test_removing_a_contact_or_site_takes_it_out_of_what_points_at_it(client, ad
     after = client.delete(f"{url}/sites/{site['id']}", headers=headers).json()
     assert [c["site_id"] for c in after["contacts"]] == [None]
     assert karin
+
+
+# Pinned warnings
+
+
+def test_managers_pin_up_to_three_one_line_warnings(client, admin, nordlys, person, session
+                                                     ) -> None:
+    _, as_mona = person("mona", M)
+    url = f"{CUSTOMERS}/{nordlys['id']}/pins"
+    first = client.post(url, headers=as_mona, json={
+        "text": "Only Signe Holm approves purchases", "severity": "caution"}).json()
+    client.post(url, headers=as_mona, json={
+        "text": "Never restart the servers between 07:00 and 17:00", "severity": "critical"})
+    third = client.post(url, headers=as_mona, json={"text": "Parking by the gate only"}).json()
+    # Hard rules first, then cautions; who pinned it, with the role that let them.
+    assert [(p["severity"], p["pinned_by"]) for p in third["pins"]] == [
+        ("critical", "Mona, Manager"), ("caution", "Mona, Manager"), ("caution", "Mona, Manager")]
+    assert first["pins"][0]["text"] == "Only Signe Holm approves purchases"
+
+    fourth = client.post(url, headers=as_mona, json={"text": "One too many"})
+    assert fourth.status_code == 409 and "at most 3" in fourth.json()["detail"]
+    pin = third["pins"][2]
+    changed = client.put(f"{url}/{pin['id']}", headers=as_mona,
+                         json={"text": "Park by the gate", "severity": "caution"}).json()
+    assert [p["text"] for p in changed["pins"]][2] == "Park by the gate"
+    left = client.delete(f"{url}/{pin['id']}", headers=as_mona).json()
+    assert len(left["pins"]) == 2
+    assert [e.action for e in session.scalars(
+        select(AuditEntry).where(AuditEntry.action.like("customer.pin_%")))] == [
+        "customer.pin_added", "customer.pin_added", "customer.pin_added",
+        "customer.pin_changed", "customer.pin_removed"]
+    session.commit()
+
+
+@pytest.mark.parametrize("body", [
+    {"text": ""},
+    {"text": "Two\nlines"},
+    {"text": "x" * 121},
+    {"text": "Fine", "severity": "info"},
+])
+def test_a_pinned_warning_is_one_short_line(client, admin, nordlys, body) -> None:
+    _, headers = admin
+    refused = client.post(f"{CUSTOMERS}/{nordlys['id']}/pins", headers=headers, json=body)
+    assert refused.status_code == 422
+
+
+def test_technicians_see_pinned_warnings_but_dont_pin(client, admin, nordlys, person) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    client.post(f"{url}/pins", headers=headers, json={"text": "Call before visiting"})
+    _, as_astrid = person("astrid", T)
+    assert [p["pinned_by"] for p in client.get(url, headers=as_astrid).json()["pins"]] == [
+        "Ingrid Admin, Administrator"]
+    assert client.post(f"{url}/pins", headers=as_astrid,
+                       json={"text": "Mine"}).status_code == 403
