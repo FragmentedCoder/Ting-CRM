@@ -13,13 +13,13 @@ RUN npm run build
 # database.
 FROM golang:1.27.4-alpine AS caddy
 RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.7 \
- && xcaddy build v2.11.8 --output /usr/bin/caddy \
+ && xcaddy build v2.11.9 --output /usr/bin/caddy \
       --with github.com/caddy-dns/cloudflare@v0.2.4 \
       --with github.com/caddy-dns/rfc2136@v1.0.0 \
       --replace golang.org/x/net=golang.org/x/net@v0.62.0 \
       --replace github.com/go-jose/go-jose/v4=github.com/go-jose/go-jose/v4@v4.1.6
 
-FROM caddy:2.11.8-alpine
+FROM caddy:2.11.9-alpine
 # Alpine's fixes since the image was made.
 RUN apk upgrade --no-cache
 COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
