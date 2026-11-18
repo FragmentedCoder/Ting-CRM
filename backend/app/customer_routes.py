@@ -73,6 +73,7 @@ from app.images import (
     remove_image,
     store_image,
 )
+from app.planning import RenewalOut, TaskOut, open_tasks, renewals_of
 from app.roles import Capability, Role, UserRole, can, roles_of
 from app.services import StandardService
 from app.systems import SystemIn, SystemOut, sealed_fields, systems_of, would_loop
@@ -259,6 +260,9 @@ class CustomerDetail(CustomerSummary):
     agreements: list[AgreementOut] | None = None
     # The newest work log entries, for the overview.
     latest_work: list[LogEntryOut] | None = None
+    # What's coming up: the tasks not yet done, and the renewals.
+    tasks: list[TaskOut] | None = None
+    renewals: list[RenewalOut] | None = None
     pins: list[PinOut] | None = None
     assigned: list[Person] | None = None
     may_manage: bool = False
@@ -444,6 +448,8 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
         agreements=agreements,
         latest_work=entries_of(db, sealer, customer.id, viewer_id=record.user_id,
                                manages=manage, limit=3),
+        tasks=open_tasks(db, sealer, customer.id),
+        renewals=renewals_of(db, sealer, customer.id),
         pins=pins_of(db, sealer, customer.id),
         assigned=_people(db, list(held)),
         may_manage=manage,
