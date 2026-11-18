@@ -15,6 +15,16 @@
 - Add or update tests and documentation along with the code.
 - Commit messages: a short subject in the imperative mood ("Add CVSS lookup table"), with detail in the body if needed.
 
+## Branches
+
+Work for a phase of the [roadmap](README.md#roadmap) collects on that phase's branch, and `main` gets it when the whole phase is done:
+
+- **`phase-N`** (such as `phase-2`) holds the phase's work. It changes only by pull requests from its work branches and by merging `main` into it, and it's merged into `main` once the phase is tested.
+- **Work for a phase** goes on a branch from `phase-N`, named for what it is: `phase-N-feature/…` for a feature, `phase-N-fix/…` for a bug fix, `phase-N-hunt/…` for a round of bug hunting, such as `phase-2-feature/systems`. Its pull request goes into `phase-N`. (Git can't have a `phase-2` branch and `phase-2/…` branches at once, hence the dash.)
+- **Small changes to `main`** that can't wait for a phase branch from `main`: `hotfix/…` for an urgent fix, `docs/…` for the README and other documents, `maintenance/…` for dependencies, CI and the like. Their pull requests go into `main`, and `main` is then merged into the phase branch so it keeps up.
+
+A pull request's branch is deleted once it's merged: work branches and small changes are done with then, and a phase branch is merged only once, at the end of its phase.
+
 ## Running Þing and its tests
 
 The design is in [docs/architecture.md](docs/architecture.md); read it before changing how something works, and keep it current. You need Docker, Python 3.13 and Node 22.17 or later.
@@ -24,7 +34,7 @@ The design is in [docs/architecture.md](docs/architecture.md); read it before ch
 - **Browser tests** against the whole stack behind Caddy: `frontend/e2e/run.sh` from the repository root. It starts its own stack (project `ting-e2e`, port 8443) and removes it with its data afterwards, so it runs beside a test install. It keeps its keys apart from any install's, in `/etc/ting-e2e`: run as root (`sudo frontend/e2e/run.sh`) it makes a throwaway master key there; otherwise put one there first, as the CI workflow does.
 - **Installer and scripts**: `deploy/install.test.sh`, `deploy/ting.test.sh`, `python3 deploy/release-compose.test.py`, `shellcheck -x install.sh deploy/*.sh deploy/ting frontend/e2e/run.sh`, and actionlint on the workflows.
 
-CI runs all of these on every pull request, and the browser tests keep their screenshots as an artifact.
+CI runs all of these on every pull request and on `main` and the phase branches once something lands on them, and the browser tests keep their screenshots as an artifact.
 
 ## Never commit
 
