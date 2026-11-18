@@ -14,6 +14,7 @@
   import Moon from "@lucide/svelte/icons/moon";
   import Palette from "@lucide/svelte/icons/palette";
   import ScrollText from "@lucide/svelte/icons/scroll-text";
+  import Server from "@lucide/svelte/icons/server";
   import Settings from "@lucide/svelte/icons/settings";
   import Shield from "@lucide/svelte/icons/shield-check";
   import Building from "@lucide/svelte/icons/building";
@@ -100,11 +101,13 @@
     const id = String(customer.id);
     const base = resolve("/(app)/customers/[id]", { id });
     const contacts = resolve("/(app)/customers/[id]/contacts", { id });
+    const systems = resolve("/(app)/customers/[id]/systems", { id });
     const people = resolve("/(app)/customers/[id]/people", { id });
     return [
       { href: base, label: "Overview", icon: LayoutDashboard, current: path === base },
       { key: "contacts-and-systems", label: "Contacts and systems", icon: Contact, items: [
         { href: contacts, label: "Contacts and sites", icon: Contact, current: path === contacts },
+        { href: systems, label: "Systems", icon: Server, current: path === systems },
       ] },
       { href: people, label: "People", icon: UsersRound, current: path === people },
     ];

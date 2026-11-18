@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  customerFilters, formatCvr, mainRole, mayContactLine, pinnedLine, statusPill, type CustomerSummary, type Pin,
+  customerFilters, emptySystem, formatCvr, mainRole, systemGroups, mayContactLine, pinnedLine, statusPill, type CustomerSummary, type Pin,
 } from "./customers.js";
 
 describe("statusPill", () => {
@@ -67,5 +67,22 @@ describe("pinnedLine", () => {
     expect(pinnedLine([pin(1, "Henrik Dahl, Manager"), pin(2, "Ingrid Admin, Administrator")]))
       .toBe("Pinned by Henrik Dahl, Manager and Ingrid Admin, Administrator · 2 of 3");
     expect(pinnedLine([pin(1, null)])).toBe("Pinned · 1 of 3");
+  });
+});
+
+describe("systemGroups", () => {
+  const system = (id: number, name: string, extra: object = {}) => ({ ...emptySystem(), id, name, ...extra });
+
+  it("puts each guest under its host, and retired systems last", () => {
+    const hv01 = system(1, "HV01");
+    const dc01 = system(2, "DC01", { type: "virtual_machine", parent_id: 1 });
+    const fw01 = system(3, "FW01", { group: "network", type: "firewall" });
+    const srv01 = system(4, "SRV01", { retired_on: "2025-06-30" });
+    const groups = systemGroups([hv01, dc01, fw01, srv01]);
+    expect(groups.map((g) => [g.label, g.systems.map((s) => `${s.guest ? "  " : ""}${s.system.name}`)])).toEqual([
+      ["Servers", ["HV01", "  DC01"]],
+      ["Network", ["FW01"]],
+      ["Retired", ["SRV01"]],
+    ]);
   });
 });

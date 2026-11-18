@@ -144,6 +144,12 @@ a {
   color: var(--button-text);
 }
 
+/* The main action of a view, in the heather accent (at most one per view). */
+.button-accent {
+  background: var(--accent-fill);
+  color: var(--on-accent-fill);
+}
+
 .button-secondary {
   background: transparent;
   border-color: var(--border-strong);

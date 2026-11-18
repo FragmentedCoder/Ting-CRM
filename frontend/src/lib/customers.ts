@@ -39,6 +39,85 @@ export interface Contact {
   preferred_channel: Channel;
 }
 
+export type SystemGroup = "servers" | "network" | "cloud" | "printers" | "other";
+export type SystemType =
+  | "physical_server" | "virtual_machine" | "nas" | "backup_server" | "firewall" | "router"
+  | "switch" | "wireless" | "printer" | "m365_tenant" | "other";
+
+export interface System {
+  id: number;
+  group: SystemGroup;
+  type: SystemType;
+  name: string;
+  /** What it does: "DC and file server". */
+  role: string;
+  site_id: number | null;
+  /** The host a virtual machine runs on. */
+  parent_id: number | null;
+  hostname: string;
+  ip: string;
+  hardware: string;
+  serial: string;
+  os: string;
+  in_service_since: string | null;
+  warranty_end: string | null;
+  retired_on: string | null;
+  updates_itself: boolean | null;
+  may_update_in_working_hours: boolean | null;
+  update_rhythm: string;
+  last_update: string | null;
+  monitoring: string;
+  backup: string;
+  notes: string;
+}
+
+export const SYSTEM_GROUPS: Record<SystemGroup, string> = {
+  servers: "Servers",
+  network: "Network",
+  cloud: "Cloud",
+  printers: "Printers",
+  other: "Other",
+};
+
+export const SYSTEM_TYPES: Record<SystemType, string> = {
+  physical_server: "Physical server",
+  virtual_machine: "Virtual machine",
+  nas: "NAS",
+  backup_server: "Backup server",
+  firewall: "Firewall",
+  router: "Router",
+  switch: "Switch",
+  wireless: "Wireless",
+  printer: "Printer",
+  m365_tenant: "Microsoft 365 tenant",
+  other: "Other",
+};
+
+export const emptySystem = (): Omit<System, "id"> => ({
+  group: "servers", type: "physical_server", name: "", role: "", site_id: null, parent_id: null,
+  hostname: "", ip: "", hardware: "", serial: "", os: "", in_service_since: null,
+  warranty_end: null, retired_on: null, updates_itself: null, may_update_in_working_hours: null,
+  update_rhythm: "", last_update: null, monitoring: "", backup: "", notes: "",
+});
+
+/** The side list's groups: Servers, Network, Cloud, Printers and Other, each with its
+ *  hosts followed by what runs on them, and retired systems last. */
+export function systemGroups(systems: System[]): { key: SystemGroup | "retired"; label: string; systems: { system: System; guest: boolean }[] }[] {
+  const active = systems.filter((s) => !s.retired_on);
+  const ids = new Set(active.map((s) => s.id));
+  const guestsOf = (host: number) => active.filter((s) => s.parent_id === host);
+  const groups = (Object.keys(SYSTEM_GROUPS) as SystemGroup[]).map((key) => {
+    const tops = active.filter((s) => s.group === key && (s.parent_id === null || !ids.has(s.parent_id)));
+    const rows = tops.flatMap((host) => [
+      { system: host, guest: false },
+      ...guestsOf(host.id).map((guest) => ({ system: guest, guest: true })),
+    ]);
+    return { key, label: SYSTEM_GROUPS[key], systems: rows };
+  });
+  const retired = systems.filter((s) => s.retired_on).map((system) => ({ system, guest: false }));
+  return [...groups, { key: "retired" as const, label: "Retired", systems: retired }].filter((g) => g.systems.length);
+}
+
 /** Another company in a group that is one customer, such as a subsidiary. */
 export interface Company {
   id: number;
@@ -142,6 +221,8 @@ export interface CustomerDetail extends CustomerSummary {
   created_at: string | null;
   sites: Site[] | null;
   contacts: Contact[] | null;
+  /** The systems at the customer: servers, virtual machines on their host, network, cloud. */
+  systems: System[] | null;
   /** The group's other companies; the customer itself is the main one. */
   companies: Company[] | null;
   /** Pinned warnings, hard rules first; at most PINS_PER_CUSTOMER. */

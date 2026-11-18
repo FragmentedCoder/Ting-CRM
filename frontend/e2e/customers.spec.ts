@@ -115,6 +115,23 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await tech.getByRole("dialog").getByLabel("Name").fill("Anders Vang");
   await tech.getByRole("dialog").getByRole("button", { name: "Save contact" }).click();
   await expect(tech.getByText("Anders Vang")).toBeVisible();
+
+  // The technician records the customer's systems: a host, and a virtual machine on it.
+  await menu(tech, "Systems").click();
+  await tech.getByRole("button", { name: "Add a system" }).click();
+  const system = tech.getByRole("dialog");
+  await system.getByLabel("Name", { exact: true }).fill("HV01");
+  await system.getByLabel("Role").fill("Hyper-V host");
+  await system.getByRole("button", { name: "Save system" }).click();
+  await tech.getByRole("button", { name: "Add a system" }).click();
+  await system.getByLabel("Name", { exact: true }).fill("DC01");
+  await system.getByLabel("Type").selectOption({ label: "Virtual machine" });
+  await system.getByLabel("Runs on").selectOption({ label: "HV01" });
+  await system.getByRole("button", { name: "Save system" }).click();
+  const list = tech.getByRole("navigation", { name: `${CUSTOMER}'s systems` });
+  await expect(list.getByRole("link", { name: /DC01/ })).toContainText("VM");
+  await list.getByRole("link", { name: /HV01/ }).click();
+  await expect(tech.getByRole("region", { name: "Runs on this host" })).toContainText("DC01");
   await menu(tech, "People").click();
   await expect(tech.getByRole("checkbox")).toHaveCount(0);
   await expect(tech.getByRole("main")).toContainText("Tor Tekniker");

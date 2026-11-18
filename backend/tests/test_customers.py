@@ -617,3 +617,71 @@ def test_a_group_lists_its_other_companies(client, admin, nordlys, person, sessi
     assert client.delete(f"{url}/{company['id']}", headers=as_astrid).json()["companies"] == []
     assert [e.action for e in audit_entries(session, "customer.company_added")] == [
         "customer.company_added"]
+
+
+# Systems
+
+
+def test_a_customers_systems_say_what_runs_on_what(client, admin, nordlys, person, session
+                                                    ) -> None:
+    _, as_astrid = person("astrid", T)
+    url = f"{CUSTOMERS}/{nordlys['id']}/systems"
+    site = nordlys["sites"][0]
+    host = client.post(url, headers=as_astrid, json={
+        "group": "servers", "type": "physical_server", "name": "HV01", "role": "Hyper-V host",
+        "site_id": site["id"], "hostname": "hv01.nordlys.local", "ip": "10.0.0.10",
+        "hardware": "Dell PowerEdge R450", "serial": "8K2J4X3", "os": "Windows Server 2022",
+        "warranty_end": "2027-06-30", "updates_itself": False,
+        "may_update_in_working_hours": False, "update_rhythm": "Every 3 months",
+    }).json()
+    hv01 = host["systems"][0]
+    assert (hv01["name"], hv01["warranty_end"], hv01["site_id"]) == (
+        "HV01", "2027-06-30", site["id"])
+    with_vm = client.post(url, headers=as_astrid, json={
+        "group": "servers", "type": "virtual_machine", "name": "DC01",
+        "role": "DC and file server", "parent_id": hv01["id"],
+    }).json()
+    dc01 = next(s for s in with_vm["systems"] if s["name"] == "DC01")
+    assert dc01["parent_id"] == hv01["id"]
+
+    # A host can't run on its own guest, nor on itself.
+    loop = client.put(f"{url}/{hv01['id']}", headers=as_astrid,
+                      json={"name": "HV01", "parent_id": dc01["id"]})
+    assert loop.status_code == 422 and "run on itself" in loop.json()["detail"]
+    itself = client.put(f"{url}/{hv01['id']}", headers=as_astrid,
+                        json={"name": "HV01", "parent_id": hv01["id"]})
+    assert itself.status_code == 422
+
+    # Retiring keeps the system, with its day; removing the host frees its guests.
+    retired = client.put(f"{url}/{dc01['id']}", headers=as_astrid, json={
+        "name": "DC01", "type": "virtual_machine", "parent_id": hv01["id"],
+        "retired_on": "2026-10-01"}).json()
+    assert next(s for s in retired["systems"] if s["name"] == "DC01")["retired_on"] == "2026-10-01"
+    after = client.delete(f"{url}/{hv01['id']}", headers=as_astrid).json()
+    assert [(s["name"], s["parent_id"]) for s in after["systems"]] == [("DC01", None)]
+    assert [e.action for e in audit_entries(session, "customer.system_added")] == [
+        "customer.system_added", "customer.system_added"]
+
+
+@pytest.mark.parametrize("change", [
+    {"type": "toaster"},
+    {"group": "kitchen"},
+    {"hostname": "not a host name"},
+    {"site_id": 999},
+    {"parent_id": 999},
+])
+def test_a_systems_kind_names_and_links_are_checked(client, admin, nordlys, change) -> None:
+    _, headers = admin
+    refused = client.post(f"{CUSTOMERS}/{nordlys['id']}/systems", headers=headers,
+                          json={"name": "SW01"} | change)
+    assert refused.status_code == 422
+
+
+def test_a_system_on_another_customers_host_is_refused(client, admin, nordlys) -> None:
+    _, headers = admin
+    other = client.post(CUSTOMERS, headers=headers, json={"name": "Fjeldstue A/S"}).json()
+    theirs = client.post(f"{CUSTOMERS}/{other['id']}/systems", headers=headers,
+                         json={"name": "HOST"}).json()["systems"][0]
+    refused = client.post(f"{CUSTOMERS}/{nordlys['id']}/systems", headers=headers,
+                          json={"name": "VM", "parent_id": theirs["id"]})
+    assert refused.status_code == 422
