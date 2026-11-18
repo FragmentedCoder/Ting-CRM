@@ -120,11 +120,11 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await menu(tech, "Systems").click();
   await tech.getByRole("button", { name: "Add a system" }).click();
   const system = tech.getByRole("dialog");
-  await system.getByLabel("Name").fill("HV01");
+  await system.getByLabel("Name", { exact: true }).fill("HV01");
   await system.getByLabel("Role").fill("Hyper-V host");
   await system.getByRole("button", { name: "Save system" }).click();
   await tech.getByRole("button", { name: "Add a system" }).click();
-  await system.getByLabel("Name").fill("DC01");
+  await system.getByLabel("Name", { exact: true }).fill("DC01");
   await system.getByLabel("Type").selectOption({ label: "Virtual machine" });
   await system.getByLabel("Runs on").selectOption({ label: "HV01" });
   await system.getByRole("button", { name: "Save system" }).click();
