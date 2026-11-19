@@ -66,6 +66,53 @@ check "an .env with an address is kept" \
 	grep -q "Using the address" <(configure_address https://other.example.internal)
 check "  unchanged" grep -qx "TING_ADDRESS=https://ting.example.internal:8443" "${ENV_FILE}"
 
+# The questions, asked as the one-line install asks them: stdin isn't the terminal, so
+# they're read from /dev/tty (script lends one), and by the installer's own process. A
+# child process reading, as inside $( ), is what Ubuntu 26.04's sudo leaves stopped for
+# good when the installer is piped into it, so read stands in to say who called it.
+cat >"${WORK}/asks.sh" <<'EOF'
+# shellcheck source=/dev/null
+. "${INSTALLER}"
+set +e
+APP_UID=$(id -u)
+hostname() { echo suggested.example.internal; }
+read() {
+	if [[ "${BASHPID}" == "$$" ]]; then echo "read by the installer itself" >&2; else echo "read by a child process" >&2; fi
+	builtin read "$@"
+}
+case "$1" in
+address)
+	configure_address "" >/dev/null
+	sed -n 's/^TING_ADDRESS=/address: /p' "${ENV_FILE}"
+	;;
+key) restore_master_key ;;
+esac
+EOF
+# What to ask, on a terminal where this gets typed; what the installer says of it.
+asked() {
+	rm -rf "${WORK}/asked"
+	mkdir -p "${WORK}/asked/etc"
+	printf '%s\n' "$2" | INSTALLER="$(dirname "$0")/../install.sh" ENV_FILE="${WORK}/asked/.env" \
+		TING_ETC="${WORK}/asked/etc" script -qec "bash ${WORK}/asks.sh $1 </dev/null" /dev/null 2>&1
+}
+said=$(asked address https://typed.example.internal)
+check "the address typed at the question is the one taken" \
+	grep -q "address: https://typed.example.internal" <<<"${said}"
+check "  read by the installer itself, not by a child process" \
+	grep -q "read by the installer itself" <<<"${said}"
+said=$(asked address "")
+check "  Enter alone takes the address suggested" \
+	grep -q "address: https://suggested.example.internal" <<<"${said}"
+said=$(asked key "${kit}")
+check "the master key typed at the question goes in place" grep -q "Put the recovery kit's" <<<"${said}"
+check "  the key typed" cmp -s "${WORK}/key" "${WORK}/asked/etc/master.key"
+check "  read by the installer itself too" grep -q "read by the installer itself" <<<"${said}"
+rm -rf "${WORK}/asked"
+said=$(INSTALLER="$(dirname "$0")/../install.sh" ENV_FILE="${WORK}/asked.env" \
+	setsid -w bash "${WORK}/asks.sh" address </dev/null 2>&1)
+check "with no terminal to ask on, the suggested address is taken, and nothing else said" \
+	test "${said}" = "address: https://suggested.example.internal"
+
 mkdir -p "${WORK}/bin"
 BIN_DIR="${WORK}/bin" link_command >/dev/null
 check "the ting command is linked onto the PATH" \

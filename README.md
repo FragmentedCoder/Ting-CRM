@@ -40,7 +40,7 @@ On an Ubuntu Server LTS VM (4 vCPU, 8 GB RAM, 100 GB disk); until the first full
 curl -fsSL https://raw.githubusercontent.com/FragmentedCoder/Ting-CRM/main/install.sh | sudo bash
 ```
 
-The installer installs Docker Engine if needed, generates the master key, downloads the release and checks its files and every image against the release's signatures, starts Þing, and prints a one-time setup token. Open the address followed by `/setup` and the wizard takes it from there: the company, the first Administrator with MFA, the recovery kit, backups, email and the certificate. Until you choose another certificate, Þing's own authority signs it: install `https://<address>/ting-root.crt` as a trusted root on each computer that uses it. Each release's notes show how to check the installer with cosign before running it.
+The installer installs Docker Engine if needed, generates the master key, downloads the release and checks its files and every image against the release's signatures, asks for Þing's address as people will type it, starts Þing, and prints a one-time setup token. To give the address up front, end the command with `| sudo bash -s -- --address https://ting.example.internal`. Open the address followed by `/setup` and the wizard takes it from there: the company, the first Administrator with MFA, the recovery kit, backups, email and the certificate. Until you choose another certificate, Þing's own authority signs it: install `https://<address>/ting-root.crt` as a trusted root on each computer that uses it. Each release's notes show how to check the installer with cosign before running it.
 
 To try the newest code, install from a checkout instead: it builds the images there.
 
