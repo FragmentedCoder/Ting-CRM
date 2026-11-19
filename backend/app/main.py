@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app import (
     account,
     admin,
+    attention,
     audit_routes,
     backup_routes,
     branding,
@@ -58,6 +59,7 @@ app.include_router(cvr.router, prefix="/api")
 app.include_router(services.router, prefix="/api")
 app.include_router(worklog_routes.router, prefix="/api")
 app.include_router(planning_routes.router, prefix="/api")
+app.include_router(attention.router, prefix="/api")
 app.include_router(mywork.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
 app.include_router(server_routes.router, prefix="/api")

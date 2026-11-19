@@ -194,3 +194,37 @@ def test_only_customers_seen_in_full_and_still_customers(client, admin, nordlys,
                         json={"status": "former", "status_date": soon(-1)})
     assert gone.status_code == 200, gone.text
     assert client.get(MY_WORK, headers=as_astrid).json()["tasks"] == []
+
+
+def test_all_customers_gets_each_ones_services_and_attention(client, admin, nordlys, person  # noqa: F811
+                                                             ) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    quiet = client.post(CUSTOMERS, headers=headers, json={"name": "Fjeldstue A/S"}).json()
+    former = client.post(CUSTOMERS, headers=headers, json={"name": "Havblik ApS"}).json()
+    client.patch(f"{CUSTOMERS}/{former['id']}", headers=headers,
+                 json={"status": "former", "status_date": soon(-1)})
+    astrid, as_astrid = person("astrid", T)
+    _, as_ulla = person("ulla", U)
+    services = with_services(client, headers, url, "support", "backup", "printers")
+    client.post(f"{url}/agreements", headers=headers, json={
+        "name": "Service agreement 2026", "status": "active", "notice_by": soon(40),
+        "sections": [{"ref": "§ 3.1", "service_id": services["Support"]["id"]}]})
+    task(client, headers, nordlys["id"], "Restore test", -2)
+    renewal(client, headers, nordlys["id"], "Firewall feature key", 20)
+
+    # Every customer she sees in full, hers or not; a former customer has no row.
+    listed = client.get("/api/attention", headers=as_astrid).json()
+    rows = {row["customer_id"]: row for row in listed}
+    assert set(rows) == {nordlys["id"], quiet["id"]}
+    assert rows[quiet["id"]] == {"customer_id": quiet["id"], "services": 0, "uncovered": 0,
+                                 "reasons": [], "more": 0}
+    needs = rows[nordlys["id"]]
+    assert (needs["services"], needs["uncovered"], needs["more"]) == (3, 2, 1)
+    assert [r["kind"] for r in needs["reasons"]] == ["tasks_overdue", "renewal_soon", "notice"]
+    # Limited to other customers, she gets none of it; an Auditor never does.
+    client.patch(f"/api/admin/users/{astrid.id}", headers=headers,
+                 json={"limited_to_assigned": True})
+    assert client.get("/api/attention", headers=as_astrid).json() == []
+    assert client.get("/api/attention", headers=as_ulla).status_code == 403
+    assert client.get("/api/attention").status_code == 401
