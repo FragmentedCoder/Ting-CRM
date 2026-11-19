@@ -20,6 +20,7 @@
   import NotebookPen from "@lucide/svelte/icons/notebook-pen";
   import Palette from "@lucide/svelte/icons/palette";
   import ScrollText from "@lucide/svelte/icons/scroll-text";
+  import Search from "@lucide/svelte/icons/search";
   import Server from "@lucide/svelte/icons/server";
   import Settings from "@lucide/svelte/icons/settings";
   import Shield from "@lucide/svelte/icons/shield-check";
@@ -33,6 +34,7 @@
   import { onMount, tick, type Component, type Snippet } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import { api } from "#lib/api.js";
+  import { isTyping, opensSearch } from "#lib/search.js";
   import { applyTheme, can, session, signOut, type SessionInfo } from "#lib/session.svelte.js";
   import { toast } from "#lib/toast.svelte.js";
   import {
@@ -46,6 +48,7 @@
   import Avatar from "./Avatar.svelte";
   import Brand from "./Brand.svelte";
   import CustomerPicker from "./CustomerPicker.svelte";
+  import SearchDialog from "./SearchDialog.svelte";
 
   // The app's frame: a side menu with the customer you're working in and its
   // sections; the page beside it. On a narrow screen the menu slides in from a
@@ -91,6 +94,7 @@
   const showAdmin = $derived(can(current, "administer") || can(current, "read_audit_log"));
   const sees = $derived(current.user.roles.length > 0);
   let menuOpen = $state(false);
+  let searchOpen = $state(false);
   let nav = $state<HTMLElement>();
 
   // The open customer's pages: Overview, then fold-out groups (docs/architecture.md,
@@ -277,6 +281,11 @@
 
 <svelte:window onkeydown={(event) => {
   if (menuOpen && event.key === "Escape") menuOpen = false;
+  // Search from every screen, for everyone who sees customers; not over an open form.
+  if (sees && !searchOpen && !document.querySelector("dialog[open]") && opensSearch(event, isTyping(event.target))) {
+    event.preventDefault();
+    searchOpen = true;
+  }
 }} />
 
 <div class="frame" class:menu-open={menuOpen}>
@@ -305,6 +314,11 @@
 
       <nav bind:this={nav} class="nav" aria-label="Main" onwheel={() => (following = false)}
         ontouchmove={() => (following = false)}>
+        {#if sees}
+          <button class="search-button" type="button" aria-keyshortcuts="Control+K" onclick={() => (searchOpen = true)}>
+            <Search size={16} aria-hidden="true" /><span>Search</span><kbd aria-hidden="true">Ctrl K</kbd>
+          </button>
+        {/if}
         <ul class="items">
           <li>{@render link({ href: resolve("/(app)"), label: "My work", icon: House, current: path === "/" })}</li>
           {#if sees}
@@ -407,6 +421,8 @@
   </div>
 </div>
 
+{#if sees}<SearchDialog bind:open={searchOpen} />{/if}
+
 <style>
   .frame {
     display: grid;
@@ -487,6 +503,36 @@
   }
   .chevron.folded {
     transform: rotate(-90deg);
+  }
+  .search-button {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 36px;
+    margin-bottom: var(--space-2);
+    padding: 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: var(--type-label);
+    cursor: pointer;
+  }
+  .search-button:hover {
+    border-color: var(--text-muted);
+    color: var(--text);
+  }
+  .search-button span {
+    flex: 1;
+    text-align: left;
+  }
+  .search-button kbd {
+    padding: 0 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: var(--type-code);
+    font-size: 11px;
   }
   .item {
     display: flex;

@@ -130,9 +130,16 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   // or who works with it, and can't delete it.
   const { context: techContext, page: tech } = await signedIn(browser, "e2e-tech", { clock: true });
   await expect(tech.getByRole("heading", { name: "My tasks" })).toBeVisible();
-  await menu(tech, "All customers").click();
-  await expect(tech).toHaveURL(/\/customers$/);
-  await tech.getByRole("main").getByRole("link", { name: CUSTOMER }).click();
+  // The phone rings: Ctrl+K finds the customer by who's calling, and a few letters of
+  // its name and Enter open it.
+  await tech.keyboard.press("Control+k");
+  const search = tech.getByRole("combobox", { name: /^Search customers/ });
+  await search.fill("sigrid");
+  await expect(tech.getByRole("option", { name: /Sigrid Holm/ })).toContainText(CUSTOMER);
+  await search.fill("fjordlys");
+  await expect(tech.getByRole("option").first()).toContainText("Customer");
+  await shot(tech, "3a-search");
+  await search.press("Enter");
   await expect(tech.getByRole("heading", { name: CUSTOMER })).toBeVisible();
   await expect(tech.getByRole("note", { name: "Pinned warnings" })).toContainText("Do not update in working hours");
   await expect(tech.getByRole("button", { name: "Pin a warning" })).toHaveCount(0);
