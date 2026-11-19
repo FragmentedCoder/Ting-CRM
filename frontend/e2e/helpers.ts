@@ -84,6 +84,10 @@ export async function signOut(page: Page): Promise<void> {
 }
 
 /** A toast on screen with this text (screen readers get a hidden copy too). */
+/** The start page's heading: a greeting for those who work with customers (My work),
+ *  a welcome for everyone else. */
+export const START_HEADING = /^(Welcome|Good (morning|afternoon|evening)), /;
+
 export function toastWith(page: Page, text: string | RegExp) {
   return page
     .getByRole("region", { name: "Notifications" })

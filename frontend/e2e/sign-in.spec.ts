@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  START_HEADING,
   addVirtualPasskey,
   saveRecoveryCodes,
   signIn,
@@ -31,13 +32,13 @@ test("first sign-in with a passkey, then signing in with it", async ({ page }) =
 
   const codes = await saveRecoveryCodes(page);
   expect(codes).toHaveLength(10);
-  await expect(page.getByRole("heading", { name: /Welcome/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: START_HEADING })).toBeVisible();
 
   await signOut(page);
   await signIn(page, "e2e-passkey");
   await expect(page).toHaveURL(/\/sign-in\/verify$/);
   await page.getByRole("button", { name: "Use passkey or security key" }).click();
-  await expect(page.getByRole("heading", { name: /Welcome/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: START_HEADING })).toBeVisible();
 
   expect(violations).toEqual([]);
 });
@@ -61,7 +62,7 @@ test("first sign-in with an authenticator app, then a recovery code, then the ap
   await page.getByRole("button", { name: "Use a recovery code instead" }).click();
   await page.getByLabel("Recovery code").fill(codes[0]);
   await page.getByRole("button", { name: "Use recovery code" }).click();
-  await expect(page.getByRole("heading", { name: /Welcome/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: START_HEADING })).toBeVisible();
   await signOut(page);
 
   await signIn(page, "e2e-app");
@@ -69,7 +70,7 @@ test("first sign-in with an authenticator app, then a recovery code, then the ap
   await expect(page.getByLabel("Code from your authenticator app")).toBeFocused();
   await page.getByLabel("Code from your authenticator app").fill(totp(secret, 1));
   await page.getByRole("button", { name: "Verify code" }).click();
-  await expect(page.getByRole("heading", { name: /Welcome/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: START_HEADING })).toBeVisible();
 
   expect(violations).toEqual([]);
 });

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn, signOut, totp } from "./helpers";
+import { START_HEADING, signIn, signOut, totp } from "./helpers";
 
 // Not assertions: screenshots of each screen in both themes and at phone width,
 // written to e2e-results/screens for a person to look over. Þing starts light
@@ -49,7 +49,7 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await page.getByLabel("I have saved these codes somewhere safe").check();
       await page.getByRole("button", { name: "Continue" }).click();
-      await page.getByRole("heading", { name: /Welcome/ }).waitFor();
+      await page.getByRole("heading", { name: START_HEADING }).waitFor();
       await shot("6-home");
 
       if (label === "phone") {

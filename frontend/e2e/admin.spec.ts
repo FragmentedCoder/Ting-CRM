@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { customSwatch } from "../src/lib/colours";
-import { setUpAuthenticatorApp, signIn, toastWith, totp, watchForCspViolations } from "./helpers";
+import { START_HEADING, setUpAuthenticatorApp, signIn, toastWith, totp, watchForCspViolations } from "./helpers";
 
 const BJORN_PASSWORD = "bjørns egen lange adgangssætning";
 
@@ -56,7 +56,8 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   test.skip(!(await setUp.isVisible()), "the breach check service could not be reached");
 
   const bjornSecret = await setUpAuthenticatorApp(bjorn);
-  await expect(bjorn.getByText("Technician", { exact: true })).toBeVisible();
+  // A Technician: My work is his start page, and there's no admin panel.
+  await expect(bjorn.getByRole("heading", { name: "My tasks" })).toBeVisible();
   await expect(bjorn.getByRole("link", { name: "Admin", exact: true })).toHaveCount(0);
   await bjorn.goto("/admin/users");
   await expect(bjorn.getByText("You don't have access to the admin panel.")).toBeVisible();
@@ -80,7 +81,7 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   await signIn(bjorn, "bjorn", BJORN_PASSWORD);
   await bjorn.getByLabel("Code from your authenticator app").fill(totp(bjornSecret, 1));
   await bjorn.getByRole("button", { name: "Verify code" }).click();
-  await expect(bjorn.getByRole("heading", { name: /Welcome/ })).toBeVisible();
+  await expect(bjorn.getByRole("heading", { name: START_HEADING })).toBeVisible();
   await adminMenu(admin, "Users").click();
   await admin.getByRole("button", { name: "Actions for Bjørn Havn" }).click();
   // The visible screen only: a full-page capture resizes the window under the open menu.

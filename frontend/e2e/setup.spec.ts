@@ -98,8 +98,11 @@ test("the setup wizard, start to finish", async ({ page }) => {
   await shot(page, "9-certificate");
   await page.getByRole("button", { name: "Save and finish setup" }).click();
 
-  await expect(page.getByRole("heading", { name: "Welcome, Ingrid Admin" })).toBeVisible();
-  await expect(page.getByText("Administrator", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Good (morning|afternoon|evening), Ingrid$/ })).toBeVisible();
+  // The first account is the Administrator: the admin panel is in its menu.
+  await expect(
+    page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Admin", exact: true }),
+  ).toBeVisible();
   await shot(page, "10-done");
   expect(violations).toEqual([]);
 });

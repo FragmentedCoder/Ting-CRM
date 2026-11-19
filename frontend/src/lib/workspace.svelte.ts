@@ -2,16 +2,21 @@ import { api } from "./api.js";
 import type { CustomerSummary } from "./customers.js";
 
 // What the side menu works from: the customers someone can pick and the one that's
-// open. Only the chosen customer's ID is remembered on this device, never its name.
+// open. Only customers' IDs are remembered on this device (the one that's open, and
+// the last few looked at), never their names.
 
 const REMEMBERED = "ting.customer";
+const RECENT = "ting.recent";
+const RECENT_KEPT = 6;
 
 export const workspace = $state<{
   customers: CustomerSummary[] | null;
   customerId: number | null;
   // Goes up on every refresh, so open pages can check they're still allowed.
   checks: number;
-}>({ customers: null, customerId: null, checks: 0 });
+  // The customers looked at last, the latest first, by ID.
+  recent: number[];
+}>({ customers: null, customerId: null, checks: 0, recent: [] });
 
 let lastRefresh = 0;
 
@@ -37,6 +42,32 @@ function remembered(): number | null {
   }
 }
 
+function recentIds(): number[] {
+  try {
+    const ids: unknown = JSON.parse(localStorage.getItem(RECENT) ?? "[]");
+    return Array.isArray(ids) ? ids.filter((id) => Number.isInteger(id) && id > 0).slice(0, RECENT_KEPT) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** A customer was opened: it goes first among the recently viewed. */
+export function noteViewed(id: number): void {
+  const before = workspace.recent.length ? workspace.recent : recentIds();
+  workspace.recent = [id, ...before.filter((seen) => seen !== id)].slice(0, RECENT_KEPT);
+  try {
+    localStorage.setItem(RECENT, JSON.stringify(workspace.recent));
+  } catch {
+    // Private windows and blocked storage: it's kept for this visit only.
+  }
+}
+
+/** The recently viewed customers someone may still open, the latest first. */
+export function recentCustomers(): CustomerSummary[] {
+  const listed = workspace.customers ?? [];
+  return workspace.recent.map((id) => listed.find((c) => c.id === id)).filter((c) => c !== undefined);
+}
+
 /** Fetch the customers again (names, counts). */
 export async function refreshWorkspace(): Promise<void> {
   lastRefresh = Date.now();
@@ -45,6 +76,7 @@ export async function refreshWorkspace(): Promise<void> {
   if (found === null && workspace.customers !== null) return;
   workspace.customers = found ?? [];
   if (workspace.customerId === null) workspace.customerId = remembered();
+  if (!workspace.recent.length) workspace.recent = recentIds();
   if (workspace.customerId !== null && !openCustomer()) workspace.customerId = null;
   workspace.checks++;
 }
@@ -87,4 +119,5 @@ export async function chooseCustomer(id: number | null) {
 export function clearWorkspace(): void {
   workspace.customers = null;
   workspace.customerId = null;
+  workspace.recent = [];
 }

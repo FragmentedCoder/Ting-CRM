@@ -9,7 +9,7 @@
   import { shareCustomer } from "#lib/context.js";
   import { formatCvr, type CustomerDetail } from "#lib/customers.js";
   import { toast } from "#lib/toast.svelte.js";
-  import { chooseCustomer, refreshWorkspace, workspace } from "#lib/workspace.svelte.js";
+  import { chooseCustomer, noteViewed, refreshWorkspace, workspace } from "#lib/workspace.svelte.js";
 
   // A customer's pages share this: the customer (loaded once per customer), its
   // header, and the side menu opened on it.
@@ -39,6 +39,7 @@
     try {
       customer = await api<CustomerDetail>("GET", `/customers/${id}`);
       error = null;
+      if (customer.visibility === "full") noteViewed(customer.id);
     } catch (e) {
       if (e instanceof ApiError && e.status === 404 && known) {
         void lost(known);
