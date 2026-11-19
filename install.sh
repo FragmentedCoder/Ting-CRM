@@ -64,17 +64,22 @@ from_checkout() {
 env_file() { printf '%s' "${ENV_FILE:-${DEPLOY_DIR}/.env}"; }
 
 # A question for whoever runs this, even with the script itself on stdin (curl | bash).
+# The answer is left in ANSWER, not printed: printed, it would be asked for inside $( ),
+# by a child process, and piped into Ubuntu 26.04's sudo (sudo-rs) that child is left
+# stopped at the question, with nothing typed ever reaching it and Ctrl+C not ending it.
+# With no terminal to ask on, the answer is empty.
+ANSWER=""
 ask() {
-	local prompt=$1 secret=${2:-} answer=""
+	local prompt=$1 secret=${2:-}
 	local options=(-p "${prompt}")
 	if [[ -n "${secret}" ]]; then options=(-s -p "${prompt}"); fi
+	ANSWER=""
 	if [[ -t 0 ]]; then
-		read -r "${options[@]}" answer
-	elif [[ -r /dev/tty ]]; then
-		read -r "${options[@]}" answer </dev/tty
+		read -r "${options[@]}" ANSWER || true
+	elif { : </dev/tty; } 2>/dev/null; then
+		read -r "${options[@]}" ANSWER </dev/tty || true
 	fi
 	if [[ -n "${secret}" ]]; then echo >&2; fi
-	printf '%s' "${answer}"
 }
 
 check_os() {
@@ -175,7 +180,9 @@ kit_to_key() {
 restore_master_key() {
 	local key_file="${TING_ETC}/master.key" text="${KIT_MASTER_KEY:-}" decoded problem
 	if [[ -z "${text}" ]]; then
-		text=$(ask "Master key from the recovery kit: " secret)
+		ask "Master key from the recovery kit: " secret
+		text=${ANSWER}
+		ANSWER=""
 	fi
 	decoded=$(mktemp)
 	if ! problem=$(kit_to_key "${text}" "${decoded}"); then
@@ -211,8 +218,8 @@ configure_address() {
 	if [[ -z "${address}" ]]; then
 		local suggested
 		suggested="https://$(hostname -f 2>/dev/null || hostname)"
-		address=$(ask "Þing's address, as people will type it [${suggested}]: ")
-		address=${address:-${suggested}}
+		ask "Þing's address, as people will type it [${suggested}]: "
+		address=${ANSWER:-${suggested}}
 	fi
 	valid_address "${address}" || die "The address must look like https://ting.example.internal (a port may follow)."
 	sed "s|^TING_ADDRESS=.*|TING_ADDRESS=${address}|" "${DEPLOY_DIR}/.env.example" >"${env}"
