@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  caseNumbers, currentVersion, customerFilters, emptySystem, formatCvr, mainRole, servicePill, supportLevel, systemGroups, mayContactLine, pinnedLine, statusPill, type CustomerService, type CustomerSummary, type Pin,
+  caseNumbers, currentVersion, customerFilters, emptySystem, formatCvr, mainRole, servicePill, supportLevel, systemGroups, mayContactLine, pinnedLine, statusLine, statusPill, systemsPreview, type CustomerService, type CustomerSummary, type Pin,
 } from "./customers.js";
 
 describe("statusPill", () => {
@@ -8,6 +8,32 @@ describe("statusPill", () => {
     expect(statusPill("active")).toEqual({ tone: "ok", text: "Active" });
     expect(statusPill("departing")).toEqual({ tone: "warning", text: "Departing" });
     expect(statusPill("former")).toEqual({ tone: "critical", text: "Former" });
+  });
+});
+
+describe("statusLine", () => {
+  it("says the status as the header does, with its day", () => {
+    const show = (day: string) => `<${day}>`;
+    expect(statusLine("active", null, show)).toEqual({ tone: "ok", text: "Active customer" });
+    expect(statusLine("departing", "2026-12-31", show)).toEqual({ tone: "warning", text: "Departing on <2026-12-31>" });
+    expect(statusLine("departing", null, show)).toEqual({ tone: "warning", text: "Departing" });
+    expect(statusLine("former", "2027-01-01", show)).toEqual({
+      tone: "critical", text: "Former customer since <2027-01-01>" });
+  });
+});
+
+describe("systemsPreview", () => {
+  it("shows hosts with their virtual machines under them, without the retired", () => {
+    const system = (id: number, name: string, extra: object = {}) => ({ ...emptySystem(), id, name, ...extra });
+    const systems = [
+      system(1, "HV01"), system(2, "DC01", { type: "virtual_machine", parent_id: 1 }),
+      system(3, "APP01", { type: "virtual_machine", parent_id: 1 }), system(4, "FW01", { group: "network" }),
+      system(5, "OLD01", { retired_on: "2025-01-01" }),
+    ];
+    const preview = systemsPreview(systems, 3);
+    expect(preview.total).toBe(4);
+    expect(preview.rows.map((r) => [r.system.name, r.guest, r.host])).toEqual([
+      ["HV01", false, true], ["DC01", true, false], ["APP01", true, false]]);
   });
 });
 

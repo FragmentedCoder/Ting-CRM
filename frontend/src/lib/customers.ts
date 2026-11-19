@@ -397,6 +397,32 @@ export function statusPill(status: CustomerStatus): { tone: "ok" | "warning" | "
   return { tone, text: STATUS_NAMES[status] };
 }
 
+/** The status as the customer's header says it: "Active customer", "Departing on
+ *  31 Dec 2026", "Former customer since 1 Jan 2027". */
+export function statusLine(status: CustomerStatus, when: string | null, show: (day: string) => string): {
+  tone: "ok" | "warning" | "critical";
+  text: string;
+} {
+  if (status === "active") return { tone: "ok", text: "Active customer" };
+  if (status === "departing") return { tone: "warning", text: when ? `Departing on ${show(when)}` : "Departing" };
+  return { tone: "critical", text: when ? `Former customer since ${show(when)}` : "Former customer" };
+}
+
+/** The systems an overview shows first: hosts with their virtual machines under
+ *  them, in the groups' order, without the retired ones. */
+export function systemsPreview(systems: System[], shown: number): {
+  rows: { system: System; guest: boolean; host: boolean }[];
+  total: number;
+} {
+  const rows = systemGroups(systems).filter((group) => group.key !== "retired").flatMap((group) => group.systems);
+  return {
+    rows: rows.slice(0, shown).map((row) => ({
+      ...row, host: systems.some((s) => s.parent_id === row.system.id && !s.retired_on),
+    })),
+    total: rows.length,
+  };
+}
+
 export type CustomerFilter = "all" | "mine" | "attention" | "departing" | "former";
 
 /** The All customers chips, each with the customers it shows; "Mine" only when
