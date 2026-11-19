@@ -8,10 +8,13 @@
   import FilterChips from "#lib/components/FilterChips.svelte";
   import Pill from "#lib/components/Pill.svelte";
   import { customerFilters, formatCvr, statusPill, type CustomerFilter, type CustomerSummary } from "#lib/customers.js";
+  import { reasonWords, servicesWords, type CustomerStanding } from "#lib/mywork.js";
+  import { today } from "#lib/planning.js";
   import { can, session } from "#lib/session.svelte.js";
 
   // All customers: every customer someone may see, found by name, CVR number or
-  // town, and narrowed to theirs or by status.
+  // town, and narrowed to theirs, to those needing attention, or by status. Those who
+  // work with customers also see each one's services and what needs attention.
   const info = $derived(session.current);
   let customers = $state<CustomerSummary[] | null>(null);
   let query = $state("");
@@ -20,8 +23,12 @@
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
   const mayAdd = $derived(can(info, "manage_customers"));
+  const works = $derived(can(info, "edit_customers"));
+  const now = today();
+  let standing = $state<Record<number, CustomerStanding> | null>(null);
+  const needing = $derived(Object.values(standing ?? {}).filter((s) => s.reasons.length).map((s) => s.customer_id));
   const overviewOnly = $derived(customers?.some((c) => c.visibility !== "full") ?? false);
-  const filters = $derived(customerFilters(customers ?? []));
+  const filters = $derived(customerFilters(customers ?? [], needing));
   const shown = $derived(filters.find((f) => f.value === filter)?.customers ?? []);
 
   async function load() {
@@ -40,6 +47,14 @@
   }
 
   onMount(load);
+
+  // Services and attention come once, beside the list: they don't change as you type.
+  $effect(() => {
+    if (!works) return;
+    api<CustomerStanding[]>("GET", "/attention")
+      .then((rows) => (standing = Object.fromEntries(rows.map((row) => [row.customer_id, row]))))
+      .catch(() => (standing = null));
+  });
 </script>
 
 <svelte:head><title>{pageTitle("All customers")}</title></svelte:head>
@@ -90,7 +105,12 @@
       <div class="section table-wrap customers">
         <table class="table">
           <thead>
-            <tr><th>Customer</th><th>Status</th><th class="roomy">Usually worked on by</th></tr>
+            <tr>
+              <th>Customer</th><th>Status</th>
+              {#if standing}<th class="roomy">Services</th>{/if}
+              <th class="roomy">Usually worked on by</th>
+              {#if standing}<th>Needs attention</th>{/if}
+            </tr>
           </thead>
           <tbody>
             {#each shown as customer (customer.id)}
@@ -112,6 +132,17 @@
                     <Pill {...statusPill(customer.status)} />
                   {/if}
                 </td>
+                {#if standing}
+                  {@const services = standing[customer.id] ? servicesWords(standing[customer.id]) : null}
+                  <td class="roomy">
+                    {#if services}
+                      <span class:muted={!standing[customer.id].services}>{services.count}</span>
+                      {#if services.uncovered}<span class="small uncovered">· {services.uncovered}</span>{/if}
+                    {:else}
+                      —
+                    {/if}
+                  </td>
+                {/if}
                 <td class="roomy">
                   {#if customer.visibility !== "full"}
                     —
@@ -121,6 +152,21 @@
                     <span class="muted">Nobody yet</span>
                   {/if}
                 </td>
+                {#if standing}
+                  {@const needs = standing[customer.id]}
+                  <td>
+                    {#if needs?.reasons.length}
+                      <span class="reasons">
+                        {#each needs.reasons as reason (reason.kind)}<Pill tone={reason.tone} text={reasonWords(reason, now)} />{/each}
+                        {#if needs.more}<span class="small muted">and {needs.more} more</span>{/if}
+                      </span>
+                    {:else if needs}
+                      <span class="muted">Nothing</span>
+                    {:else}
+                      —
+                    {/if}
+                  </td>
+                {/if}
               </tr>
             {/each}
           </tbody>
@@ -188,6 +234,17 @@
   .name,
   .where {
     display: block;
+  }
+  /* Up to three badges, one under the other, most urgent first. */
+  .reasons {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+  .uncovered {
+    color: var(--warning-text);
+    white-space: nowrap;
   }
   .name {
     font-weight: 600;

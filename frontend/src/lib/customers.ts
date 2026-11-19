@@ -397,16 +397,19 @@ export function statusPill(status: CustomerStatus): { tone: "ok" | "warning" | "
   return { tone, text: STATUS_NAMES[status] };
 }
 
-export type CustomerFilter = "all" | "mine" | "departing" | "former";
+export type CustomerFilter = "all" | "mine" | "attention" | "departing" | "former";
 
 /** The All customers chips, each with the customers it shows; "Mine" only when
- *  you usually work with any, and a status only when a customer has it. */
+ *  you usually work with any, "Needs attention" only when one does, and a status only
+ *  when a customer has it. */
 export function customerFilters(
   customers: CustomerSummary[],
+  needsAttention: number[] = [],
 ): { value: CustomerFilter; label: string; customers: CustomerSummary[] }[] {
   const all = { value: "all" as const, label: "All", customers };
   const narrower: { value: CustomerFilter; label: string; customers: CustomerSummary[] }[] = [
     { value: "mine", label: "Mine", customers: customers.filter((c) => c.mine) },
+    { value: "attention", label: "Needs attention", customers: customers.filter((c) => needsAttention.includes(c.id)) },
     { value: "departing", label: "Departing", customers: customers.filter((c) => c.status === "departing") },
     { value: "former", label: "Former", customers: customers.filter((c) => c.status === "former") },
   ];

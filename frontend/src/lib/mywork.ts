@@ -28,6 +28,28 @@ export interface Reason {
   day: string | null;
 }
 
+/** One row of All customers (backend/app/attention.py): its services, and what
+ *  needs attention. */
+export interface CustomerStanding {
+  customer_id: number;
+  /** Active services, and how many of them no agreement covers. */
+  services: number;
+  uncovered: number;
+  reasons: Reason[];
+  more: number;
+}
+
+/** "3 · 1 without agreement": a customer's services in a table cell. */
+export function servicesWords(standing: Pick<CustomerStanding, "services" | "uncovered">): {
+  count: string;
+  uncovered: string | null;
+} {
+  return {
+    count: standing.services ? String(standing.services) : "None yet",
+    uncovered: standing.uncovered ? `${standing.uncovered} without agreement` : null,
+  };
+}
+
 export interface Attention {
   customer_id: number;
   customer: string;

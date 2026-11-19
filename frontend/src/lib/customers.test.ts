@@ -38,6 +38,11 @@ describe("customerFilters", () => {
       ["former", ["Grenaa Bådeværft"]],
     ]);
     expect(customerFilters([customer("Birkely")]).map((f) => f.value)).toEqual(["all"]);
+    // Needs attention, for the customers that do.
+    const needing = customerFilters([nordlys, strand, grenaa], [strand.id]);
+    expect(needing.map((f) => [f.value, f.customers.length])).toEqual([
+      ["all", 3], ["mine", 1], ["attention", 1], ["departing", 1], ["former", 1]]);
+    expect(needing[2].customers[0].name).toBe("Strandvejens Revision");
   });
 });
 

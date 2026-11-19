@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstName, greeting, reasonWords, type Reason } from "./mywork.js";
+import { firstName, greeting, reasonWords, servicesWords, type Reason } from "./mywork.js";
 
 const NOW = "2026-11-18";
 const reason = (kind: Reason["kind"], extra: Partial<Reason> = {}): Reason => ({
@@ -24,6 +24,14 @@ describe("why a customer needs attention", () => {
       "Notice by 28 Dec 2026: Service agreement 2026");
     expect(reasonWords(reason("uncovered", { what: "Backup" }), NOW)).toBe("No agreement: Backup");
     expect(reasonWords(reason("uncovered", { count: 2, what: "Backup" }), NOW)).toBe("2 services without agreement");
+  });
+});
+
+describe("a customer's services in the list", () => {
+  it("are counted, with how many have no agreement", () => {
+    expect(servicesWords({ services: 3, uncovered: 1 })).toEqual({ count: "3", uncovered: "1 without agreement" });
+    expect(servicesWords({ services: 2, uncovered: 0 })).toEqual({ count: "2", uncovered: null });
+    expect(servicesWords({ services: 0, uncovered: 0 })).toEqual({ count: "None yet", uncovered: null });
   });
 });
 
