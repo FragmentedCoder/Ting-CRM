@@ -210,9 +210,10 @@
       display: none;
     }
   }
+  /* The search and the chips side by side: a section stacks its parts unless told. */
   .filters {
     display: flex;
-    flex-wrap: wrap;
+    flex-flow: row wrap;
     gap: var(--space-3);
     align-items: center;
   }
