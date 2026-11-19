@@ -131,6 +131,7 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   const { context: techContext, page: tech } = await signedIn(browser, "e2e-tech", { clock: true });
   await expect(tech.getByRole("heading", { name: "My tasks" })).toBeVisible();
   await menu(tech, "All customers").click();
+  await expect(tech).toHaveURL(/\/customers$/);
   await tech.getByRole("main").getByRole("link", { name: CUSTOMER }).click();
   await expect(tech.getByRole("heading", { name: CUSTOMER })).toBeVisible();
   await expect(tech.getByRole("note", { name: "Pinned warnings" })).toContainText("Do not update in working hours");
@@ -258,8 +259,8 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   // deleting, and no admin panel.
   const { context: managerContext, page: manager } = await signedIn(browser, "e2e-manager");
   await expect(manager.getByRole("heading", { name: "For Managers" })).toBeVisible();
-  await menu(manager, "All customers").click();
-  await manager.getByRole("main").getByRole("link", { name: CUSTOMER }).click();
+  // The renewal nobody has decided on yet puts the customer among those needing attention.
+  await manager.getByRole("region", { name: "Customers needing attention" }).getByRole("link", { name: CUSTOMER }).click();
   await menu(manager, "Customer settings").click();
   await expect(manager.getByLabel("Keep its records for")).toBeVisible();
   await expect(manager.getByRole("heading", { name: "Logo" })).toBeVisible();
