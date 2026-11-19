@@ -22,6 +22,12 @@ updates:
     directories: [/backend, /deploy]
     schedule:
       interval: weekly
+    ignore:
+      # The database driver (sqlcipher3-binary) ships a build for each Python version, and
+      # has none for 3.15 yet, so the backend image can't be built on it. Take this out when
+      # https://pypi.org/project/sqlcipher3-binary/#files lists cp315.
+      - dependency-name: python
+        versions: [">= 3.15, < 3.16"]
 
   - package-ecosystem: github-actions
     directory: /
