@@ -4,6 +4,7 @@
 # the web wizard.
 #
 #   curl -fsSL https://raw.githubusercontent.com/FragmentedCoder/Ting-CRM/main/install.sh | sudo bash
+#   curl -fsSL ... | sudo bash -s -- --address https://ting.example.internal
 #   sudo bash install.sh [--address https://ting.example.internal]
 #   sudo bash install.sh --restore-master-key    (a new server, from the recovery kit)
 #
@@ -370,7 +371,7 @@ start_stack() {
 		log "Building and starting Þing (the first build takes a few minutes)."
 		compose up -d --build
 	else
-		log "Pulling and starting Þing."
+		log "Downloading Þing's images and starting it. That takes a few minutes, with nothing shown meanwhile."
 		compose pull --quiet
 		compose up -d
 	fi
