@@ -343,9 +343,13 @@
     color: var(--text-muted);
     font: var(--type-body-sm);
   }
+  /* In the sans face: Marcellus draws 0 and 1 like the letters O and I. */
   .count dd {
     margin: 0;
     font: var(--type-heading);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
   .count.critical dd {
     color: var(--critical-text);
