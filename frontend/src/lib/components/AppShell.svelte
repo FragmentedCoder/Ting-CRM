@@ -2,6 +2,7 @@
   import { afterNavigate } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
+  import CalendarClock from "@lucide/svelte/icons/calendar-clock";
   import Contact from "@lucide/svelte/icons/contact";
   import HeartPulse from "@lucide/svelte/icons/heart-pulse";
   import House from "@lucide/svelte/icons/house";
@@ -109,11 +110,13 @@
     const systems = resolve("/(app)/customers/[id]/systems", { id });
     const services = resolve("/(app)/customers/[id]/services", { id });
     const agreements = resolve("/(app)/customers/[id]/agreements", { id });
+    const timeline = resolve("/(app)/customers/[id]/timeline", { id });
     const workLog = resolve("/(app)/customers/[id]/log", { id });
     const people = resolve("/(app)/customers/[id]/people", { id });
     return [
       { href: base, label: "Overview", icon: LayoutDashboard, current: path === base },
       { key: "timeline-and-work-log", label: "Timeline and work log", icon: History, items: [
+        { href: timeline, label: "Timeline", icon: CalendarClock, current: path === timeline },
         { href: workLog, label: "Work log", icon: NotebookPen, current: path === workLog },
       ] },
       { key: "contacts-and-systems", label: "Contacts and systems", icon: Contact, items: [

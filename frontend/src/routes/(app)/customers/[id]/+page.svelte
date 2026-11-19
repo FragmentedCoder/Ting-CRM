@@ -11,13 +11,16 @@
   import ContactCard from "#lib/components/ContactCard.svelte";
   import Dialog from "#lib/components/Dialog.svelte";
   import LogWorkDialog from "#lib/components/LogWorkDialog.svelte";
+  import PlanningDialogs from "#lib/components/PlanningDialogs.svelte";
   import { sharedCustomer } from "#lib/context.js";
   import Pill from "#lib/components/Pill.svelte";
   import {
     PINS_PER_CUSTOMER, caseNumbers, currentVersion, pinnedLine, servicePill, supportLevel,
     type CustomerDetail, type CustomerService, type Pin as PinRecord,
   } from "#lib/customers.js";
+  import { decisionPill, dueTone, dueWords, today } from "#lib/planning.js";
   import { CASE_KINDS, showValue } from "#lib/services.js";
+  import { TIMELINE_TYPES, shortDay, timelineItems } from "#lib/timeline.js";
   import { LOG_KINDS, type LogEntry } from "#lib/worklog.js";
   import { date, dateTime } from "#lib/format.js";
   import { toast } from "#lib/toast.svelte.js";
@@ -33,6 +36,14 @@
   const services = $derived(customer?.services ?? []);
   const support = $derived(supportLevel(services));
   const cases = $derived(caseNumbers(services));
+
+  // What's coming up: the next tasks, renewals and agreement dates, the soonest
+  // (and what's overdue) first.
+  const now = today();
+  let planning = $state<ReturnType<typeof PlanningDialogs>>();
+  const coming = $derived(customer
+    ? timelineItems(customer, [], now).filter((item) => item.state !== "done").reverse() : []);
+  const COMING_SHOWN = 6;
 
   // Logging work: one line straight from the overview, or the full form.
   let logOpen = $state(false);
@@ -256,7 +267,7 @@
         <label class="visually-hidden" for="quick-log">Log work</label>
         <input id="quick-log" class="input" maxlength="2000" bind:value={quick}
           placeholder="What did you do? For example: replaced the switch in the server room" />
-        <button class="button button-accent" type="submit" disabled={logging || !quick.trim()}>Log work</button>
+        <button class="button button-primary" type="submit" disabled={logging || !quick.trim()}>Log work</button>
         <button class="button button-secondary" type="button" onclick={() => (logOpen = true)}>More…</button>
       </form>
     {/if}
@@ -279,6 +290,50 @@
     {/if}
   </section>
   <LogWorkDialog bind:open={logOpen} {customer} onsaved={refresh} />
+
+  <section class="section services" aria-labelledby="coming-title">
+    <div class="heading-row">
+      <h2 class="section-title" id="coming-title">Coming up</h2>
+      <span class="coming-actions">
+        <a class="small" href={resolve("/(app)/customers/[id]/timeline", { id })}>Timeline</a>
+        {#if customer.may_edit}
+          <button class="button button-accent" type="button" onclick={() => planning?.newTask()}>
+            <Plus size={16} aria-hidden="true" />New task
+          </button>
+        {/if}
+      </span>
+    </div>
+    {#if coming.length}
+      <ul class="coming">
+        {#each coming.slice(0, COMING_SHOWN) as item (item.key)}
+          <li>
+            <span class="coming-when">
+              <span class="small mono">{shortDay(item.day)}</span>
+              <Pill tone={dueTone(item.day, now)} text={dueWords(item.day, now)} />
+            </span>
+            <span class="work-body">
+              <span class="coming-title">
+                <Pill tone="info" text={TIMELINE_TYPES[item.type]} />
+                {#if item.renewal}<Pill {...decisionPill(item.renewal, now)} />{/if}
+                <span>{item.title}</span>
+              </span>
+              {#if item.detail}<span class="small muted">{item.detail}</span>{/if}
+            </span>
+            {#if customer.may_edit && item.task}
+              {@const task = item.task}
+              <button class="button button-secondary" type="button" onclick={() => planning?.finishTask(task)}>Mark done</button>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+      {#if coming.length > COMING_SHOWN}
+        <p class="small muted">And {coming.length - COMING_SHOWN} more on the timeline.</p>
+      {/if}
+    {:else}
+      <p class="muted">Nothing planned.</p>
+    {/if}
+  </section>
+  <PlanningDialogs bind:this={planning} {customer} onchanged={shared.use} />
 
   <div class="grid">
     {#if gettingStarted}
@@ -414,6 +469,45 @@
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-3);
+  }
+  .coming-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  .coming {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .coming li {
+    display: grid;
+    grid-template-columns: minmax(9rem, auto) minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-2) 0;
+  }
+  .coming li + li {
+    border-top: 1px solid var(--border);
+  }
+  .coming-when {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+  .coming-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  @media (max-width: 640px) {
+    .coming li {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
   .quick {
     display: flex;

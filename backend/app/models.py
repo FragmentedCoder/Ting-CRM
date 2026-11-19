@@ -9,6 +9,7 @@ import app.customer_services
 import app.customers
 import app.images
 import app.jobs
+import app.planning
 import app.policy
 import app.roles
 import app.services
