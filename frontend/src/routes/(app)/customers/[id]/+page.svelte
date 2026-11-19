@@ -15,7 +15,8 @@
   import { sharedCustomer } from "#lib/context.js";
   import Pill from "#lib/components/Pill.svelte";
   import {
-    PINS_PER_CUSTOMER, caseNumbers, currentVersion, pinnedLine, servicePill, supportLevel,
+    PINS_PER_CUSTOMER, SYSTEM_TYPES, caseNumbers, currentVersion, pinnedLine, servicePill, supportLevel,
+    systemsPreview,
     type CustomerDetail, type CustomerService, type Pin as PinRecord,
   } from "#lib/customers.js";
   import { decisionPill, dueTone, dueWords, today } from "#lib/planning.js";
@@ -35,6 +36,8 @@
   const decider = $derived(customer?.contacts?.find((c) => c.roles.includes("decision_maker")) ?? null);
   const services = $derived(customer?.services ?? []);
   const support = $derived(supportLevel(services));
+  // The systems at a glance: hosts with their virtual machines under them.
+  const systems = $derived(systemsPreview(customer?.systems ?? [], 8));
   const cases = $derived(caseNumbers(services));
 
   // What's coming up: the next tasks, renewals and agreement dates, the soonest
@@ -335,6 +338,31 @@
   </section>
   <PlanningDialogs bind:this={planning} {customer} onchanged={shared.use} />
 
+  <section class="section services" aria-labelledby="systems-title">
+    <div class="heading-row">
+      <h2 class="section-title" id="systems-title">Systems</h2>
+      <a class="small" href={resolve("/(app)/customers/[id]/systems", { id })}>
+        {systems.total ? `All ${systems.total}` : "Systems"}
+      </a>
+    </div>
+    {#if systems.rows.length}
+      <ul class="systems">
+        {#each systems.rows as { system, guest, host } (system.id)}
+          <li class:guest>
+            <span class="system-name">
+              <span class="mono strong">{system.name}</span>
+              {#if host}<Pill tone="neutral" text="Host" />{/if}
+              {#if system.type === "virtual_machine"}<Pill tone="info" text="VM" />{/if}
+            </span>
+            <span class="small muted">{system.role || SYSTEM_TYPES[system.type]}</span>
+          </li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="muted">No systems recorded yet.</p>
+    {/if}
+  </section>
+
   <div class="grid">
     {#if gettingStarted}
       <section class="section wide" aria-labelledby="start-title">
@@ -469,6 +497,34 @@
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-3);
+  }
+  .systems {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .systems li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-2) 0;
+  }
+  .systems li + li {
+    border-top: 1px solid var(--border);
+  }
+  /* A virtual machine sits under its host. */
+  .systems .guest {
+    padding-left: var(--space-6);
+  }
+  .system-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
   }
   .coming-actions {
     display: flex;

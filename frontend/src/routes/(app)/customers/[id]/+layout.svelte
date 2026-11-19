@@ -5,9 +5,11 @@
   import Building from "@lucide/svelte/icons/building";
   import { untrack, type Snippet } from "svelte";
   import { api, ApiError, sessionGone } from "#lib/api.js";
+  import Pill from "#lib/components/Pill.svelte";
   import RecordHeader from "#lib/components/RecordHeader.svelte";
   import { shareCustomer } from "#lib/context.js";
-  import { formatCvr, type CustomerDetail } from "#lib/customers.js";
+  import { formatCvr, statusLine, type CustomerDetail } from "#lib/customers.js";
+  import { date } from "#lib/format.js";
   import { toast } from "#lib/toast.svelte.js";
   import { chooseCustomer, noteViewed, refreshWorkspace, workspace } from "#lib/workspace.svelte.js";
 
@@ -92,8 +94,20 @@
     </div>
   {:else if customer}
     <RecordHeader kind="Customer" title={customer.name} icon={Building} image={customer.logo_url}>
-      {#if customer.visibility === "full" && customer.cvr}
-        <p class="small muted">CVR <span class="mono">{formatCvr(customer.cvr)}</span></p>
+      {#if customer.visibility === "full"}
+        <!-- Who it is in a line, then its status: what the first glance needs. -->
+        <p class="small muted about">
+          {#if customer.cvr}<span>CVR <span class="mono">{formatCvr(customer.cvr)}</span></span>{/if}
+          {#if customer.companies?.length}
+            <span>{customer.companies.length === 1 ? `With ${customer.companies[0].name}`
+              : `${customer.companies.length} group companies`}</span>
+          {/if}
+          {#if customer.address}<span>{customer.address.split(/\n+/).map((line) => line.trim()).filter(Boolean).join(", ")}</span>{/if}
+          {#if customer.worked_on_by?.length}<span>Usually worked on by {customer.worked_on_by.join(", ")}</span>{/if}
+        </p>
+        {#if customer.status}
+          <p class="badges"><Pill {...statusLine(customer.status, customer.status_date, date)} /></p>
+        {/if}
       {/if}
     </RecordHeader>
 
@@ -110,3 +124,22 @@
     {/if}
   {/if}
 </main>
+
+<style>
+  /* One line that wraps, its parts told apart by a dot. */
+  .about {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-2);
+  }
+  .about > span + span::before {
+    margin-right: var(--space-2);
+    content: "·";
+  }
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+</style>

@@ -49,6 +49,9 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(toastWith(boss, "with its own encryption key")).toBeVisible();
   await expect(boss.getByRole("heading", { name: CUSTOMER })).toBeVisible();
   await expect(boss.getByRole("main").getByText("12 34 56 78")).toBeVisible();
+  // Its header says who it is in a line (the address on one line), and its status under it.
+  await expect(boss.getByRole("main")).toContainText("Havnegade 4, 8000 Aarhus C");
+  await expect(boss.getByRole("main")).toContainText("Active customer");
   await expect(boss.getByRole("button", { name: `Customer ${CUSTOMER}` })).toBeVisible();
   await expect(menu(boss, "Overview")).toHaveAttribute("aria-current", "page");
 
@@ -257,6 +260,22 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await tech.getByRole("button", { name: "Mark “Order a spare switch” as done" }).click();
   await tech.getByRole("dialog").getByRole("button", { name: "Mark done" }).click();
   await expect(mine).not.toContainText("Order a spare switch");
+  // All customers has it at a glance: one service, covered, and the renewal nobody has
+  // decided on; the chip narrows the list to the customers that need attention.
+  await menu(tech, "All customers").click();
+  const listed = tech.getByRole("row", { name: /Fjordlys Energi/ });
+  await expect(listed).toContainText(/Renewal in \d+ days: Firewall feature key/);
+  await expect(listed.getByRole("cell").nth(2)).toHaveText("1");
+  await tech.getByRole("group", { name: "Show" }).getByRole("button", { name: /Needs attention/ }).click();
+  await expect(listed).toBeVisible();
+  await shot(tech, "3e-all-customers");
+  // The overview previews the systems: the virtual machine under its host.
+  await listed.getByRole("link", { name: CUSTOMER }).click();
+  const systems = tech.getByRole("region", { name: "Systems" });
+  await expect(systems).toContainText("HV01");
+  await expect(systems.getByRole("listitem").filter({ hasText: "DC01" })).toContainText("VM");
+  await expect(systems.getByRole("link", { name: "All 2" })).toBeVisible();
+  await shot(tech, "3f-overview");
   await menu(tech, "People").click();
   await expect(tech.getByRole("checkbox")).toHaveCount(0);
   await expect(tech.getByRole("main")).toContainText("Tor Tekniker");
