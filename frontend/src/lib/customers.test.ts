@@ -1,7 +1,35 @@
 import { describe, expect, it } from "vitest";
 import {
-  caseNumbers, currentVersion, customerFilters, emptySystem, formatCvr, mainRole, servicePill, supportLevel, systemGroups, mayContactLine, pinnedLine, statusLine, statusPill, systemsPreview, type CustomerService, type CustomerSummary, type Pin,
+  caseNumbers, currentVersion, customerFilters, emptySystem, findPeople, formatCvr, mainRole, otherCustomers, samePeople, servicePill, supportLevel, systemGroups, mayContactLine, pinnedLine, statusLine, statusPill, systemsPreview, type CustomerService, type CustomerSummary, type Pin,
 } from "./customers.js";
+
+describe("choosing who works with a customer", () => {
+  it("says what else a technician has, leaving out the customer at hand", () => {
+    expect(otherCustomers({ customers: 0 }, false)).toBe("No other customers");
+    expect(otherCustomers({ customers: 1 }, true)).toBe("No other customers");
+    expect(otherCustomers({ customers: 1 }, false)).toBe("1 other customer");
+    expect(otherCustomers({ customers: 5 }, true)).toBe("4 other customers");
+    expect(otherCustomers({ customers: null }, false)).toBe("No other customers");
+  });
+
+  it("finds people by part of their name or username, whatever the case", () => {
+    const people = [
+      { display_name: "Astrid Fjeld", username: "astrid" },
+      { display_name: "Bo Bager", username: "bob" },
+    ];
+    expect(findPeople(people, "")).toEqual(people);
+    expect(findPeople(people, "  FJE ")).toEqual([people[0]]);
+    expect(findPeople(people, "bob")).toEqual([people[1]]);
+    expect(findPeople(people, "nobody")).toEqual([]);
+  });
+
+  it("knows the same people in another order", () => {
+    expect(samePeople([1, 2], [2, 1])).toBe(true);
+    expect(samePeople([1, 2], [1])).toBe(false);
+    expect(samePeople([1, 2], [1, 3])).toBe(false);
+    expect(samePeople([], [])).toBe(true);
+  });
+});
 
 describe("statusPill", () => {
   it("shows every status as a word in its colour", () => {

@@ -67,6 +67,7 @@ from app.images import (
     IMAGE_HEADERS,
     LOGO_SIZE,
     ImageRejected,
+    avatar_url,
     clean_image,
     image_version,
     load_image,
@@ -227,6 +228,11 @@ class Person(BaseModel):
     username: str
     display_name: str
     roles: list[Role]
+    avatar_url: str | None = None
+    # For whoever chooses the customer's technicians: how many customers each one is
+    # assigned to, and whether those are the only ones they see.
+    customers: int | None = None
+    limited: bool | None = None
 
 
 class CustomerSummary(BaseModel):
@@ -365,12 +371,22 @@ def _summary(db: Session, keyring: Keyring, customer: Customer, level: Visibilit
     return fields
 
 
-def _people(db: Session, user_ids: list[int]) -> list[Person]:
+def _people(db: Session, user_ids: list[int], *, to_choose: bool = False) -> list[Person]:
+    """The people, by name. To choose among them, each also says how many customers
+    they're assigned to and whether they're limited to those."""
     if not user_ids:
         return []
     users = db.scalars(select(User).where(User.id.in_(user_ids)).order_by(User.display_name))
+    held: dict[int, int] = {}
+    if to_choose:
+        # A Result has keys(), so dict() would take it for a mapping: unpack the rows.
+        held = {user_id: count for user_id, count in db.execute(
+            select(CustomerAssignment.user_id, func.count())
+            .group_by(CustomerAssignment.user_id))}
     return [Person(id=u.id, username=u.username, display_name=u.display_name,
-                   roles=sorted(roles_of(db, u.id))) for u in users]
+                   roles=sorted(roles_of(db, u.id)), avatar_url=avatar_url(db, u.id),
+                   customers=held.get(u.id, 0) if to_choose else None,
+                   limited=u.limited_to_assigned if to_choose else None) for u in users]
 
 
 def _assignable_ids(db: Session) -> list[int]:
@@ -459,7 +475,7 @@ def _detail(db: Session, record: UserSession, keyring: Keyring, customer: Custom
         may_manage_agreements=can(roles, Capability.MANAGE_AGREEMENTS),
         may_edit=may_edit(roles),
         may_delete=may_delete(roles),
-        assignable=_people(db, _assignable_ids(db)) if manage else None,
+        assignable=_people(db, _assignable_ids(db), to_choose=True) if manage else None,
     )
 
 
