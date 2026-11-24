@@ -332,6 +332,30 @@ export interface Person {
   username: string;
   display_name: string;
   roles: Role[];
+  avatar_url: string | null;
+  /** For whoever chooses the customer's technicians: how many customers this one is
+      assigned to, and whether those are the only ones they see. */
+  customers: number | null;
+  limited: boolean | null;
+}
+
+/** What else a technician has, beside the customer they're being chosen for. */
+export function otherCustomers(person: Pick<Person, "customers">, assignedHere: boolean): string {
+  const others = Math.max((person.customers ?? 0) - (assignedHere ? 1 : 0), 0);
+  if (others === 0) return "No other customers";
+  return others === 1 ? "1 other customer" : `${others} other customers`;
+}
+
+/** The people a name, or part of one, finds: by their name or their username. */
+export function findPeople<P extends Pick<Person, "display_name" | "username">>(people: P[], words: string): P[] {
+  const wanted = words.trim().toLocaleLowerCase();
+  if (!wanted) return people;
+  return people.filter((p) => `${p.display_name} ${p.username}`.toLocaleLowerCase().includes(wanted));
+}
+
+/** Whether two choices of people are the same people, in any order. */
+export function samePeople(one: number[], other: number[]): boolean {
+  return one.length === other.length && one.every((id) => other.includes(id));
 }
 
 export interface CustomerSummary {

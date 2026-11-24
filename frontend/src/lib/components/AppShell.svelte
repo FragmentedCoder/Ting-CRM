@@ -619,23 +619,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .icon-button {
-    display: grid;
-    flex: none;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: none;
-    color: var(--text-muted);
-    cursor: pointer;
-  }
-  .icon-button:hover {
-    background: var(--surface-subtle);
-    color: var(--text);
-  }
   .content {
     min-width: 0;
   }

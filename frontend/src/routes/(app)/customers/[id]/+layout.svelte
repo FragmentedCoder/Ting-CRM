@@ -86,6 +86,10 @@
   });
 </script>
 
+{#snippet statusBadges()}
+  {#if customer?.status}<Pill {...statusLine(customer.status, customer.status_date, date)} />{/if}
+{/snippet}
+
 <main class="page-content">
   {#if error}
     <div>
@@ -93,9 +97,11 @@
       <p class="alert alert-critical" role="alert">{error}</p>
     </div>
   {:else if customer}
-    <RecordHeader kind="Customer" title={customer.name} icon={Building} image={customer.logo_url}>
+    <RecordHeader kind="Customer" title={customer.name} icon={Building} image={customer.logo_url}
+      badges={customer.visibility === "full" && customer.status ? statusBadges : undefined}>
       {#if customer.visibility === "full"}
-        <!-- Who it is in a line, then its status: what the first glance needs. -->
+        <!-- Who it is in a line: what the first glance needs, with its status across
+             from the name. -->
         <p class="small muted about">
           {#if customer.cvr}<span>CVR <span class="mono">{formatCvr(customer.cvr)}</span></span>{/if}
           {#if customer.companies?.length}
@@ -105,9 +111,6 @@
           {#if customer.address}<span>{customer.address.split(/\n+/).map((line) => line.trim()).filter(Boolean).join(", ")}</span>{/if}
           {#if customer.worked_on_by?.length}<span>Usually worked on by {customer.worked_on_by.join(", ")}</span>{/if}
         </p>
-        {#if customer.status}
-          <p class="badges"><Pill {...statusLine(customer.status, customer.status_date, date)} /></p>
-        {/if}
       {/if}
     </RecordHeader>
 
@@ -135,11 +138,5 @@
   .about > span + span::before {
     margin-right: var(--space-2);
     content: "·";
-  }
-  .badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-top: var(--space-2);
   }
 </style>

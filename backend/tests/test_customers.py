@@ -321,6 +321,28 @@ def test_only_active_technicians_are_assigned(
     assert [e.details for e in unassigned] == ['{"user":"astrid"}']
 
 
+def test_choosing_technicians_shows_their_customers_and_limits(
+    client, admin, nordlys, person
+) -> None:
+    _, headers = admin
+    other = client.post(CUSTOMERS, headers=headers, json={"name": "Fjeldstue A/S"}).json()
+    astrid, as_astrid = person("astrid", T)
+    bo, _ = person("bo", T)
+    assign(client, admin, other["id"], bo)
+    client.patch(f"/api/admin/users/{astrid.id}", headers=headers,
+                 json={"limited_to_assigned": True})
+    detail = assign(client, admin, nordlys["id"], astrid, bo)
+    # Whoever chooses sees how many customers each technician has, and who sees only
+    # the customers they're assigned to.
+    assert [(p["username"], p["customers"], p["limited"]) for p in detail["assignable"]] == [
+        ("astrid", 1, True), ("bo", 2, False)]
+    # Everyone else sees who's assigned, and no more about them.
+    seen = client.get(f"{CUSTOMERS}/{nordlys['id']}", headers=as_astrid).json()
+    assert seen["assignable"] is None
+    assert [(p["username"], p["customers"], p["limited"]) for p in seen["assigned"]] == [
+        ("astrid", None, None), ("bo", None, None)]
+
+
 def test_a_logo_is_shown_only_to_those_who_see_the_customer(
     client, admin, nordlys, person
 ) -> None:

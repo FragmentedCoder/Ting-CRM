@@ -6,7 +6,8 @@
   // A contact, the same everywhere (docs/architecture.md, shared parts): name and
   // role badge, their title, phone, email, and whether we may contact them. Inside a
   // site card it's white with a border. The heather dots along the right edge are
-  // decoration; the text keeps clear of them.
+  // decoration; the text keeps clear of them, and the card's menu, when it has one,
+  // sits in the top right corner on a patch of the card's own colour.
   let {
     contact,
     inset = false,
@@ -21,8 +22,8 @@
   <div class="top">
     <span class="name">{contact.name}</span>
     {#if role}<Pill tone="info" text={role} />{/if}
-    {#if actions}<span class="actions">{@render actions()}</span>{/if}
   </div>
+  {#if actions}<span class="actions">{@render actions()}</span>{/if}
   <span class="line muted">{contact.role || "No title"}</span>
   {#if contact.phone}
     <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a phone number, not a page -->
@@ -93,7 +94,14 @@
     font-weight: 600;
   }
   .actions {
-    margin-left: auto;
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+  }
+  .inset .actions {
+    background: var(--surface);
   }
   .line {
     overflow: hidden;

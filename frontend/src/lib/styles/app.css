@@ -95,6 +95,38 @@ a {
   color: var(--text-muted);
 }
 
+/* A long form's fields side by side: four across in a wide dialog, two in a narrow
+   one, one on a phone. `span-2` and `span-all` take more of the row. */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-3);
+  align-items: start;
+}
+
+.field-grid > .span-2 {
+  grid-column: span 2;
+}
+
+.field-grid > .span-all {
+  grid-column: 1 / -1;
+}
+
+@container dialog (max-width: 760px) {
+  .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container dialog (max-width: 420px) {
+  .field-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .field-grid > .span-2 {
+    grid-column: auto;
+  }
+}
+
 .input {
   width: 100%;
   min-height: 44px;
@@ -104,6 +136,13 @@ a {
   background: var(--surface);
   color: var(--text);
   font: var(--type-body);
+}
+
+/* One height for every one-line box, so fields side by side line up: a browser
+   draws its lists and dates a little shorter or taller than its text boxes. */
+input.input,
+select.input {
+  height: 46px;
 }
 
 .input:focus-visible {
@@ -158,6 +197,27 @@ a {
 
 .button-block {
   width: 100%;
+}
+
+/* A button that's only an icon (remove this line, close, sign out): its name is
+   its aria-label. */
+.icon-button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
 }
 
 .link-button {
@@ -250,10 +310,22 @@ a {
   text-decoration: underline;
 }
 
+/* A group of choices or fields under one heading (a fieldset and its legend). */
 .checks {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* The heading breaks the border with a little air, and lines up with what's under it. */
+.checks > legend {
+  margin-left: calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
 }
 
 .check {
