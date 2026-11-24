@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 import { setUpAuthenticatorApp, signIn, toastWith, totp, watchForCspViolations } from "./helpers";
 
 const CUSTOMER = "Fjordlys Energi A/S";
@@ -22,6 +22,13 @@ async function openUnder(page: Page, groupName: string, name: string) {
 }
 
 const openContacts = (page: Page) => openUnder(page, "Contacts and systems", "Contacts and sites");
+
+/** Where something is on the page: its edges, in pixels. */
+async function edges(part: Locator) {
+  const box = await part.boundingBox();
+  if (!box) throw new Error("Not on the page.");
+  return { left: box.x, right: box.x + box.width, top: box.y, bottom: box.y + box.height, width: box.width };
+}
 
 /** Someone signed in, in a browser of their own, with an authenticator app set up. */
 async function signedIn(browser: Browser, username: string, options: { clock?: boolean } = {}) {
@@ -49,9 +56,16 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(toastWith(boss, "with its own encryption key")).toBeVisible();
   await expect(boss.getByRole("heading", { name: CUSTOMER })).toBeVisible();
   await expect(boss.getByRole("main").getByText("12 34 56 78")).toBeVisible();
-  // Its header says who it is in a line (the address on one line), and its status under it.
+  // Its header says who it is in a line (the address on one line), with its status
+  // across from the name: on the name's line, at the header's right edge.
   await expect(boss.getByRole("main")).toContainText("Havnegade 4, 8000 Aarhus C");
-  await expect(boss.getByRole("main")).toContainText("Active customer");
+  const header = boss.getByRole("main").locator("header");
+  const name = await edges(header.getByRole("heading", { name: CUSTOMER }));
+  const status = await edges(header.getByText("Active customer"));
+  expect(status.left).toBeGreaterThan(name.right);
+  expect(Math.abs(status.right - (await edges(header)).right)).toBeLessThan(2);
+  expect((status.top + status.bottom) / 2).toBeGreaterThan(name.top);
+  expect((status.top + status.bottom) / 2).toBeLessThan(name.bottom);
   await expect(boss.getByRole("button", { name: `Customer ${CUSTOMER}` })).toBeVisible();
   await expect(menu(boss, "Overview")).toHaveAttribute("aria-current", "page");
 
@@ -75,15 +89,30 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   const hovedkontor = boss.getByRole("listitem").filter({ hasText: "Hovedkontor" });
   await expect(hovedkontor).toContainText("Contact at this site");
   await expect(hovedkontor).toContainText("Technical contact");
-  await expect(boss.getByRole("region", { name: "For the whole company" }).getByText("sigrid@fjordlys.example")).toBeVisible();
+  const card = boss.getByRole("region", { name: "For the whole company" }).getByRole("listitem").filter({ hasText: "Sigrid Holm" });
+  await expect(card.getByText("sigrid@fjordlys.example")).toBeVisible();
+  // The card's menu is in its top right corner.
+  const corner = await edges(card);
+  const more = await edges(card.getByRole("button", { name: "Actions for Sigrid Holm" }));
+  expect(corner.right - more.right).toBeLessThan(12);
+  expect(more.top - corner.top).toBeLessThan(12);
   await shot(boss, "1-contacts");
 
   await menu(boss, "People").click();
   // Only technicians can be assigned: the auditor and the manager aren't offered.
   await expect(boss.getByRole("checkbox", { name: /Aud Auditor/ })).toHaveCount(0);
   await expect(boss.getByRole("checkbox", { name: /Maja Manager/ })).toHaveCount(0);
+  // A tile per technician, saying what else they have; nothing to save until one changes.
+  const save = boss.getByRole("button", { name: "Save", exact: true });
+  await expect(save).toBeDisabled();
+  await expect(boss.getByRole("checkbox", { name: /Tor Tekniker/ })).toHaveAccessibleName(/No other customers/);
   await boss.getByRole("checkbox", { name: /Tor Tekniker/ }).check();
-  await boss.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(boss.getByRole("main")).toContainText(/1 of \d+ technicians/);
+  await boss.getByRole("button", { name: "Undo changes" }).click();
+  await expect(boss.getByRole("checkbox", { name: /Tor Tekniker/ })).not.toBeChecked();
+  await boss.getByRole("checkbox", { name: /Tor Tekniker/ }).check();
+  await shot(boss, "1b-people");
+  await save.click();
   await expect(toastWith(boss, "Who works with this customer is saved.")).toBeVisible();
   await menu(boss, "Overview").click();
   await expect(boss.getByRole("region", { name: "People on this customer" })).toContainText("Tor Tekniker");
@@ -123,6 +152,12 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await agreement.getByRole("button", { name: "Add a section" }).click();
   await agreement.getByLabel("Section", { exact: true }).fill("§ 3.1");
   await agreement.getByLabel("Covers").selectOption({ label: "Support" });
+  // The form is wide, its fields side by side: the name, kind and status share a line.
+  expect((await edges(agreement)).width).toBeGreaterThan(800);
+  expect((await edges(agreement.getByLabel("Status"))).top).toBe((await edges(agreement.getByLabel("Name", { exact: true }))).top);
+  await agreement.getByRole("button", { name: "Add a version" }).click();
+  await shot(boss, "2a-agreement-form");
+  await agreement.getByRole("button", { name: "Remove version 1" }).click();
   await agreement.getByRole("button", { name: "Save agreement" }).click();
   await expect(boss.getByRole("heading", { name: "Service agreement 2026" })).toBeVisible();
   await expect(boss.getByRole("main")).toContainText("Covers 1 of 1 services");
@@ -166,6 +201,10 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   const system = tech.getByRole("dialog");
   await system.getByLabel("Name", { exact: true }).fill("HV01");
   await system.getByLabel("Role").fill("Hyper-V host");
+  // The form is wide, four fields to a line, so it isn't a long scroll.
+  expect((await edges(system)).width).toBeGreaterThan(800);
+  expect((await edges(system.getByLabel("Type"))).top).toBe((await edges(system.getByLabel("Name", { exact: true }))).top);
+  await shot(tech, "3-system-form");
   await system.getByRole("button", { name: "Save system" }).click();
   await tech.getByRole("button", { name: "Add a system" }).click();
   await system.getByLabel("Name", { exact: true }).fill("DC01");
