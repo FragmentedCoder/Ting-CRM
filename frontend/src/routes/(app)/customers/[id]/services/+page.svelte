@@ -428,20 +428,20 @@
   {/if}
 {/if}
 
-<Dialog bind:open title={draft?.id ? "Change service" : "Add a service"}>
+<Dialog bind:open size="wide" title={draft?.id ? "Change service" : "Add a service"}>
   {#if open && draft}
     <form class="stack" onsubmit={save}>
       {#if error}<p class="alert alert-critical" role="alert">{error}</p>{/if}
-      {#if draft.id === null}
-        <div class="field">
-          <label for="service-standard">Standard service</label>
-          <select id="service-standard" class="input" required bind:value={draft.standard_service_id}>
-            <option value={null} disabled>Choose one</option>
-            {#each catalog as option (option.id)}<option value={option.id}>{option.name}</option>{/each}
-          </select>
-        </div>
-      {/if}
-      <div class="pair">
+      <div class="field-grid">
+        {#if draft.id === null}
+          <div class="field span-2">
+            <label for="service-standard">Standard service</label>
+            <select id="service-standard" class="input" required bind:value={draft.standard_service_id}>
+              <option value={null} disabled>Choose one</option>
+              {#each catalog as option (option.id)}<option value={option.id}>{option.name}</option>{/each}
+            </select>
+          </div>
+        {/if}
         <div class="field">
           <label for="service-status">Status</label>
           <select id="service-status" class="input" bind:value={draft.status}>
@@ -458,17 +458,15 @@
             <input id="service-end" class="input" type="date" required bind:value={draft.ended_on} />
           </div>
         {/if}
-      </div>
-      {#if customer?.companies?.length}
-        <div class="field">
-          <label for="service-company">For</label>
-          <select id="service-company" class="input" bind:value={draft.company_id}>
-            <option value={null}>The whole group</option>
-            {#each customer.companies as company (company.id)}<option value={company.id}>{company.name}</option>{/each}
-          </select>
-        </div>
-      {/if}
-      <div class="pair">
+        {#if customer?.companies?.length}
+          <div class="field">
+            <label for="service-company">For</label>
+            <select id="service-company" class="input" bind:value={draft.company_id}>
+              <option value={null}>The whole group</option>
+              {#each customer.companies as company (company.id)}<option value={company.id}>{company.name}</option>{/each}
+            </select>
+          </div>
+        {/if}
         <div class="field">
           <label for="service-case">Log time on (case number)</label>
           <input id="service-case" class="input mono" maxlength="30" bind:value={draft.case_number} />
@@ -485,32 +483,34 @@
       {#if fields.length}
         <fieldset class="checks">
           <legend class="check-title">Details</legend>
-          {#each fields as field (field.key)}
-            {@const unused = draft.not_used.includes(field.key)}
-            <div class="detail-field">
-              <div class="field">
-                <label for="value-{field.key}">{field.label}</label>
-                {#if field.kind === "choice"}
-                  <select id="value-{field.key}" class="input" disabled={unused} bind:value={draft.values[field.key]}>
-                    <option value={null}>Not said</option>
-                    {#each field.choices as choice (choice)}<option value={choice}>{choice}</option>{/each}
-                  </select>
-                {:else if field.kind === "yes_no"}
-                  <select id="value-{field.key}" class="input" disabled={unused} bind:value={draft.values[field.key]}>
-                    <option value={null}>Not known</option><option value={true}>Yes</option><option value={false}>No</option>
-                  </select>
-                {:else}
-                  <input id="value-{field.key}" class="input" disabled={unused}
-                    type={field.kind === "number" ? "number" : field.kind === "date" ? "date" : "text"}
-                    bind:value={draft.values[field.key]} />
-                {/if}
-                {#if field.help}<span class="hint">{field.help}</span>{/if}
+          <div class="halves">
+            {#each fields as field (field.key)}
+              {@const unused = draft.not_used.includes(field.key)}
+              <div class="detail-field">
+                <div class="field">
+                  <label for="value-{field.key}">{field.label}</label>
+                  {#if field.kind === "choice"}
+                    <select id="value-{field.key}" class="input" disabled={unused} bind:value={draft.values[field.key]}>
+                      <option value={null}>Not said</option>
+                      {#each field.choices as choice (choice)}<option value={choice}>{choice}</option>{/each}
+                    </select>
+                  {:else if field.kind === "yes_no"}
+                    <select id="value-{field.key}" class="input" disabled={unused} bind:value={draft.values[field.key]}>
+                      <option value={null}>Not known</option><option value={true}>Yes</option><option value={false}>No</option>
+                    </select>
+                  {:else}
+                    <input id="value-{field.key}" class="input" disabled={unused}
+                      type={field.kind === "number" ? "number" : field.kind === "date" ? "date" : "text"}
+                      bind:value={draft.values[field.key]} />
+                  {/if}
+                  {#if field.help}<span class="hint">{field.help}</span>{/if}
+                </div>
+                <label class="check small level">
+                  <input type="checkbox" value={field.key} bind:group={draft.not_used} /><span>Not used here</span>
+                </label>
               </div>
-              <label class="check small">
-                <input type="checkbox" value={field.key} bind:group={draft.not_used} /><span>Not used here</span>
-              </label>
-            </div>
-          {/each}
+            {/each}
+          </div>
         </fieldset>
       {/if}
 
@@ -520,7 +520,7 @@
           <div class="extra-row">
             <input class="input" aria-label="Detail" placeholder="Detail" maxlength="80" bind:value={extra.label} />
             <input class="input" aria-label="Value" placeholder="Value" maxlength="1000" bind:value={extra.value} />
-            <button class="icon-button" type="button" aria-label="Remove {extra.label || 'this detail'}"
+            <button class="icon-button remove" type="button" aria-label="Remove {extra.label || 'this detail'}"
               onclick={() => draft?.extra.splice(n, 1)}><X size={16} aria-hidden="true" /></button>
           </div>
         {/each}
@@ -532,15 +532,17 @@
       {#if customer?.systems?.length}
         <fieldset class="checks">
           <legend class="check-title">Systems it covers</legend>
-          {#each customer.systems as system (system.id)}
-            <div class="system-row">
-              <label class="check"><input type="checkbox" bind:checked={draft.systems[system.id].on} /><span class="mono">{system.name}</span></label>
-              {#if draft.systems[system.id].on}
-                <input class="input" aria-label="Note for {system.name}" placeholder="Note for this service" maxlength="300"
-                  bind:value={draft.systems[system.id].note} />
-              {/if}
-            </div>
-          {/each}
+          <div class="halves">
+            {#each customer.systems as system (system.id)}
+              <div class="system-row">
+                <label class="check"><input type="checkbox" bind:checked={draft.systems[system.id].on} /><span class="mono">{system.name}</span></label>
+                {#if draft.systems[system.id].on}
+                  <input class="input" aria-label="Note for {system.name}" placeholder="Note for this service" maxlength="300"
+                    bind:value={draft.systems[system.id].note} />
+                {/if}
+              </div>
+            {/each}
+          </div>
         </fieldset>
       {/if}
 
@@ -659,27 +661,45 @@
     gap: 2px;
     min-width: 0;
   }
-  .pair {
+  /* Two to a line in the wide dialog: the details, and the systems. */
+  .halves {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-6);
+    align-items: start;
   }
   .detail-field {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-3);
+    align-items: start;
+  }
+  /* The tick box level with the box of the field beside it. */
+  .level {
     align-items: center;
+    min-height: 46px;
+    margin-top: var(--space-6);
   }
   .extra-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 44px;
     gap: var(--space-2);
+  }
+  .remove {
+    width: 44px;
+    height: 46px;
   }
   .system-row {
     display: grid;
     grid-template-columns: minmax(120px, auto) minmax(0, 1fr);
     gap: var(--space-2);
     align-items: center;
+    min-height: 46px;
+  }
+  @container dialog (max-width: 760px) {
+    .halves {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
   .add {
     width: 100%;

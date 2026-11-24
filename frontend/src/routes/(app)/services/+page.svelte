@@ -138,44 +138,45 @@
   {/if}
 </main>
 
-<Dialog bind:open title={draft.id === null ? "Add a service" : `Change ${draft.name}`}>
+<Dialog bind:open size="wide" title={draft.id === null ? "Add a service" : `Change ${draft.name}`}>
   {#if open}
     <form class="stack" onsubmit={save}>
       {#if error}<p class="alert alert-critical" role="alert">{error}</p>{/if}
-      <div class="field">
-        <label for="service-name">Name</label>
-        <input id="service-name" class="input" required maxlength="100" bind:value={draft.name} />
-      </div>
-      <div class="field">
-        <label for="service-description">Description</label>
-        <input id="service-description" class="input" maxlength="500" bind:value={draft.description} />
+      <div class="field-grid">
+        <div class="field">
+          <label for="service-name">Name</label>
+          <input id="service-name" class="input" required maxlength="100" bind:value={draft.name} />
+        </div>
+        <div class="field description">
+          <label for="service-description">Description</label>
+          <input id="service-description" class="input" maxlength="500" bind:value={draft.description} />
+        </div>
       </div>
       <fieldset class="checks">
         <legend class="check-title">Details worth recording</legend>
         {#each draft.details as detail, n (n)}
-          <div class="detail-row">
-            <div class="field">
+          <div class="detail-row" class:choice={detail.kind === "choice"}>
+            <div class="field label">
               <label for="detail-label-{n}">Detail</label>
               <input id="detail-label-{n}" class="input" required maxlength="80" bind:value={detail.label} />
             </div>
-            <div class="field">
+            <div class="field kind">
               <label for="detail-kind-{n}">Kind</label>
               <select id="detail-kind-{n}" class="input" bind:value={detail.kind}>
                 {#each Object.entries(DETAIL_KINDS) as [value, name] (value)}<option {value}>{name}</option>{/each}
               </select>
             </div>
             {#if detail.kind === "choice"}
-              <div class="field wide">
+              <div class="field choices">
                 <label for="detail-choices-{n}">Choices</label>
-                <input id="detail-choices-{n}" class="input" required bind:value={detail.choiceText} />
-                <span class="hint">Separated by commas.</span>
+                <input id="detail-choices-{n}" class="input" required placeholder="Separated by commas" bind:value={detail.choiceText} />
               </div>
             {/if}
-            <div class="field wide">
+            <div class="field help">
               <label for="detail-help-{n}">Help</label>
               <input id="detail-help-{n}" class="input" maxlength="200" bind:value={detail.help} />
             </div>
-            <button class="icon-button" type="button" aria-label="Remove {detail.label || 'this detail'}"
+            <button class="icon-button remove" type="button" aria-label="Remove {detail.label || 'this detail'}"
               onclick={() => draft.details.splice(n, 1)}><X size={16} aria-hidden="true" /></button>
           </div>
         {/each}
@@ -236,16 +237,70 @@
     border-top: 1px solid var(--border);
     font: var(--type-body-sm);
   }
+  /* The name, and the description in the rest of its line. */
+  .field-grid > .description {
+    grid-column: 2 / -1;
+  }
+  /* A detail to a line: what it's called, its kind, the choices if it has any, and
+     the help shown under it. Where the dialog is narrow, over two or three lines. */
   .detail-row {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
-    gap: var(--space-2);
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.4fr) 44px;
+    grid-template-areas: "label kind help help remove";
+    gap: var(--space-2) var(--space-3);
     align-items: end;
-    padding: var(--space-2) 0;
+    padding: var(--space-3) 0;
     border-top: 1px solid var(--border);
   }
-  .detail-row .wide {
-    grid-column: 1 / 3;
+  .detail-row.choice {
+    grid-template-areas: "label kind choices help remove";
+  }
+  legend + .detail-row {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .label { grid-area: label; }
+  .kind { grid-area: kind; }
+  .choices { grid-area: choices; }
+  .help { grid-area: help; }
+  .remove {
+    grid-area: remove;
+    width: 44px;
+    height: 46px;
+  }
+  @container dialog (max-width: 760px) {
+    .field-grid > .description {
+      grid-column: 1 / -1;
+    }
+    .detail-row {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 44px;
+      grid-template-areas:
+        "label kind remove"
+        "help help help";
+    }
+    .detail-row.choice {
+      grid-template-areas:
+        "label kind remove"
+        "choices choices choices"
+        "help help help";
+    }
+  }
+  /* On a phone the kind gets a line of its own, so its name is read in full. */
+  @container dialog (max-width: 420px) {
+    .detail-row {
+      grid-template-columns: minmax(0, 1fr) 44px;
+      grid-template-areas:
+        "label remove"
+        "kind kind"
+        "help help";
+    }
+    .detail-row.choice {
+      grid-template-areas:
+        "label remove"
+        "kind kind"
+        "choices choices"
+        "help help";
+    }
   }
   .end {
     justify-content: flex-end;

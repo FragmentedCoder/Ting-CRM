@@ -496,7 +496,7 @@
   /* The tick box sits level with the boxes of the fields beside it. */
   .renews {
     align-items: center;
-    min-height: 44px;
+    min-height: 46px;
     margin-top: var(--space-6);
   }
   /* One version, or one section of the document, to a line; where the dialog is
@@ -530,7 +530,7 @@
   .terms {
     grid-area: terms;
     align-items: center;
-    min-height: 44px;
+    min-height: 46px;
   }
   .remove {
     grid-area: remove;
