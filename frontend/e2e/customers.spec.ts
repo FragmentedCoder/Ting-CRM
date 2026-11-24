@@ -72,6 +72,11 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   // Its sites and contacts, then who works with it.
   await openContacts(boss);
   await boss.getByRole("button", { name: "Add a site" }).click();
+  // Every form with many fields is wide, its fields side by side.
+  const place = boss.getByRole("dialog");
+  expect((await edges(place)).width).toBeGreaterThan(800);
+  expect((await edges(place.getByLabel("Type"))).top).toBe((await edges(place.getByLabel("Name"))).top);
+  await shot(boss, "1a-site-form");
   await boss.getByRole("dialog").getByLabel("Name").fill("Hovedkontor");
   await boss.getByRole("dialog").getByLabel("Address").fill("Havnegade 4");
   await boss.getByRole("button", { name: "Save site" }).click();
@@ -81,6 +86,9 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await contact.getByLabel("Title").fill("IT manager");
   await contact.getByRole("checkbox", { name: "Technical contact" }).check();
   await contact.getByLabel("Email").fill("sigrid@fjordlys.example");
+  expect((await edges(contact)).width).toBeGreaterThan(800);
+  expect((await edges(contact.getByLabel("Title"))).top).toBe((await edges(contact.getByLabel("Name"))).top);
+  await shot(boss, "1a-contact-form");
   await contact.getByRole("button", { name: "Save contact" }).click();
   // Every site has its own contact: Sigrid becomes Hovedkontor's.
   await boss.getByRole("button", { name: "Change site" }).click();
@@ -129,6 +137,18 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
 
   // Its support, copied from the standard Support service, with the case number
   // time goes on; the overview shows both in its first tiles.
+  // The catalog's form is wide too: a detail worth recording takes one line.
+  await menu(boss, "Standard services").click();
+  await boss.getByRole("button", { name: "Add a service" }).click();
+  const standard = boss.getByRole("dialog");
+  await standard.getByRole("button", { name: "Add a detail" }).click();
+  await standard.getByLabel("Kind").selectOption({ label: "A choice" });
+  expect((await edges(standard)).width).toBeGreaterThan(800);
+  expect((await edges(standard.getByLabel("Description"))).top).toBe((await edges(standard.getByLabel("Name"))).top);
+  expect((await edges(standard.getByLabel("Help", { exact: true }))).top).toBe((await edges(standard.getByLabel("Detail", { exact: true }))).top);
+  await shot(boss, "2-standard-service-form");
+  await standard.getByRole("button", { name: "Cancel" }).click();
+
   await openUnder(boss, "Services and agreements", "Services");
   await boss.getByRole("button", { name: "Add a service" }).click();
   const service = boss.getByRole("dialog");
@@ -136,6 +156,9 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await service.getByLabel("When it applies").selectOption({ label: "Working hours" });
   await service.getByLabel("Log time on (case number)").fill("TDSE26114");
   await service.getByLabel("Kind of case").selectOption({ label: "Monthly" });
+  expect((await edges(service)).width).toBeGreaterThan(800);
+  expect((await edges(service.getByLabel("Status"))).top).toBe((await edges(service.getByLabel("Standard service"))).top);
+  await shot(boss, "2-service-form");
   await service.getByRole("button", { name: "Save service" }).click();
   await expect(boss.getByRole("heading", { name: "Support", exact: true })).toBeVisible();
   await menu(boss, "Overview").click();
