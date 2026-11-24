@@ -193,49 +193,50 @@
   </section>
 {/if}
 
-<Dialog bind:open={siteOpen} title={site?.id ? "Change site" : "Add a site"}>
+<Dialog bind:open={siteOpen} size="wide" title={site?.id ? "Change site" : "Add a site"}>
   {#if site}
     <form class="stack" onsubmit={saveSite}>
       {#if error}<p class="alert alert-critical" role="alert">{error}</p>{/if}
-      <div class="field">
-        <label for="site-name">Name</label>
-        <input id="site-name" class="input" required maxlength="150" bind:value={site.name} />
-        <span class="hint">Such as “Head office” or “Production hall”.</span>
-      </div>
-      <div class="field">
-        <label for="site-kind">Type</label>
-        <select id="site-kind" class="input" bind:value={site.kind}>
-          {#each Object.entries(SITE_KINDS) as [value, name] (value)}<option {value}>{name}</option>{/each}
-        </select>
-      </div>
-      <div class="field">
-        <label for="site-address">Address</label>
-        <textarea id="site-address" class="input" rows="3" maxlength="500" bind:value={site.address}></textarea>
-      </div>
-      <div class="field">
-        <label for="site-contact">Contact at this site</label>
-        <select id="site-contact" class="input" bind:value={site.contact_id} required={contacts.length > 0}>
-          <option value={null} disabled={contacts.length > 0}>{contacts.length ? "Choose a contact" : "Add a contact first"}</option>
-          {#each contacts as item (item.id)}<option value={item.id}>{item.name}</option>{/each}
-        </select>
-        <span class="hint">Every site has its own contact; it may be the same person as at another site.</span>
-      </div>
-      <div class="field">
-        <label for="site-hours">Opening hours</label>
-        <input id="site-hours" class="input" maxlength="300" bind:value={site.opening_hours} />
-      </div>
-      <div class="field">
-        <label for="site-access">Access</label>
-        <input id="site-access" class="input" maxlength="500" bind:value={site.access} />
-        <span class="hint">How to get in, such as “Key box by the gate”.</span>
-      </div>
-      <div class="field">
-        <label for="site-parking">Parking</label>
-        <input id="site-parking" class="input" maxlength="300" bind:value={site.parking} />
-      </div>
-      <div class="field">
-        <label for="site-note">Note</label>
-        <textarea id="site-note" class="input" rows="2" maxlength="1000" bind:value={site.note}></textarea>
+      <div class="field-grid">
+        <div class="field">
+          <label for="site-name">Name</label>
+          <input id="site-name" class="input" required maxlength="150" placeholder="Head office" bind:value={site.name} />
+        </div>
+        <div class="field">
+          <label for="site-kind">Type</label>
+          <select id="site-kind" class="input" bind:value={site.kind}>
+            {#each Object.entries(SITE_KINDS) as [value, name] (value)}<option {value}>{name}</option>{/each}
+          </select>
+        </div>
+        <div class="field span-2">
+          <label for="site-contact">Contact at this site</label>
+          <select id="site-contact" class="input" bind:value={site.contact_id} required={contacts.length > 0}>
+            <option value={null} disabled={contacts.length > 0}>{contacts.length ? "Choose a contact" : "Add a contact first"}</option>
+            {#each contacts as item (item.id)}<option value={item.id}>{item.name}</option>{/each}
+          </select>
+          <span class="hint">Every site has its own contact; it may be the same person as at another site.</span>
+        </div>
+        <div class="field span-2 rows-2">
+          <label for="site-address">Address</label>
+          <textarea id="site-address" class="input" rows="3" maxlength="500" bind:value={site.address}></textarea>
+        </div>
+        <div class="field">
+          <label for="site-hours">Opening hours</label>
+          <input id="site-hours" class="input" maxlength="300" bind:value={site.opening_hours} />
+        </div>
+        <div class="field">
+          <label for="site-parking">Parking</label>
+          <input id="site-parking" class="input" maxlength="300" bind:value={site.parking} />
+        </div>
+        <div class="field span-2">
+          <label for="site-access">Access</label>
+          <input id="site-access" class="input" maxlength="500" bind:value={site.access} />
+          <span class="hint">How to get in, such as “Key box by the gate”.</span>
+        </div>
+        <div class="field span-all">
+          <label for="site-note">Note</label>
+          <textarea id="site-note" class="input" rows="2" maxlength="1000" bind:value={site.note}></textarea>
+        </div>
       </div>
       <div class="button-row end">
         <button class="button button-secondary" type="button" onclick={() => (siteOpen = false)}>Cancel</button>
@@ -245,55 +246,61 @@
   {/if}
 </Dialog>
 
-<Dialog bind:open={contactOpen} title={contact?.id ? "Change contact" : "Add a contact"}>
+<Dialog bind:open={contactOpen} size="wide" title={contact?.id ? "Change contact" : "Add a contact"}>
   {#if contact}
     <form class="stack" onsubmit={saveContact}>
       {#if error}<p class="alert alert-critical" role="alert">{error}</p>{/if}
-      <div class="field">
-        <label for="contact-name">Name</label>
-        <input id="contact-name" class="input" required maxlength="200" bind:value={contact.name} />
+      <div class="field-grid">
+        <div class="field span-2">
+          <label for="contact-name">Name</label>
+          <input id="contact-name" class="input" required maxlength="200" bind:value={contact.name} />
+        </div>
+        <div class="field span-2">
+          <label for="contact-role">Title</label>
+          <input id="contact-role" class="input" maxlength="150" placeholder="IT coordinator" bind:value={contact.role} />
+        </div>
+        <div class="field span-2">
+          <label for="contact-email">Email</label>
+          <input id="contact-email" class="input" type="email" maxlength="254" bind:value={contact.email} />
+        </div>
+        <div class="field">
+          <label for="contact-phone">Phone</label>
+          <input id="contact-phone" class="input" type="tel" maxlength="50" bind:value={contact.phone} />
+        </div>
+        <div class="field">
+          <label for="contact-site">Site</label>
+          <select id="contact-site" class="input" bind:value={contact.site_id}>
+            <option value={null}>The whole company</option>
+            {#each customer?.sites ?? [] as place (place.id)}<option value={place.id}>{place.name}</option>{/each}
+          </select>
+        </div>
       </div>
-      <div class="field">
-        <label for="contact-role">Title</label>
-        <input id="contact-role" class="input" maxlength="150" bind:value={contact.role} />
-        <span class="hint">Their title at the customer, such as “IT coordinator”.</span>
-      </div>
-      <div class="field">
-        <label for="contact-email">Email</label>
-        <input id="contact-email" class="input" type="email" maxlength="254" bind:value={contact.email} />
-      </div>
-      <div class="field">
-        <label for="contact-phone">Phone</label>
-        <input id="contact-phone" class="input" type="tel" maxlength="50" bind:value={contact.phone} />
-      </div>
-      <fieldset class="checks">
+      <fieldset class="checks across">
         <legend class="check-title">Roles</legend>
         {#each Object.entries(CONTACT_ROLES) as [value, name] (value)}
           <label class="check"><input type="checkbox" {value} bind:group={contact.roles} /><span>{name}</span></label>
         {/each}
       </fieldset>
-      <div class="field">
-        <label for="contact-site">Site</label>
-        <select id="contact-site" class="input" bind:value={contact.site_id}>
-          <option value={null}>The whole company</option>
-          {#each customer?.sites ?? [] as place (place.id)}<option value={place.id}>{place.name}</option>{/each}
-        </select>
-      </div>
-      <label class="check">
-        <input type="checkbox" bind:checked={contact.may_contact} />
-        <span>May be contacted</span>
-      </label>
-      <div class="field">
-        <label for="contact-note">About contacting them</label>
-        <input id="contact-note" class="input" maxlength="200" bind:value={contact.may_contact_note} />
-        <span class="hint">Such as “Only about the server room”. Shown on their card.</span>
-      </div>
-      <div class="field">
-        <label for="contact-channel">Preferred channel</label>
-        <select id="contact-channel" class="input" bind:value={contact.preferred_channel}>
-          <option value="">No preference</option><option value="phone">Phone</option><option value="email">Email</option>
-        </select>
-      </div>
+      <fieldset class="checks">
+        <legend class="check-title">Contacting them</legend>
+        <div class="field-grid">
+          <label class="check level">
+            <input type="checkbox" bind:checked={contact.may_contact} />
+            <span>May be contacted</span>
+          </label>
+          <div class="field">
+            <label for="contact-channel">Preferred channel</label>
+            <select id="contact-channel" class="input" bind:value={contact.preferred_channel}>
+              <option value="">No preference</option><option value="phone">Phone</option><option value="email">Email</option>
+            </select>
+          </div>
+          <div class="field span-2">
+            <label for="contact-note">About contacting them</label>
+            <input id="contact-note" class="input" maxlength="200" bind:value={contact.may_contact_note} />
+            <span class="hint">Such as “Only about the server room”. Shown on their card.</span>
+          </div>
+        </div>
+      </fieldset>
       <div class="button-row end">
         <button class="button button-secondary" type="button" onclick={() => (contactOpen = false)}>Cancel</button>
         <button class="button button-primary" type="submit" disabled={busy}>Save contact</button>
@@ -411,5 +418,21 @@
   }
   .end {
     justify-content: flex-end;
+  }
+  /* The roles side by side, as many as fit on a line. */
+  .across {
+    flex-flow: row wrap;
+    gap: var(--space-3) var(--space-6);
+  }
+  /* The tick box level with the boxes of the fields beside it. */
+  .level {
+    align-items: center;
+    min-height: 46px;
+    margin-top: var(--space-6);
+  }
+  @container dialog (max-width: 420px) {
+    .level {
+      margin-top: 0;
+    }
   }
 </style>
