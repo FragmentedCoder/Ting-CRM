@@ -243,22 +243,19 @@
   {/if}
 {/if}
 
-<Dialog bind:open={editOpen} title={draft?.id ? `Change ${draft.name}` : "Add a system"}>
+<Dialog bind:open={editOpen} size="wide" title={draft?.id ? `Change ${draft.name}` : "Add a system"}>
   {#if editOpen && draft}
     <form class="stack" onsubmit={save}>
       {#if error}<p class="alert alert-critical" role="alert">{error}</p>{/if}
-      <div class="pair">
+      <div class="field-grid">
         <div class="field">
           <label for="system-name">Name</label>
           <input id="system-name" class="input mono" required maxlength="100" bind:value={draft.name} />
         </div>
         <div class="field">
           <label for="system-role">Role</label>
-          <input id="system-role" class="input" maxlength="150" bind:value={draft.role} />
-          <span class="hint">What it does, such as “DC and file server”.</span>
+          <input id="system-role" class="input" maxlength="150" placeholder="DC and file server" bind:value={draft.role} />
         </div>
-      </div>
-      <div class="pair">
         <div class="field">
           <label for="system-group">Group</label>
           <select id="system-group" class="input" bind:value={draft.group}>
@@ -271,8 +268,6 @@
             {#each Object.entries(SYSTEM_TYPES) as [value, name] (value)}<option {value}>{name}</option>{/each}
           </select>
         </div>
-      </div>
-      <div class="pair">
         <div class="field">
           <label for="system-host">Runs on</label>
           <select id="system-host" class="input" bind:value={draft.parent_id}>
@@ -287,8 +282,6 @@
             {#each customer?.sites ?? [] as place (place.id)}<option value={place.id}>{place.name}</option>{/each}
           </select>
         </div>
-      </div>
-      <div class="pair">
         <div class="field">
           <label for="system-hostname">Host name</label>
           <input id="system-hostname" class="input mono" maxlength="253" bind:value={draft.hostname} />
@@ -297,8 +290,6 @@
           <label for="system-ip">IP address</label>
           <input id="system-ip" class="input mono" maxlength="100" bind:value={draft.ip} />
         </div>
-      </div>
-      <div class="pair">
         <div class="field">
           <label for="system-hardware">Hardware</label>
           <input id="system-hardware" class="input" maxlength="200" bind:value={draft.hardware} />
@@ -307,12 +298,10 @@
           <label for="system-serial">Serial number</label>
           <input id="system-serial" class="input mono" maxlength="100" bind:value={draft.serial} />
         </div>
-      </div>
-      <div class="field">
-        <label for="system-os">Operating system or firmware</label>
-        <input id="system-os" class="input" maxlength="150" bind:value={draft.os} />
-      </div>
-      <div class="pair">
+        <div class="field span-2">
+          <label for="system-os">Operating system or firmware</label>
+          <input id="system-os" class="input" maxlength="150" bind:value={draft.os} />
+        </div>
         <div class="field">
           <label for="system-since">In service since</label>
           <input id="system-since" class="input" type="date" bind:value={draft.in_service_since} />
@@ -321,10 +310,17 @@
           <label for="system-warranty">Warranty ends</label>
           <input id="system-warranty" class="input" type="date" bind:value={draft.warranty_end} />
         </div>
+        <div class="field">
+          <label for="system-retired">Retired on</label>
+          <input id="system-retired" class="input" type="date" aria-describedby="system-retired-hint" bind:value={draft.retired_on} />
+        </div>
+        <p class="hint beside" id="system-retired-hint">
+          Leave empty while it's in use. A retired system stays, under Retired.
+        </p>
       </div>
       <fieldset class="checks">
-        <legend class="check-title">Maintenance</legend>
-        <div class="pair">
+        <legend class="check-title">Maintenance and backup</legend>
+        <div class="field-grid">
           <div class="field">
             <label for="system-self">Updates itself</label>
             <select id="system-self" class="input" bind:value={draft.updates_itself}>
@@ -337,8 +333,6 @@
               <option value={null}>Not known</option><option value={true}>Yes</option><option value={false}>No</option>
             </select>
           </div>
-        </div>
-        <div class="pair">
           <div class="field">
             <label for="system-rhythm">Rhythm</label>
             <input id="system-rhythm" class="input" maxlength="100" placeholder="Every 3 months" bind:value={draft.update_rhythm} />
@@ -347,24 +341,19 @@
             <label for="system-last">Last update</label>
             <input id="system-last" class="input" type="date" bind:value={draft.last_update} />
           </div>
+          <div class="field span-2">
+            <label for="system-monitoring">Monitoring</label>
+            <input id="system-monitoring" class="input" maxlength="300" bind:value={draft.monitoring} />
+          </div>
+          <div class="field span-2">
+            <label for="system-backup">Backup</label>
+            <input id="system-backup" class="input" maxlength="300" bind:value={draft.backup} />
+          </div>
         </div>
       </fieldset>
       <div class="field">
-        <label for="system-monitoring">Monitoring</label>
-        <input id="system-monitoring" class="input" maxlength="300" bind:value={draft.monitoring} />
-      </div>
-      <div class="field">
-        <label for="system-backup">Backup</label>
-        <input id="system-backup" class="input" maxlength="300" bind:value={draft.backup} />
-      </div>
-      <div class="field">
         <label for="system-notes">Notes</label>
-        <textarea id="system-notes" class="input" rows="3" maxlength="2000" bind:value={draft.notes}></textarea>
-      </div>
-      <div class="field">
-        <label for="system-retired">Retired on</label>
-        <input id="system-retired" class="input" type="date" bind:value={draft.retired_on} />
-        <span class="hint">Leave empty while it's in use. A retired system stays, under Retired.</span>
+        <textarea id="system-notes" class="input" rows="2" maxlength="2000" bind:value={draft.notes}></textarea>
       </div>
       <div class="button-row end">
         <button class="button button-secondary" type="button" onclick={() => (editOpen = false)}>Cancel</button>
@@ -470,10 +459,12 @@
   .address {
     white-space: pre-line;
   }
-  .pair {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--space-3);
+  /* A word about the field beside it, level with its box. */
+  .beside {
+    align-self: end;
+    min-height: 44px;
+    color: var(--text-muted);
+    font: var(--type-body-sm);
   }
   .add {
     width: 100%;
