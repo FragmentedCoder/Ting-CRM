@@ -265,16 +265,24 @@
   {/if}
 {/if}
 
-<Dialog bind:open title={draft?.id ? "Change agreement" : "New agreement"}>
+<Dialog bind:open size="wide" title={draft?.id ? "Change agreement" : "New agreement"}>
   {#if open && draft}
     <form class="stack" onsubmit={save}>
       {#if error}<p class="alert alert-critical" role="alert">{error}</p>{/if}
-      <div class="field">
-        <label for="agreement-name">Name</label>
-        <input id="agreement-name" class="input" required maxlength="150" bind:value={draft.name} />
-        <span class="hint">Such as “Service agreement 2024”.</span>
-      </div>
-      <div class="pair">
+      <div class="field-grid">
+        <div class="field" class:span-2={!customer?.companies?.length}>
+          <label for="agreement-name">Name</label>
+          <input id="agreement-name" class="input" required maxlength="150" placeholder="Service agreement 2026" bind:value={draft.name} />
+        </div>
+        {#if customer?.companies?.length}
+          <div class="field">
+            <label for="agreement-company">With</label>
+            <select id="agreement-company" class="input" bind:value={draft.company_id}>
+              <option value={null}>The whole group</option>
+              {#each customer.companies as company (company.id)}<option value={company.id}>{company.name}</option>{/each}
+            </select>
+          </div>
+        {/if}
         <div class="field">
           <label for="agreement-kind">Kind</label>
           <select id="agreement-kind" class="input" bind:value={draft.kind}>
@@ -289,17 +297,6 @@
             <option value="ended">Ended</option>
           </select>
         </div>
-      </div>
-      {#if customer?.companies?.length}
-        <div class="field">
-          <label for="agreement-company">With</label>
-          <select id="agreement-company" class="input" bind:value={draft.company_id}>
-            <option value={null}>The whole group</option>
-            {#each customer.companies as company (company.id)}<option value={company.id}>{company.name}</option>{/each}
-          </select>
-        </div>
-      {/if}
-      <div class="pair">
         <div class="field">
           <label for="agreement-start">Starts on</label>
           <input id="agreement-start" class="input" type="date" bind:value={draft.starts_on} />
@@ -308,8 +305,6 @@
           <label for="agreement-end">{draft.status === "ended" ? "Ended on" : "Term ends on"}</label>
           <input id="agreement-end" class="input" type="date" required={draft.status === "ended"} bind:value={draft.ends_on} />
         </div>
-      </div>
-      <div class="pair">
         <div class="field">
           <label for="agreement-notice">Notice period</label>
           <input id="agreement-notice" class="input" maxlength="100" placeholder="3 months" bind:value={draft.notice_period} />
@@ -318,15 +313,13 @@
           <label for="agreement-notice-by">Last day to give notice</label>
           <input id="agreement-notice-by" class="input" type="date" bind:value={draft.notice_by} />
         </div>
-      </div>
-      <label class="check"><input type="checkbox" bind:checked={draft.auto_renews} /><span>Renews by itself</span></label>
-      <div class="pair">
+        <label class="check renews"><input type="checkbox" bind:checked={draft.auto_renews} /><span>Renews by itself</span></label>
         <div class="field">
           <label for="agreement-price">Price and invoicing section</label>
           <input id="agreement-price" class="input" maxlength="100" placeholder="§ 5" bind:value={draft.price_section} />
           <span class="hint">Where the document deals with it. Þing keeps no prices.</span>
         </div>
-        <div class="field">
+        <div class="field span-2">
           <label for="agreement-sla">Response times</label>
           <input id="agreement-sla" class="input" maxlength="500" bind:value={draft.sla} />
           <span class="hint">Leave empty for the standard SLA.</span>
@@ -337,32 +330,32 @@
         <legend class="check-title">Versions</legend>
         {#each draft.versions as item, n (n)}
           <div class="version-row">
-            <div class="field narrow">
+            <div class="field number">
               <label for="version-number-{n}">Version</label>
               <input id="version-number-{n}" class="input" type="number" min="1" max="999" required bind:value={item.number} />
             </div>
-            <div class="field">
+            <div class="field sent">
               <label for="version-sent-{n}">Sent</label>
               <input id="version-sent-{n}" class="input" type="date" bind:value={item.sent_on} />
             </div>
-            <div class="field">
+            <div class="field signed">
               <label for="version-signed-{n}">Signed</label>
               <input id="version-signed-{n}" class="input" type="date" bind:value={item.signed_on} />
             </div>
-            <button class="icon-button" type="button" aria-label="Remove version {item.number}"
-              onclick={() => draft?.versions.splice(n, 1)}><X size={16} aria-hidden="true" /></button>
-            <div class="field">
+            <div class="field them">
               <label for="version-them-{n}">Signed for the customer</label>
               <input id="version-them-{n}" class="input" maxlength="200" bind:value={item.signed_for_customer} />
             </div>
-            <div class="field">
+            <div class="field us">
               <label for="version-us-{n}">Signed for us</label>
               <input id="version-us-{n}" class="input" maxlength="200" bind:value={item.signed_for_us} />
             </div>
-            <div class="field wide">
+            <div class="field note">
               <label for="version-note-{n}">Note</label>
               <input id="version-note-{n}" class="input" maxlength="300" placeholder="Where the signed copy is kept" bind:value={item.note} />
             </div>
+            <button class="icon-button remove" type="button" aria-label="Remove version {item.number}"
+              onclick={() => draft?.versions.splice(n, 1)}><X size={16} aria-hidden="true" /></button>
           </div>
         {/each}
         <div><button class="button button-secondary" type="button" onclick={addVersion}>
@@ -374,24 +367,24 @@
         <legend class="check-title">What the document says we provide</legend>
         {#each draft.sections as section, n (n)}
           <div class="section-row">
-            <div class="field narrow">
+            <div class="field number">
               <label for="section-ref-{n}">Section</label>
               <input id="section-ref-{n}" class="input mono" required maxlength="20" placeholder="§ 3.1" bind:value={section.ref} />
             </div>
-            <div class="field">
+            <div class="field covers">
               <label for="section-service-{n}">Covers</label>
               <select id="section-service-{n}" class="input" disabled={section.terms} bind:value={section.service_id}>
                 <option value={null}>Not linked</option>
                 {#each services as service (service.id)}<option value={service.id}>{service.name}</option>{/each}
               </select>
             </div>
-            <label class="check small"><input type="checkbox" bind:checked={section.terms} /><span>Terms</span></label>
-            <button class="icon-button" type="button" aria-label="Remove {section.ref || 'this section'}"
-              onclick={() => draft?.sections.splice(n, 1)}><X size={16} aria-hidden="true" /></button>
-            <div class="field wide">
+            <div class="field agreed">
               <label for="section-text-{n}">Agreed</label>
               <input id="section-text-{n}" class="input" maxlength="1000" bind:value={section.text} />
             </div>
+            <label class="check small terms"><input type="checkbox" bind:checked={section.terms} /><span>Terms</span></label>
+            <button class="icon-button remove" type="button" aria-label="Remove {section.ref || 'this section'}"
+              onclick={() => draft?.sections.splice(n, 1)}><X size={16} aria-hidden="true" /></button>
           </div>
         {/each}
         <div><button class="button button-secondary" type="button"
@@ -500,29 +493,73 @@
     padding: var(--space-2) 0;
     border-top: 1px solid var(--border);
   }
-  .pair {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: var(--space-3);
+  /* The tick box sits level with the boxes of the fields beside it. */
+  .renews {
+    align-items: center;
+    min-height: 44px;
+    margin-top: var(--space-6);
   }
+  /* One version, or one section of the document, to a line; where the dialog is
+     narrow, over two or three. */
   .version-row,
   .section-row {
     display: grid;
-    grid-template-columns: 5.5rem minmax(0, 1fr) minmax(0, 1fr) auto;
-    gap: var(--space-2);
+    gap: var(--space-2) var(--space-3);
     align-items: end;
-    padding: var(--space-2) 0;
+    padding: var(--space-3) 0;
     border-top: 1px solid var(--border);
   }
+  .version-row {
+    grid-template-columns: 5.5rem repeat(2, minmax(0, 1fr)) repeat(2, minmax(0, 1.4fr)) 44px;
+    grid-template-areas:
+      "number sent signed them us remove"
+      "note note note note note note";
+  }
   .section-row {
-    grid-template-columns: 5.5rem minmax(0, 1fr) auto auto;
+    grid-template-columns: 5.5rem minmax(0, 1fr) minmax(0, 2fr) auto 44px;
+    grid-template-areas: "number covers agreed terms remove";
   }
-  .version-row .wide,
-  .section-row .wide {
-    grid-column: 1 / -1;
+  .number { grid-area: number; }
+  .sent { grid-area: sent; }
+  .signed { grid-area: signed; }
+  .them { grid-area: them; }
+  .us { grid-area: us; }
+  .note { grid-area: note; }
+  .covers { grid-area: covers; }
+  .agreed { grid-area: agreed; }
+  .terms {
+    grid-area: terms;
+    align-items: center;
+    min-height: 44px;
   }
-  .version-row .field:nth-of-type(4) {
-    grid-column: 1 / 3;
+  .remove {
+    grid-area: remove;
+    width: 44px;
+    height: 46px;
+  }
+  /* The first line needs no rule above it: the group's heading is there. */
+  legend + .version-row,
+  legend + .section-row {
+    padding-top: 0;
+    border-top: 0;
+  }
+  @container dialog (max-width: 760px) {
+    .renews {
+      margin-top: 0;
+    }
+    .version-row {
+      grid-template-columns: 5.5rem repeat(2, minmax(0, 1fr)) 44px;
+      grid-template-areas:
+        "number sent signed remove"
+        "them them us us"
+        "note note note note";
+    }
+    .section-row {
+      grid-template-columns: 5.5rem minmax(0, 1fr) auto 44px;
+      grid-template-areas:
+        "number covers terms remove"
+        "agreed agreed agreed agreed";
+    }
   }
   .add {
     width: 100%;
