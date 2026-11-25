@@ -1,7 +1,36 @@
 import { describe, expect, it } from "vitest";
 import {
-  caseNumbers, currentVersion, customerFilters, emptySystem, findPeople, formatCvr, mainRole, otherCustomers, samePeople, servicePill, supportLevel, systemGroups, mayContactLine, pinnedLine, statusLine, statusPill, systemsPreview, type CustomerService, type CustomerSummary, type Pin,
+  caseNumbers, coveredOn, currentVersion, customerFilters, emptySystem, findPeople, formatCvr, inForce, mainRole, otherCustomers, samePeople, servicePill, supportLevel, systemGroups, mayContactLine, pinnedLine, statusLine, statusPill, systemsPreview, type CustomerService, type CustomerSummary, type Pin,
 } from "./customers.js";
+
+describe("what covered a service on a day", () => {
+  const section = (service_id: number) => ({ ref: "§ 3.1", text: "", service_id, terms: false });
+  const agreements = [
+    { name: "2026", status: "active" as const, starts_on: "2026-10-05", ends_on: null, sections: [section(1)] },
+    { name: "2027", status: "offer" as const, starts_on: null, ends_on: null, sections: [section(1), section(2)] },
+    { name: "2025", status: "ended" as const, starts_on: "2025-01-01", ends_on: "2026-08-16", sections: [section(1)] },
+  ];
+  const by = (day: string, service = 1) => coveredOn(agreements, service, day)?.name ?? null;
+
+  it("is the agreement that ran then, not the one running when it's recorded", () => {
+    expect(by("2026-11-24")).toBe("2026");
+    expect(by("2026-10-05")).toBe("2026");
+    expect(by("2026-06-27")).toBe("2025");
+    expect(by("2026-08-16")).toBe("2025");
+  });
+
+  it("is none in a gap, before the first began, or for a service only an offer names", () => {
+    expect(by("2026-09-10")).toBeNull();
+    expect(by("2024-12-31")).toBeNull();
+    expect(by("2026-11-24", 2)).toBeNull();
+  });
+
+  it("takes an agreement without a start as running from the beginning", () => {
+    expect(inForce({ status: "active", starts_on: null, ends_on: null }, "2020-01-01")).toBe(true);
+    expect(inForce({ status: "ended", starts_on: null, ends_on: "2026-08-16" }, "2026-08-17")).toBe(false);
+    expect(inForce({ status: "offer", starts_on: null, ends_on: null }, "2026-11-24")).toBe(false);
+  });
+});
 
 describe("choosing who works with a customer", () => {
   it("says what else a technician has, leaving out the customer at hand", () => {

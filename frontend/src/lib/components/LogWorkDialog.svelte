@@ -1,6 +1,8 @@
 <script lang="ts">
   import { api, ApiError, sessionGone } from "#lib/api.js";
-  import type { CustomerDetail } from "#lib/customers.js";
+  import { coveredOn, type CustomerDetail } from "#lib/customers.js";
+  import { date } from "#lib/format.js";
+  import { today } from "#lib/planning.js";
   import { toast } from "#lib/toast.svelte.js";
   import { LOGGED_KINDS, LOG_KINDS, toLocalInput, type LogEntry, type LogKind } from "#lib/worklog.js";
   import Dialog from "./Dialog.svelte";
@@ -8,7 +10,8 @@
   // Log work on a customer, the same everywhere it's offered: what was done, when,
   // and optionally the service and systems it was about, the case number the time
   // goes on, whether it was on site, and a ticket ID. Choosing a service fills in its
-  // case number.
+  // case number, and says whether an agreement covers the work: the one that ran on
+  // the day the work was done, which needn't be today.
   let {
     open = $bindable(),
     customer,
@@ -57,14 +60,18 @@
     caseNumber = services.find((s) => s.id === serviceId)?.case_number ?? "";
   }
 
-  const chosen = $derived(services.find((s) => s.id === serviceId) ?? null);
+  // The day the work was done, in the person's own time, and what covered the
+  // service then.
+  const day = $derived(happened.slice(0, 10));
+  const covering = $derived(serviceId !== null && day
+    ? coveredOn(customer.agreements ?? [], serviceId, day) : null);
 
   async function save(event: SubmitEvent) {
     event.preventDefault();
     busy = true;
     error = null;
     const body = {
-      kind, text, happened_at: new Date(happened).toISOString(), service_id: serviceId,
+      kind, text, happened_at: new Date(happened).toISOString(), happened_on: day, service_id: serviceId,
       system_ids: systemIds, case_number: caseNumber.trim(), on_site: onSite, ticket,
     };
     try {
@@ -110,9 +117,15 @@
             <option value={null}>None</option>
             {#each services as service (service.id)}<option value={service.id}>{service.name}</option>{/each}
           </select>
-          {#if chosen}
-            <span class="hint" class:billable={!chosen.agreement}>
-              {chosen.agreement ? `Covered by ${chosen.agreement.name}.` : "No agreement covers it: the work is billable."}
+          {#if serviceId !== null && day}
+            <span class="hint" class:billable={!covering}>
+              {#if covering}
+                Covered by {covering.name}.
+              {:else if day === today()}
+                No agreement covers it: the work is billable.
+              {:else}
+                No agreement covered it on {date(day)}: the work is billable.
+              {/if}
             </span>
           {/if}
         </div>

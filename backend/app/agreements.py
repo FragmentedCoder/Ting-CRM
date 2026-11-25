@@ -157,11 +157,26 @@ def _status(value: str) -> AgreementStatus:
     return "offer" if value == "offer" else "ended" if value == "ended" else "active"
 
 
-def coverage(agreements: list[AgreementOut]) -> dict[int, CoveredBy]:
-    """Which active agreement's section covers each customer service."""
+def in_force(agreement: AgreementOut, day: date) -> bool:
+    """Whether the agreement ran on a day: an active one from its start on, an ended
+    one from its start to the day it ended. One without a start ran from the
+    beginning; an offer never did."""
+    if agreement.status == "offer":
+        return False
+    if agreement.starts_on is not None and day < agreement.starts_on:
+        return False
+    if agreement.status == "ended":
+        return agreement.ends_on is not None and day <= agreement.ends_on
+    return True
+
+
+def coverage(agreements: list[AgreementOut], on: date | None = None) -> dict[int, CoveredBy]:
+    """Which agreement's section covers each customer service: as it stands (the
+    active agreements'), or on a day, for work done then (the agreements that ran
+    that day, see in_force)."""
     covered: dict[int, CoveredBy] = {}
     for agreement in agreements:
-        if agreement.status != "active":
+        if (agreement.status != "active") if on is None else not in_force(agreement, on):
             continue
         for section in agreement.sections:
             if section.service_id is not None and section.service_id not in covered:

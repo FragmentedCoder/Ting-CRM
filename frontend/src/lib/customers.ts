@@ -200,6 +200,26 @@ export interface Agreement {
   notes: string;
 }
 
+/** Whether an agreement ran on a day, as the backend judges it (app/agreements.py):
+ *  an active one from its start on, an ended one from its start to the day it ended.
+ *  One without a start ran from the beginning; an offer never did. */
+export function inForce(agreement: Pick<Agreement, "status" | "starts_on" | "ends_on">, day: string): boolean {
+  if (agreement.status === "offer") return false;
+  if (agreement.starts_on && day < agreement.starts_on) return false;
+  if (agreement.status === "ended") return agreement.ends_on !== null && day <= agreement.ends_on;
+  return true;
+}
+
+/** The agreement that covered a service on a day: work done then is covered, and
+ *  billable when there's none. It's the day of the work that counts, not the day
+ *  it's recorded. */
+export function coveredOn<A extends Pick<Agreement, "status" | "starts_on" | "ends_on" | "sections">>(
+  agreements: A[], serviceId: number, day: string,
+): A | null {
+  return agreements.find((agreement) =>
+    inForce(agreement, day) && agreement.sections.some((section) => section.service_id === serviceId)) ?? null;
+}
+
 export const AGREEMENT_KINDS: Record<AgreementKind, string> = {
   service: "Service agreement",
   dpa: "Data processing agreement",

@@ -115,6 +115,64 @@ def test_an_entry_keeps_what_was_true_when_it_was_logged(client, admin, setup, p
         "Support", "TDSE26114", "covered")
 
 
+def test_work_is_covered_by_the_agreement_that_ran_on_the_day_it_was_done(
+    client, admin, nordlys  # noqa: F811
+) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    support = with_services(client, headers, url, "support")["Support"]["id"]
+    now = clock.utcnow()
+
+    def day(ago: int) -> str:
+        return (now.date() - timedelta(days=ago)).isoformat()
+
+    # One agreement ran until a hundred days ago; the next began fifty days ago; an
+    # offer for next year isn't one yet.
+    for name, extra in (
+        ("Service agreement 2025", {"status": "ended", "starts_on": day(400), "ends_on": day(100)}),
+        ("Service agreement 2026", {"status": "active", "starts_on": day(50)}),
+        ("Service agreement 2027", {"status": "offer"}),
+    ):
+        added = client.post(f"{url}/agreements", headers=headers, json={
+            "name": name, "sections": [{"ref": "§ 3.1", "service_id": support}], **extra})
+        assert added.status_code == 200, added.text
+
+    def logged(ago: int, **extra) -> dict:
+        moment = (now - timedelta(days=ago)).isoformat()
+        entry = client.post(f"{url}/log", headers=headers, json={
+            "text": f"Work {ago} days ago", "service_id": support, "happened_at": moment, **extra})
+        assert entry.status_code == 200, entry.text
+        return entry.json()
+
+    # It's the day of the work that counts, however late it's recorded.
+    assert logged(200)["coverage"] == "covered"     # the agreement that has since ended ran
+    assert logged(100)["coverage"] == "covered"     # its last day
+    assert logged(75)["coverage"] == "billable"     # between the two, none did
+    assert logged(450)["coverage"] == "billable"    # before the first began
+    assert logged(50)["coverage"] == "covered"      # the first day of the one running now
+    recent = logged(0)
+    assert recent["coverage"] == "covered"
+
+    # Moved to another day, an entry is worked out again.
+    moved = client.put(f"{url}/log/{recent['id']}", headers=headers, json={
+        "text": "Work 75 days ago, as it turns out", "service_id": support,
+        "happened_at": (now - timedelta(days=75)).isoformat()}).json()
+    assert moved["coverage"] == "billable"
+
+    # Just after midnight in Denmark it's still the day before in UTC: the person's own
+    # day decides, when the app gives it and it is the moment's.
+    eve = f"{day(51)}T23:30:00Z"
+    body = {"text": "Night work", "service_id": support, "happened_at": eve}
+    assert client.post(f"{url}/log", headers=headers, json=body).json()["coverage"] == "billable"
+    own = client.post(f"{url}/log", headers=headers, json={**body, "happened_on": day(50)})
+    assert own.json()["coverage"] == "covered"
+    far = client.post(f"{url}/log", headers=headers, json={**body, "happened_on": day(10)})
+    assert far.json()["coverage"] == "billable"
+    # As it stands, the service is the running agreement's.
+    service = client.get(url, headers=headers).json()["services"][0]
+    assert service["agreement"]["name"] == "Service agreement 2026"
+
+
 def test_only_its_author_or_a_manager_changes_an_entry(client, setup, person, session  # noqa: F811
                                                        ) -> None:
     url, _, _ = setup
