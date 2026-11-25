@@ -297,7 +297,7 @@
           <li class="item overdue"><span class="dot" aria-hidden="true"></span><span>Overdue: mark it done, or move it</span></li>
           <li class="item done"><span class="dot" aria-hidden="true"></span><span>Done, from the work log</span></li>
         </ul>
-        <p class="small muted">The future is above today, the past below. A task you tick off moves to the work log; a recurring one comes back, counted from the day it was done.</p>
+        <p class="small muted">The future is above today, the past below. A task you tick off moves to the work log, on the day it was done; a recurring one comes back, counted from the newest day it was done.</p>
       </section>
     </aside>
   </div>
