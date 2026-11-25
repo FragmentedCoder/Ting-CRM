@@ -44,6 +44,8 @@ async function signedIn(browser: Browser, username: string, options: { clock?: b
 test("customers, from adding one to deleting it", async ({ browser }) => {
   const { context: bossContext, page: boss, secret: bossSecret } = await signedIn(browser, "e2e-boss");
   const violations = watchForCspViolations(boss);
+  /** A day some days from today, as a date field takes it. */
+  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 
   // An administrator adds the customer; it opens in the side menu.
   await menu(boss, "All customers").click();
@@ -172,6 +174,7 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await boss.getByRole("button", { name: "New agreement" }).click();
   const agreement = boss.getByRole("dialog");
   await agreement.getByLabel("Name", { exact: true }).fill("Service agreement 2026");
+  await agreement.getByLabel("Starts on").fill(day(-10));
   await agreement.getByRole("button", { name: "Add a section" }).click();
   await agreement.getByLabel("Section", { exact: true }).fill("§ 3.1");
   await agreement.getByLabel("Covers").selectOption({ label: "Support" });
@@ -257,6 +260,12 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await work.getByLabel("Service", { exact: true }).selectOption({ label: "Support" });
   await expect(work.getByLabel("Log time on (case number)")).toHaveValue("TDSE26114");
   await expect(work).toContainText("Covered by Service agreement 2026.");
+  // It's the day of the work that counts: done before the agreement began, it's billable.
+  const now = await work.getByLabel("When").inputValue();
+  await work.getByLabel("When").fill(`${day(-20)}T10:00`);
+  await expect(work).toContainText(/No agreement covered it on .+: the work is billable\./);
+  await work.getByLabel("When").fill(now);
+  await expect(work).toContainText("Covered by Service agreement 2026.");
   await work.getByRole("button", { name: "Log work" }).click();
   await openUnder(tech, "Timeline and work log", "Work log");
   const entries = tech.getByRole("region", { name: "Entries" });
@@ -267,7 +276,6 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
 
   // The timeline: an overdue recurring task is ticked off into the work log and comes
   // back; a renewal is recorded, and waits for a Manager's decision.
-  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   await openUnder(tech, "Timeline and work log", "Timeline");
   const line = tech.getByRole("group", { name: "The line, the latest first" });
   await expect(line).toContainText("Today");
