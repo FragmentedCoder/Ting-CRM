@@ -32,6 +32,10 @@ export interface Task {
   every: Every | null;
   /** The renewal it was made by. */
   renewal_id: number | null;
+  /** A recurring task: the newest day it was done, once it has been. */
+  last_done_on: string | null;
+  /** The earliest day its next one counts from (see nextDue). */
+  counts_from: string | null;
   /** Its maker, or someone who manages customers. */
   may_remove: boolean;
 }
@@ -102,6 +106,13 @@ export function today(now = new Date()): string {
   return local.toISOString().slice(0, 10);
 }
 
+/** The moment something done on a day goes into the work log at: now when the day
+ *  is today, midday (in the viewer's time zone) when it's another day, of which
+ *  only the day is known. */
+export function momentOn(day: string, now = new Date()): string {
+  return (day === today(now) ? now : new Date(`${day}T12:00:00`)).toISOString();
+}
+
 const DAY_MS = 86_400_000;
 
 /** A plain date some days on. */
@@ -123,6 +134,17 @@ export function addInterval(day: string, every: Every): string {
   const last = new Date(Date.UTC(year + Math.floor(months / 12), (months % 12) + 1, 0)).getUTCDate();
   return new Date(Date.UTC(year + Math.floor(months / 12), months % 12, Math.min(dayOfMonth, last)))
     .toISOString().slice(0, 10);
+}
+
+/** When a recurring task is due next, ticked off as done on a day: one interval
+ *  after the newest day it was done. Ticking off an older time, to fill in its
+ *  history, doesn't move the next one back; `late` says the day it counts from then. */
+export function nextDue(
+  task: Pick<Task, "every" | "counts_from">, doneOn: string,
+): { due: string; late: string | null } | null {
+  if (!task.every) return null;
+  const late = task.counts_from && task.counts_from > doneOn ? task.counts_from : null;
+  return { due: addInterval(late ?? doneOn, task.every), late };
 }
 
 /** "Every 3 months", "Every week", "Every year". */

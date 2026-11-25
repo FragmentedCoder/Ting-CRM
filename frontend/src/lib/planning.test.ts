@@ -1,8 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
-  addDays, addInterval, daysBetween, decisionPill, dueTone, dueWords, forWhom, renewalOpen, rhythm, today,
-  warnLine,
+  addDays, addInterval, daysBetween, decisionPill, dueTone, dueWords, forWhom, momentOn, nextDue, renewalOpen,
+  rhythm, today, warnLine,
 } from "./planning.js";
+
+describe("the day something was done", () => {
+  it("goes to the work log now when it's today, at midday when it's another day", () => {
+    const now = new Date(2026, 10, 24, 20, 38);
+    expect(momentOn(today(now), now)).toBe(now.toISOString());
+    expect(momentOn("2026-10-25", now)).toBe(new Date(2026, 9, 25, 12, 0).toISOString());
+  });
+
+  it("is what a recurring task's next one counts from, unless it was done on a newer day", () => {
+    const yearly = { count: 12, unit: "months" } as const;
+    // Not done before: a year after the day it's ticked off for.
+    expect(nextDue({ every: yearly, counts_from: null }, "2026-10-25")).toEqual({ due: "2027-10-25", late: null });
+    // Done on 25 October already: an older time filled in afterwards doesn't move the next one back.
+    const done = { every: yearly, counts_from: "2026-10-25" };
+    expect(nextDue(done, "2026-06-27")).toEqual({ due: "2027-10-25", late: "2026-10-25" });
+    // Done again later: it counts from that day.
+    expect(nextDue(done, "2026-11-24")).toEqual({ due: "2027-11-24", late: null });
+    expect(nextDue({ every: null, counts_from: null }, "2026-11-24")).toBeNull();
+  });
+});
 
 describe("dates", () => {
   it("count an interval on, keeping to the month's end", () => {

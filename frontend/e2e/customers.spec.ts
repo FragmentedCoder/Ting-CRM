@@ -288,6 +288,20 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(line).toContainText("Update the firewall's firmware: Updated both nodes to 7.4.2");
   await expect(line).not.toContainText("Overdue");
   await expect(line.getByText("Update the firewall's firmware", { exact: true })).toBeVisible();
+  // An older time, filled in afterwards, lands in the work log on its own day and
+  // doesn't move the next one back: that still counts from today, the newest.
+  const monthOf = (iso: string) =>
+    new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  await tech.getByRole("button", { name: "Actions for “Update the firewall's firmware”" }).click();
+  await tech.getByRole("menuitem", { name: "Mark done" }).click();
+  await done.getByLabel("Done on").fill(day(-40));
+  await expect(done).toContainText("An older time doesn't move it back");
+  await done.getByLabel("What was done").fill("Updated to 7.3.9");
+  await done.getByRole("button", { name: "Mark done" }).click();
+  await expect(line.getByRole("region", { name: monthOf(day(-40)) })).toContainText(
+    "Update the firewall's firmware: Updated to 7.3.9");
+  await expect(line.getByRole("region", { name: monthOf(day(0)) })).toContainText("Updated both nodes to 7.4.2");
+  await expect(line.getByText("Update the firewall's firmware", { exact: true })).toBeVisible();
   await tech.getByRole("button", { name: "New renewal" }).click();
   const renewal = tech.getByRole("dialog");
   await renewal.getByLabel("What renews").fill("Firewall feature key");

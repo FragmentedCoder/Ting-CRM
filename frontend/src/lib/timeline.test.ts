@@ -11,7 +11,7 @@ const NOW = "2026-11-18"; // a Wednesday, in week 47
 
 const task = (id: number, due_on: string, extra: Partial<Task> = {}): Task => ({
   id, title: `Task ${id}`, notes: "", due_on, audience: "technicians", people: [], service_id: null, service: null,
-  system_id: null, system: null, ticket: "", every: null, renewal_id: null, may_remove: true, ...extra,
+  system_id: null, system: null, ticket: "", every: null, renewal_id: null, last_done_on: null, counts_from: null, may_remove: true, ...extra,
 });
 
 const renewal = (id: number, renews_on: string, extra: Partial<Renewal> = {}): Renewal => ({

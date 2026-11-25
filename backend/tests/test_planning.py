@@ -3,7 +3,7 @@ from datetime import date, timedelta
 import pytest
 
 from app import clock
-from app.planning import Every, add_interval
+from app.planning import Every, add_interval, counts_from
 from tests.test_customers import (  # noqa: F401  (nordlys and person are fixtures)
     CUSTOMERS,
     M,
@@ -21,6 +21,12 @@ def today() -> date:
 
 def soon(days: int) -> str:
     return (today() + timedelta(days=days)).isoformat()
+
+
+def logged(client, headers, url: str, text: str) -> dict:
+    """The work log's entry with this text, however long ago it happened."""
+    entries = client.get(f"{url}/log?period=all", headers=headers).json()["entries"]
+    return next(entry for entry in entries if entry["text"] == text)
 
 
 @pytest.mark.parametrize(("day", "every", "then"), [
@@ -90,6 +96,72 @@ def test_a_recurring_task_comes_back_from_the_day_it_was_done(client, admin, nor
         "Updates", "Also update the booking service on APP01.")
     assert done["latest_work"][0]["text"] == "Updates: done."
     assert done["latest_work"][0]["service"] == "Updates and maintenance"
+    assert (next_task["last_done_on"], next_task["counts_from"]) == (soon(0), soon(0))
+
+
+def test_work_done_earlier_is_logged_on_the_day_it_was_done(client, admin, nordlys  # noqa: F811
+                                                            ) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    made = client.post(f"{url}/tasks", headers=headers, json={
+        "title": "Restore test", "due_on": soon(0), "every": {"count": 12, "unit": "months"}})
+    task = made.json()["tasks"][0]
+    assert (task["last_done_on"], task["counts_from"]) == (None, None)
+
+    # Done thirty days ago and recorded now: the work log has it thirty days ago, at
+    # midday since only the day is known, and the next one is a year after that day.
+    first = client.post(f"{url}/tasks/{task['id']}/done", headers=headers,
+                        json={"done_on": soon(-30), "note": "Restored the file server."}).json()
+    entry = logged(client, headers, url, "Restore test: Restored the file server.")
+    assert entry["happened_at"].startswith(f"{soon(-30)}T12:00")
+    yearly = Every(count=12, unit="months")
+    due = add_interval(today() - timedelta(days=30), yearly).isoformat()
+    following = first["tasks"][0]
+    assert (following["due_on"], following["last_done_on"]) == (due, soon(-30))
+
+    # An older time filled in afterwards goes to the log on its own day, at the moment
+    # the app gives, and doesn't move the next one back: it counts from the newest.
+    moment = f"{soon(-150)}T09:30:00Z"
+    second = client.post(f"{url}/tasks/{following['id']}/done", headers=headers,
+                         json={"done_on": soon(-150), "happened_at": moment}).json()
+    assert logged(client, headers, url, "Restore test: done.")["happened_at"].startswith(
+        f"{soon(-150)}T09:30")
+    after = second["tasks"][0]
+    assert (after["due_on"], after["last_done_on"]) == (due, soon(-30))
+
+    # Done again today, it counts from today.
+    third = client.post(f"{url}/tasks/{after['id']}/done", headers=headers, json={}).json()
+    assert third["tasks"][0]["due_on"] == add_interval(today(), yearly).isoformat()
+    assert third["tasks"][0]["last_done_on"] == soon(0)
+    # Changing a task keeps what it remembers.
+    changed = client.put(f"{url}/tasks/{third['tasks'][0]['id']}", headers=headers, json={
+        "title": "Restore test", "due_on": soon(200), "every": {"count": 6, "unit": "months"}})
+    assert changed.json()["tasks"][0]["last_done_on"] == soon(0)
+
+    # A moment that isn't on the day is left aside, and nothing is logged ahead of time.
+    one_off = client.post(f"{url}/tasks", headers=headers, json={
+        "title": "Label the patch panel", "due_on": soon(0)}).json()
+    label = next(t for t in one_off["tasks"] if t["title"] == "Label the patch panel")
+    client.post(f"{url}/tasks/{label['id']}/done", headers=headers,
+                json={"done_on": soon(-7), "happened_at": f"{soon(-90)}T08:00:00Z"})
+    assert logged(client, headers, url, "Label the patch panel: done.")["happened_at"].startswith(
+        f"{soon(-7)}T12:00")
+
+
+@pytest.mark.parametrize(("sealed", "expected"), [
+    # It remembers the newest day it was done.
+    ({"every": {"count": 3, "unit": "months"}, "last_done_on": "2026-09-16"}, date(2026, 9, 16)),
+    # New, and not done yet.
+    ({"every": {"count": 3, "unit": "months"}, "last_done_on": None}, None),
+    # Made before the day was remembered: one interval before it's due...
+    ({"every": {"count": 12, "unit": "months"}}, date(2026, 9, 16)),
+    # ...unless that's still to come, so it hasn't been done yet.
+    ({"every": {"count": 1, "unit": "weeks"}}, None),
+    # Not recurring.
+    ({"every": None}, None),
+])
+def test_what_a_recurring_task_counts_from(sealed, expected) -> None:
+    assert counts_from(date(2027, 9, 16), sealed, date(2026, 11, 24)) == expected
 
 
 @pytest.mark.parametrize("body", [
@@ -157,9 +229,19 @@ def test_a_renewal_is_decided_by_a_manager(client, admin, nordlys, person, sessi
         "Switch off web filtering", soon(18), renewal["id"])
     assert declined["latest_work"][0]["text"] == (
         "Firewall feature key: won't be renewed, because the customer didn't answer.")
-    logged = [e.details for e in audit_entries(session, "customer.renewal_decided")]
-    assert logged[-1] == (f'{{"decision":["waiting","declined"],"renewal":{renewal["id"]},'
-                          f'"task":{task["id"]}}}')
+    audited = [e.details for e in audit_entries(session, "customer.renewal_decided")]
+    assert audited[-1] == (f'{{"decided_on":"{soon(0)}","decision":["waiting","declined"],'
+                           f'"renewal":{renewal["id"]},"task":{task["id"]}}}')
+
+    # A decision made earlier and recorded now is in the work log on its own day.
+    approved = client.post(decide, headers=as_mona,
+                           json={"decision": "approved", "decided_on": soon(-12)})
+    assert approved.status_code == 200, approved.text
+    entry = logged(client, as_mona, url, "Firewall feature key: renewal approved.")
+    assert entry["happened_at"].startswith(f"{soon(-12)}T12:00")
+    ahead = client.post(decide, headers=as_mona,
+                        json={"decision": "approved", "decided_on": soon(3)})
+    assert ahead.status_code == 422
 
 
 def test_a_renewed_renewal_moves_to_its_next_date(client, admin, nordlys, person  # noqa: F811
@@ -176,6 +258,21 @@ def test_a_renewed_renewal_moves_to_its_next_date(client, admin, nordlys, person
         "2027-12-01", "")
     assert renewed["latest_work"][0]["text"] == (
         "Certificate for vpn.nordlys.example: renewed, next on 2027-12-01. Installed on FW01.")
+
+    # Renewed a fortnight ago and recorded now: the work log has it on that day, and
+    # the next date still counts from the date it ran to, not from the day it was renewed.
+    licence = client.post(f"{url}/renewals", headers=as_astrid, json={
+        "what": "Backup licence", "kind": "licence", "renews_on": "2026-12-18",
+        "every": {"count": 12, "unit": "months"}}).json()
+    backup = next(r for r in licence["renewals"] if r["what"] == "Backup licence")
+    earlier = client.post(f"{url}/renewals/{backup['id']}/renewed", headers=as_astrid,
+                          json={"renewed_on": soon(-14)}).json()
+    assert next(r for r in earlier["renewals"] if r["id"] == backup["id"])["renews_on"] == (
+        "2027-12-18")
+    entry = logged(client, as_astrid, url, "Backup licence: renewed, next on 2027-12-18.")
+    assert entry["happened_at"].startswith(f"{soon(-14)}T12:00")
+    assert client.post(f"{url}/renewals/{backup['id']}/renewed", headers=as_astrid,
+                       json={"renewed_on": soon(3)}).status_code == 422
 
     once = client.post(f"{url}/renewals", headers=as_astrid, json={
         "what": "Warranty on HV01", "kind": "warranty", "renews_on": "2027-06-30"}).json()

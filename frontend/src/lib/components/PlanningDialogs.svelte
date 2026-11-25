@@ -3,7 +3,8 @@
   import type { CustomerDetail } from "#lib/customers.js";
   import { date } from "#lib/format.js";
   import {
-    AUDIENCES, DECISIONS, REASONS, RENEWAL_KINDS, addDays, addInterval, emptyRenewal, emptyTask, rhythm, today,
+    AUDIENCES, DECISIONS, REASONS, RENEWAL_KINDS, addDays, addInterval, emptyRenewal, emptyTask, momentOn,
+    nextDue, rhythm, today,
     type Audience, type Decision, type Every, type Reason, type Renewal, type Task,
   } from "#lib/planning.js";
   import { toast } from "#lib/toast.svelte.js";
@@ -11,7 +12,9 @@
 
   // The forms for what's coming up, the same wherever they're offered (the overview,
   // the timeline, a service): a task, ticking it off, a renewal, its decision, and
-  // marking it renewed. A page keeps one of these and calls what it needs:
+  // marking it renewed. What goes to the work log (done, decided, renewed) asks which
+  // day it happened, today unless said, so what's recorded later lands on its own day.
+  // A page keeps one of these and calls what it needs:
   //   <PlanningDialogs bind:this={planning} {customer} onchanged={shared.use} />
   //   planning.newTask({ service_id: 4 })
   let {
@@ -38,7 +41,9 @@
   let repeats = $state(false);
   let every = $state<Every>({ count: 3, unit: "months" });
   let note = $state("");
+  // The day it happened: a task done, a renewal decided or renewed.
   let doneOn = $state(today());
+  const next = $derived(mode === "finish" && subject && doneOn ? nextDue(subject, doneOn) : null);
   let decision = $state<Exclude<Decision, "renewed">>("");
   let reason = $state<Reason | "">("");
   let fallback = $state("");
@@ -65,6 +70,7 @@
     mode = which;
     error = null;
     note = "";
+    doneOn = today();
     open = true;
   }
 
@@ -90,7 +96,6 @@
 
   export function finishTask(found: Task) {
     subject = found;
-    doneOn = today();
     show("finish");
   }
 
@@ -162,7 +167,7 @@
       const body = { ...task, people: named(task.audience, task.people), every: repeats ? every : null };
       void (subject ? send("PUT", `/tasks/${subject.id}`, body, "Task saved.") : send("POST", "/tasks", body, "Task added."));
     } else if (mode === "finish" && subject) {
-      void send("POST", `/tasks/${subject.id}/done`, { note, done_on: doneOn },
+      void send("POST", `/tasks/${subject.id}/done`, { note, done_on: doneOn, happened_at: momentOn(doneOn) },
         subject.every ? "Done. The next one is on the timeline." : "Done, and in the work log.");
     } else if (mode === "renewal") {
       const body = { ...draft, people: named(draft.audience, draft.people), every: repeats ? every : null };
@@ -173,9 +178,11 @@
       void send("POST", `/renewals/${renewal.id}/decision`, {
         decision, reason: declined ? reason : "", fallback: declined ? fallback : "",
         fallback_due: declined && fallback.trim() && fallbackDue ? fallbackDue : null,
+        decided_on: doneOn, happened_at: momentOn(doneOn),
       }, "Decision saved.");
     } else if (mode === "renewed" && renewal) {
-      void send("POST", `/renewals/${renewal.id}/renewed`, { note, next_on: nextOn || null }, "Marked as renewed.");
+      void send("POST", `/renewals/${renewal.id}/renewed`,
+        { note, next_on: nextOn || null, renewed_on: doneOn, happened_at: momentOn(doneOn) }, "Marked as renewed.");
     }
   }
 
@@ -275,7 +282,7 @@
           </div>
         </div>
         {@render whoFields("For", task)}
-        {@render rhythmFields("It repeats", "Ticking it off schedules the next one, counted from the day it was done.")}
+        {@render rhythmFields("It repeats", "Ticking it off schedules the next one, counted from the newest day it was done.")}
         {@render aboutFields(task)}
         <div class="field">
           <label for="plan-notes">Notes</label>
@@ -286,18 +293,22 @@
       </form>
     {:else if mode === "finish" && subject}
       <form class="stack" onsubmit={save}>
-        <p>“{subject.title}” goes to the work log as done.</p>
+        <p>“{subject.title}” goes to the work log as done, on the day it was done.</p>
         <div class="field">
           <label for="plan-done-on">Done on</label>
           <input id="plan-done-on" class="input" type="date" required max={today()} bind:value={doneOn} />
+          <span class="hint">Today, or the earlier day it was done if you're recording it afterwards.</span>
         </div>
         <div class="field">
           <label for="plan-note">What was done</label>
           <textarea id="plan-note" class="input" rows="3" maxlength="2000" bind:value={note}></textarea>
           <span class="hint">Optional. Left empty, the work log says it's done.</span>
         </div>
-        {#if subject.every && doneOn}
-          <p class="small muted">{rhythm(subject.every)}: the next one will be due {date(addInterval(doneOn, subject.every))}.</p>
+        {#if subject.every && next}
+          <p class="small muted">
+            {rhythm(subject.every)}: the next one will be due {date(next.due)}{#if next.late}, counted from
+              {date(next.late)}, the newest day it was done. An older time doesn't move it back{/if}.
+          </p>
         {/if}
         {@render buttons("Mark done")}
       </form>
@@ -373,15 +384,26 @@
             </div>
           {/if}
         {/if}
+        {#if decision === "approved" || decision === "declined"}
+          <div class="field">
+            <label for="plan-decided-on">Decided on</label>
+            <input id="plan-decided-on" class="input" type="date" required max={today()} bind:value={doneOn} />
+            <span class="hint">It goes to the work log on this day.</span>
+          </div>
+        {/if}
         {@render buttons("Save decision")}
       </form>
     {:else if mode === "renewed" && renewal}
       <form class="stack" onsubmit={save}>
-        <p>“{renewal.what}” was renewed. It goes to the work log.</p>
+        <p>“{renewal.what}” was renewed. It goes to the work log, on the day it was renewed.</p>
+        <div class="field">
+          <label for="plan-renewed-on">Renewed on</label>
+          <input id="plan-renewed-on" class="input" type="date" required max={today()} bind:value={doneOn} />
+        </div>
         <div class="field">
           <label for="plan-next">Renews next on</label>
           <input id="plan-next" class="input" type="date" min={addDays(renewal.renews_on, 1)} bind:value={nextOn} />
-          <span class="hint">{renewal.every ? `${rhythm(renewal.every)}, counted from ${date(renewal.renews_on)}.`
+          <span class="hint">{renewal.every ? `${rhythm(renewal.every)}, counted from ${date(renewal.renews_on)}, the date it ran to, whichever day it was renewed.`
             : "Leave it empty if it doesn't renew again."}</span>
         </div>
         <div class="field">

@@ -310,12 +310,13 @@
             {#if recurring.length}
               <div class="table-wrap">
                 <table class="table">
-                  <thead><tr><th>What</th><th>How often</th><th>Next</th><th>For</th>{#if customer.may_edit}<th><span class="visually-hidden">Actions</span></th>{/if}</tr></thead>
+                  <thead><tr><th>What</th><th>How often</th><th>Last done</th><th>Next</th><th>For</th>{#if customer.may_edit}<th><span class="visually-hidden">Actions</span></th>{/if}</tr></thead>
                   <tbody>
                     {#each recurring as task (task.id)}
                       <tr>
                         <td><span class="strong">{task.title}</span>{#if task.notes}<br /><span class="small muted">{task.notes}</span>{/if}</td>
                         <td>{task.every ? rhythm(task.every) : ""}</td>
+                        <td class="nowrap">{task.last_done_on ? date(task.last_done_on) : "—"}</td>
                         <td><span class="nowrap">{date(task.due_on)}</span> <Pill tone={dueTone(task.due_on, now)} text={dueWords(task.due_on, now)} /></td>
                         <td>{whoFor(task.audience, task.people)}</td>
                         {#if customer.may_edit}
