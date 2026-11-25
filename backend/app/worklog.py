@@ -7,10 +7,13 @@ service and systems it was about, the case number the time went on, whether it
 was on site, and a ticket ID. Þing does no time registration, so an entry has no
 duration.
 
-An entry records whether the work was covered when it was logged: Covered when
-an active agreement covered the service, Billable when none did. That, the
-service's and systems' names and the case number are kept as they were then, so
-a later change to the customer doesn't rewrite its history.
+An entry records whether the work was covered: Covered when an agreement that
+ran on the day the work was done covers the service, Billable when none does.
+It's the day of the work that counts, not the day it was recorded: work from
+before an agreement began is billable, and work done while an agreement that has
+since ended ran was covered. That, the service's and systems' names and the case
+number are kept as they were when the entry was saved, so a later change to the
+customer doesn't rewrite its history.
 
 The text and everything about an entry are sealed with the customer's key; when
 it happened and who wrote it stay plain, for ordering and the timeline. Everyone
@@ -20,7 +23,7 @@ author or by a Manager. The routes are in app/worklog_routes.py.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
 from fastapi import HTTPException, status
@@ -59,6 +62,9 @@ class LogEntryIn(BaseModel):
     kind: LogKind = "work"
     # When it happened; now when left out.
     happened_at: datetime | None = None
+    # The day that was for the person who did it (the app sends it): east of
+    # Greenwich it's already tomorrow there. Left out, the moment's day in UTC.
+    happened_on: date | None = None
     text: str = Field(min_length=1, max_length=2000)
     service_id: int | None = None
     system_ids: list[int] = Field(default=[], max_length=50)
@@ -103,10 +109,11 @@ class LogSummary(BaseModel):
     by_service: list[tuple[str, int]]
 
 
-def sealed_fields(db: Session, sealer: Sealer, customer: Customer, body: LogEntryIn
-                  ) -> dict[str, Any]:
+def sealed_fields(db: Session, sealer: Sealer, customer: Customer, body: LogEntryIn,
+                  day: date) -> dict[str, Any]:
     """What's sealed for an entry: its service and systems checked as this
-    customer's, and named, covered and numbered as they are now."""
+    customer's, named and numbered as they are now, and covered or billable by the
+    agreements that ran on the day the work was done."""
     service_name, case_number, covered = "", body.case_number or "", ""
     if body.service_id is not None:
         service = db.get(CustomerService, body.service_id)
@@ -117,7 +124,7 @@ def sealed_fields(db: Session, sealer: Sealer, customer: Customer, body: LogEntr
         service_name = str(opened.get("name", ""))
         if body.case_number is None:
             case_number = str(opened.get("case_number", ""))
-        by_agreement = coverage(agreements_of(db, sealer, customer.id))
+        by_agreement = coverage(agreements_of(db, sealer, customer.id), on=day)
         covered = "covered" if service.id in by_agreement else "billable"
     names: list[str] = []
     for system_id in dict.fromkeys(body.system_ids):
@@ -143,6 +150,16 @@ def when(body: LogEntryIn) -> datetime:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
                             "A log entry is for work that's been done. Plan ahead with a task.")
     return moment
+
+
+def work_day(body: LogEntryIn, moment: datetime) -> date:
+    """The day the work was done, which decides the agreement that covered it: the
+    person's own day when the app gives it and it's the moment's (within a day, for
+    time zones), else the moment's day in UTC."""
+    day = moment.astimezone(UTC).date()
+    if body.happened_on is not None and abs((body.happened_on - day).days) <= 1:
+        return body.happened_on
+    return day
 
 
 def describe(row: CustomerLogEntry, sealed: dict[str, Any], authors: dict[int, str],

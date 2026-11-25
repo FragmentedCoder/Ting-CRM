@@ -36,6 +36,7 @@ from app.worklog import (
     sealed_fields,
     summarise,
     when,
+    work_day,
 )
 
 router = APIRouter(prefix="/customers")
@@ -131,8 +132,9 @@ def add_entry(customer_id: int, body: LogEntryIn, request: Request, author: Edit
               ) -> LogEntryOut:
     customer, _ = visible_customer(db, request, author, customer_id)
     sealer = Keyring().sealer(customer)
-    fields = sealed_fields(db, sealer, customer, body)
-    entry = CustomerLogEntry(customer_id=customer.id, happened_at=when(body),
+    moment = when(body)
+    fields = sealed_fields(db, sealer, customer, body, work_day(body, moment))
+    entry = CustomerLogEntry(customer_id=customer.id, happened_at=moment,
                              author_id=author.user_id, sealed=b"")
     db.add(entry)
     db.flush()
@@ -160,9 +162,10 @@ def change_entry(customer_id: int, entry_id: int, body: LogEntryIn, request: Req
     customer, _ = visible_customer(db, request, editor, customer_id)
     entry = _own(db, editor, customer, entry_id)
     sealer = Keyring().sealer(customer)
-    fields = sealed_fields(db, sealer, customer, body)
     if body.happened_at is not None:
         entry.happened_at = when(body)
+    # Covered or billable is worked out again, for the day the entry now says.
+    fields = sealed_fields(db, sealer, customer, body, work_day(body, entry.happened_at))
     entry.sealed = sealer.seal("log", entry.id, fields)
     _log(db, request, editor, "customer.log_changed", customer.id, {"entry": entry.id})
     db.commit()
