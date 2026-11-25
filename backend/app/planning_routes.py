@@ -5,14 +5,15 @@ off, records renewals and marks them renewed (EDIT_CUSTOMERS). A task is
 removed by whoever made it or by someone who manages customers. The decision on
 a renewal (Approved, Waiting for the customer, Won't be renewed) is for those
 who manage customers (MANAGE_CUSTOMERS), and so is removing one. Ticking off a
-task and deciding or marking a renewal write a work log entry; every change is
-in the audit log. Each answers with the customer's detail, like the customer's
-other routes.
+task and deciding or marking a renewal write a work log entry, on the day it
+happened: that day can be given, for what was done earlier and is recorded now.
+Every change is in the audit log, which says when it was recorded. Each answers
+with the customer's detail, like the customer's other routes.
 """
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -36,6 +37,7 @@ from app.planning import (
     TaskIn,
     add_interval,
     chosen_people,
+    counts_from,
     renewal_fields,
     task_fields,
 )
@@ -50,15 +52,23 @@ REASONS = {"declined": "the customer declined", "not_approved": "it wasn't appro
            "no_answer": "the customer didn't answer", "not_paid": "it wasn't paid"}
 
 
-class Done(BaseModel):
+class Happened(BaseModel):
+    # A moment on the day it happened, for the work log. The app sends it in the
+    # person's own time: now for today, midday for an earlier day.
+    happened_at: datetime | None = None
+
+
+class Done(Happened):
     # What was done, for the work log; the task's title when left out.
     note: str = Field(default="", max_length=2000)
     # The day it was done; today when left out.
     done_on: date | None = None
 
 
-class DecisionIn(BaseModel):
+class DecisionIn(Happened):
     decision: Literal["", "approved", "waiting", "declined"]
+    # The day it was decided; today when left out.
+    decided_on: date | None = None
     # With "declined": why, and what must be done before it runs out.
     reason: Literal["", "declined", "not_approved", "no_answer", "not_paid"] = ""
     fallback: str = Field(default="", max_length=300)
@@ -66,8 +76,10 @@ class DecisionIn(BaseModel):
     fallback_due: date | None = None
 
 
-class Renewed(BaseModel):
+class Renewed(Happened):
     note: str = Field(default="", max_length=2000)
+    # The day it was renewed; today when left out.
+    renewed_on: date | None = None
     # When it renews next; one interval on when left out.
     next_on: date | None = None
 
@@ -79,10 +91,30 @@ def _log(db: Session, request: Request, record: UserSession, action: str, custom
                  details=details)
 
 
+def _happened(day: date | None, moment: datetime | None, refusal: str
+              ) -> tuple[date, datetime]:
+    """The day something happened, and a moment on it for the work log.
+
+    The day is the person's own (east of Greenwich it's already tomorrow here):
+    today when left out, and never ahead of time. The moment is the app's when it
+    falls on that day, and otherwise worked out here: now for today, midday for an
+    earlier day, of which only the day is known."""
+    now = clock.utcnow()
+    today = now.date()
+    day = day or today
+    if day > today + timedelta(days=1):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, refusal)
+    if moment is not None and moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    if moment is None or abs((moment.astimezone(UTC).date() - day).days) > 1:
+        moment = now if day >= today else datetime.combine(day, time(12), tzinfo=UTC)
+    return day, min(moment, now)
+
+
 def _note(db: Session, sealer: Sealer, customer: Customer, record: UserSession, text: str,
-          sealed: dict[str, Any]) -> None:
+          sealed: dict[str, Any], moment: datetime) -> None:
     """A work log entry for something done from a task or renewal, about its service
-    and system."""
+    and system, at the moment it happened."""
     service_id = sealed.get("service_id")
     case_number = ""
     if service_id is not None:
@@ -90,7 +122,7 @@ def _note(db: Session, sealer: Sealer, customer: Customer, record: UserSession, 
         if service is not None:
             case_number = str(sealer.open("service", service.id, service.sealed)
                               .get("case_number", ""))
-    entry = CustomerLogEntry(customer_id=customer.id, happened_at=clock.utcnow(),
+    entry = CustomerLogEntry(customer_id=customer.id, happened_at=moment,
                              author_id=record.user_id, sealed=b"")
     db.add(entry)
     db.flush()
@@ -159,6 +191,11 @@ def change_task(customer_id: int, task_id: int, body: TaskIn, request: Request, 
     people = chosen_people(db, customer.id, body.audience, body.people)
     before = sealer.open("task", task.id, task.sealed)
     fields = task_fields(db, sealer, customer, body, before.get("renewal_id"))
+    # What a recurring task remembers of when it was last done stays as it is.
+    if "last_done_on" in before:
+        fields["last_done_on"] = before["last_done_on"]
+    else:
+        del fields["last_done_on"]
     changes: dict[str, object] = {"task": task.id}
     if task.due_on != body.due_on:
         changes["due"] = [task.due_on.isoformat(), body.due_on.isoformat()]
@@ -173,34 +210,35 @@ def change_task(customer_id: int, task_id: int, body: TaskIn, request: Request, 
 @router.post("/{customer_id}/tasks/{task_id}/done")
 def finish_task(customer_id: int, task_id: int, body: Done, request: Request, editor: Editor,
                 db: DB) -> CustomerDetail:
-    """Tick a task off: it goes to the work log, and a recurring one comes back, one
-    interval after the day it was done."""
+    """Tick a task off: it goes to the work log on the day it was done. A recurring
+    one comes back one interval after the newest day it was done, so ticking off an
+    older time afterwards (to fill in its history) doesn't move the next one back."""
     customer, _ = visible_customer(db, request, editor, customer_id)
     task = _task(db, customer, task_id)
     if task.done_at is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "That task is already done.")
-    today = clock.utcnow().date()
-    done_on = body.done_on or today
-    # The day is the person's own: east of Greenwich it's already tomorrow here.
-    if done_on > today + timedelta(days=1):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
-                            "A task is done today or earlier.")
+    done_on, moment = _happened(body.done_on, body.happened_at,
+                                "A task is done today or earlier.")
     keyring = Keyring()
     sealer = keyring.sealer(customer)
     sealed = sealer.open("task", task.id, task.sealed)
-    task.done_at, task.done_by = clock.utcnow(), editor.user_id
+    task.done_at, task.done_by = moment, editor.user_id
     title = str(sealed.get("title", ""))
     note = body.note.strip()
-    _note(db, sealer, customer, editor, f"{title}: {note}" if note else f"{title}: done.", sealed)
-    details: dict[str, object] = {"task": task.id}
+    _note(db, sealer, customer, editor, f"{title}: {note}" if note else f"{title}: done.",
+          sealed, moment)
+    details: dict[str, object] = {"task": task.id, "done_on": done_on.isoformat()}
     if sealed.get("every"):
         every = Every.model_validate(sealed["every"])
+        before = counts_from(task.due_on, sealed, clock.utcnow().date())
+        newest = max(done_on, before) if before else done_on
         people = list(db.scalars(select(CustomerTaskPerson.user_id)
                                  .where(CustomerTaskPerson.task_id == task.id)))
-        again = CustomerTask(customer_id=customer.id, due_on=add_interval(done_on, every),
+        again = CustomerTask(customer_id=customer.id, due_on=add_interval(newest, every),
                              audience=task.audience, created_by=task.created_by, sealed=b"")
         db.add(again)
         db.flush()
+        sealed["last_done_on"] = newest.isoformat()
         again.sealed = sealer.seal("task", again.id, sealed)
         _set_people(db, CustomerTaskPerson, "task_id", again.id, people)
         details["next"] = again.id
@@ -279,7 +317,8 @@ def change_renewal(customer_id: int, renewal_id: int, body: RenewalIn, request: 
 def decide_renewal(customer_id: int, renewal_id: int, body: DecisionIn, request: Request,
                    manager: Manager, db: DB) -> CustomerDetail:
     """Record the decision. Won't be renewed needs the reason, and what must be done
-    before it runs out becomes a task."""
+    before it runs out becomes a task. Approved and Won't be renewed go to the work
+    log, on the day it was decided."""
     customer, _ = visible_customer(db, request, manager, customer_id)
     renewal = _renewal(db, customer, renewal_id)
     if body.decision == "declined" and not body.reason:
@@ -291,14 +330,18 @@ def decide_renewal(customer_id: int, renewal_id: int, body: DecisionIn, request:
     declined = body.decision == "declined"
     sealed["reason"] = body.reason if declined else ""
     sealed["fallback"] = body.fallback.strip() if declined else ""
+    decided_on, moment = _happened(body.decided_on, body.happened_at,
+                                   "A decision is made today or earlier.")
     details: dict[str, object] = {"renewal": renewal.id,
                                   "decision": [renewal.decision, body.decision]}
+    if body.decision in ("approved", "declined"):
+        details["decided_on"] = decided_on.isoformat()
     renewal.decision = body.decision
     renewal.sealed = sealer.seal("renewal", renewal.id, sealed)
     what = str(sealed.get("what", ""))
     if declined:
         _note(db, sealer, customer, manager,
-              f"{what}: won't be renewed, because {REASONS[body.reason]}.", sealed)
+              f"{what}: won't be renewed, because {REASONS[body.reason]}.", sealed, moment)
         if sealed["fallback"]:
             due = body.fallback_due or renewal.renews_on - timedelta(days=2)
             task = _new_task(db, sealer, customer, TaskIn(
@@ -308,7 +351,7 @@ def decide_renewal(customer_id: int, renewal_id: int, body: DecisionIn, request:
             ), manager.user_id, renewal.id)
             details["task"] = task.id
     elif body.decision == "approved":
-        _note(db, sealer, customer, manager, f"{what}: renewal approved.", sealed)
+        _note(db, sealer, customer, manager, f"{what}: renewal approved.", sealed, moment)
     _log(db, request, manager, "customer.renewal_decided", customer.id, details)
     db.commit()
     return _detail(db, manager, keyring, customer, "full")
@@ -317,12 +360,15 @@ def decide_renewal(customer_id: int, renewal_id: int, body: DecisionIn, request:
 @router.post("/{customer_id}/renewals/{renewal_id}/renewed")
 def mark_renewed(customer_id: int, renewal_id: int, body: Renewed, request: Request,
                  editor: Editor, db: DB) -> CustomerDetail:
-    """It's been renewed. One that renews again moves to its next date, undecided;
-    a one-off stays, as Renewed."""
+    """It's been renewed: that goes to the work log, on the day it was renewed. One
+    that renews again moves to its next date, undecided, counted from the date it
+    ran to and not from the day it was renewed; a one-off stays, as Renewed."""
     customer, _ = visible_customer(db, request, editor, customer_id)
     renewal = _renewal(db, customer, renewal_id)
     if renewal.decision == "renewed":
         raise HTTPException(status.HTTP_409_CONFLICT, "That's already marked as renewed.")
+    renewed_on, moment = _happened(body.renewed_on, body.happened_at,
+                                   "It was renewed today or earlier.")
     keyring = Keyring()
     sealer = keyring.sealer(customer)
     sealed = sealer.open("renewal", renewal.id, renewal.sealed)
@@ -333,8 +379,8 @@ def mark_renewed(customer_id: int, renewal_id: int, body: Renewed, request: Requ
     next_on = body.next_on or (add_interval(renewal.renews_on, every) if every else None)
     what, note = str(sealed.get("what", "")), body.note.strip()
     text = f"{what}: renewed" + (f", next on {next_on.isoformat()}" if next_on else "")
-    _note(db, sealer, customer, editor, f"{text}. {note}".strip(), sealed)
-    details: dict[str, object] = {"renewal": renewal.id}
+    _note(db, sealer, customer, editor, f"{text}. {note}".strip(), sealed, moment)
+    details: dict[str, object] = {"renewal": renewal.id, "renewed_on": renewed_on.isoformat()}
     if next_on:
         details["next_on"] = next_on.isoformat()
         renewal.renews_on, renewal.decision = next_on, ""

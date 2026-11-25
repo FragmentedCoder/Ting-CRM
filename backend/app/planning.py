@@ -3,8 +3,9 @@
 A **task** has a title, a due date and someone it's for: named people, the
 customer's technicians (whoever usually works with it), or the Managers. A
 **recurring task** (updates every three months, a restore test every six) also has
-a rhythm; ticking it off writes a work log entry and schedules the next one,
-counted from the day it was done.
+a rhythm; ticking it off writes a work log entry on the day it was done and
+schedules the next one, counted from the newest day it was done: ticking off an
+older time afterwards, to fill in its history, doesn't move the next one back.
 
 A **renewal** is something that runs out on a date: a licence, a firewall
 feature key, a certificate, a warranty. It records the date, how often it
@@ -30,6 +31,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Date, ForeignKey, Integer, LargeBinary, String, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
+from app import clock
 from app.customer_services import CustomerService
 from app.customers import (
     Customer,
@@ -64,7 +66,8 @@ class CustomerTask(Base):
     # Who it's for: named people (customer_task_people), the customer's
     # technicians, or the Managers.
     audience: Mapped[str] = mapped_column(String(12), default="technicians")
-    # {"title", "notes", "service_id", "system_id", "ticket", "every", "renewal_id"}
+    # {"title", "notes", "service_id", "system_id", "ticket", "every", "renewal_id",
+    #  "last_done_on"}
     sealed: Mapped[bytes] = mapped_column(LargeBinary)
 
 
@@ -151,6 +154,10 @@ class TaskOut(BaseModel):
     every: Every | None
     # The renewal it was made by ("switch off web filtering if the key isn't renewed").
     renewal_id: int | None
+    # A recurring task: the newest day it was done, once it has been; and the day
+    # the next one counts from at the earliest (see counts_from).
+    last_done_on: date | None = None
+    counts_from: date | None = None
     # Whoever made it, or someone who manages customers, may remove it.
     may_remove: bool = False
 
@@ -180,14 +187,37 @@ class RenewalOut(RenewalIn):
     who: list[Who]
 
 
+def _shift(day: date, count: int, unit: str) -> date:
+    if unit == "weeks":
+        return date.fromordinal(day.toordinal() + 7 * count)
+    months = day.month - 1 + count
+    year, month = day.year + months // 12, months % 12 + 1
+    return date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
+
+
 def add_interval(day: date, every: Every) -> date:
     """The day one interval later; a month's end stays in its month (31 Jan + 1
     month is 28 or 29 Feb)."""
-    if every.unit == "weeks":
-        return date.fromordinal(day.toordinal() + 7 * every.count)
-    months = day.month - 1 + every.count
-    year, month = day.year + months // 12, months % 12 + 1
-    return date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
+    return _shift(day, every.count, every.unit)
+
+
+def last_done(sealed: dict[str, Any]) -> date | None:
+    """The newest day a recurring task was done, as its series remembers it."""
+    return date.fromisoformat(sealed["last_done_on"]) if sealed.get("last_done_on") else None
+
+
+def counts_from(due_on: date, sealed: dict[str, Any], today: date) -> date | None:
+    """The earliest day a recurring task's next one counts from: the newest day it
+    was done. Ticked off for an older day, it still counts from this one.
+
+    A task made before Þing remembered that day has only its due date, which was
+    set one interval after it was last done: that day is taken, unless it's still
+    to come, which means the task hasn't been done yet."""
+    if not sealed.get("every") or "last_done_on" in sealed:
+        return last_done(sealed)
+    every = Every.model_validate(sealed["every"])
+    guess = _shift(due_on, -every.count, every.unit)
+    return guess if guess <= today else None
 
 
 def _named(db: Session, sealer: Sealer, customer: Customer, service_id: int | None,
@@ -246,6 +276,8 @@ def task_fields(db: Session, sealer: Sealer, customer: Customer, body: TaskIn,
         "service_name": service_name, "system_id": body.system_id, "system_name": system_name,
         "ticket": body.ticket.strip(),
         "every": body.every.model_dump() if body.every else None, "renewal_id": renewal_id,
+        # A new task hasn't been done; changing one keeps what it remembers.
+        "last_done_on": None,
     }
 
 
@@ -278,6 +310,7 @@ def describe_task(db: Session, row: CustomerTask, sealed: dict[str, Any],
                   viewer_id: int | None = None, manages: bool = False) -> TaskOut:
     people = list(db.scalars(select(CustomerTaskPerson.user_id)
                              .where(CustomerTaskPerson.task_id == row.id)))
+    recurring = bool(sealed.get("every"))
     return TaskOut(
         id=row.id, title=str(sealed.get("title", "")), notes=str(sealed.get("notes", "")),
         due_on=row.due_on, audience=_audience(row.audience), people=_who(db, people),
@@ -286,6 +319,8 @@ def describe_task(db: Session, row: CustomerTask, sealed: dict[str, Any],
         ticket=str(sealed.get("ticket", "")),
         every=Every.model_validate(sealed["every"]) if sealed.get("every") else None,
         renewal_id=sealed.get("renewal_id"),
+        last_done_on=last_done(sealed) if recurring else None,
+        counts_from=counts_from(row.due_on, sealed, clock.utcnow().date()),
         may_remove=manages or (viewer_id is not None and row.created_by == viewer_id),
     )
 
