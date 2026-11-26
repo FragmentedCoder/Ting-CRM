@@ -47,6 +47,17 @@
   const customers = $derived(workspace.customers?.filter((c) => c.visibility === "full" && c.status !== "former") ?? []);
   const recent = $derived(recentCustomers());
   const href = (id: number) => resolve("/(app)/customers/[id]", { id: String(id) });
+  // Straight to the thing itself: a task or a renewal at its place on the customer's
+  // timeline, an agreement's date at the agreement, a case number at its service.
+  const onTimeline = (id: number, key: string) =>
+    `${resolve("/(app)/customers/[id]/timeline", { id: String(id) })}?show=${key}`;
+  const agreementHref = (id: number, agreement: number) =>
+    `${resolve("/(app)/customers/[id]/agreements", { id: String(id) })}?agreement=${agreement}`;
+  const serviceHref = (id: number, service: number) =>
+    `${resolve("/(app)/customers/[id]/services", { id: String(id) })}?service=${service}`;
+  const datedHref = (dated: { kind: string; customer_id: number; id: number }) =>
+    dated.kind === "renewal" ? onTimeline(dated.customer_id, `renewal-${dated.id}`)
+      : agreementHref(dated.customer_id, dated.id);
 
   // A new task and logging work are a customer's: choose it first (the one open in
   // the menu is offered), then the same forms as on the customer's pages.
@@ -132,7 +143,8 @@
                   <button class="tick" type="button" disabled={busy} aria-label="Mark “{mine.task.title}” as done"
                     title="Mark done" onclick={() => finish(mine)}><Check size={14} aria-hidden="true" /></button>
                   <span class="body">
-                    <span class="strong">{mine.task.title}</span>
+                    <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- onTimeline() uses resolve() -->
+                    <a class="strong what" href={onTimeline(mine.customer_id, `task-${mine.task.id}`)}>{mine.task.title}</a>
                     <span class="small muted">
                       <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href() uses resolve() -->
                       <a href={href(mine.customer_id)}>{mine.customer}</a>{mine.task.service ? ` · ${mine.task.service}` : ""}{mine.task.system ? ` · ${mine.task.system}` : ""}
@@ -186,7 +198,8 @@
                     <span class="line">
                       <Pill tone="info" text={DATED_KINDS[dated.kind]} />
                       {#if dated.kind === "renewal"}<Pill {...decisionPill({ decision: dated.decision ?? "", renews_on: dated.day }, now, work.ahead_until)} />{/if}
-                      <span class="strong">{dated.what}</span>
+                      <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- datedHref() uses resolve() -->
+                      <a class="strong what" href={datedHref(dated)}>{dated.what}</a>
                     </span>
                     <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href() uses resolve() -->
                     <a class="small" href={href(dated.customer_id)}>{dated.customer}</a>
@@ -232,7 +245,8 @@
               <ul class="rows">
                 {#each managers.waiting as dated (`${dated.customer_id}-${dated.what}-${dated.day}`)}
                   <li class="recent">
-                    <span class="strong">{dated.what}</span>
+                    <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- datedHref() uses resolve() -->
+                    <a class="strong what" href={datedHref(dated)}>{dated.what}</a>
                     <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href() uses resolve() -->
                     <span class="small muted"><a href={href(dated.customer_id)}>{dated.customer}</a> · renews {date(dated.day)}</span>
                   </li>
@@ -248,7 +262,8 @@
               <ul class="rows">
                 {#each managers.monthly_cases as found (`${found.customer_id}-${found.service}`)}
                   <li class="recent">
-                    <span><span class="mono strong">{found.case_number}</span> <span class="small">{found.service}</span></span>
+                    <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- serviceHref() uses resolve() -->
+                    <span><span class="mono strong">{found.case_number}</span> <a class="small what" href={serviceHref(found.customer_id, found.service_id)}>{found.service}</a></span>
                     <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href() uses resolve() -->
                     <span class="small muted"><a href={href(found.customer_id)}>{found.customer}</a>{found.since ? ` · since ${date(found.since)}` : ""}</span>
                   </li>
@@ -443,6 +458,15 @@
   }
   .strong {
     font-weight: 600;
+  }
+  /* A row's own name leads to the thing itself: it reads as the name, and as a link
+     when pointed at. */
+  .what {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .what:hover {
+    text-decoration: underline;
   }
   .end {
     justify-content: flex-end;

@@ -65,6 +65,8 @@ class Dated(BaseModel):
     customer_id: int
     customer: str
     kind: Literal["renewal", "notice", "ends", "renews"]
+    # The renewal's own ID, or the agreement's: the page links to it.
+    id: int
     what: str
     day: date
     # A renewal's decision so far.
@@ -89,6 +91,7 @@ class Counts(BaseModel):
 class MonthlyCase(BaseModel):
     customer_id: int
     customer: str
+    service_id: int
     service: str
     case_number: str
     since: date | None
@@ -164,21 +167,22 @@ def my_work(worker: Worker, db: DB) -> MyWork:
             tasks.append(MyTask(customer_id=row.customer_id, customer=names[row.customer_id],
                                 task=describe_task(db, row, sealed, me, manages)))
 
-    def dated(customer_id: int, kind: Literal["renewal", "notice", "ends", "renews"], what: str,
-              day: date, decision: Decision | None = None) -> Dated:
-        return Dated(customer_id=customer_id, customer=names[customer_id], kind=kind, what=what,
-                     day=day, decision=decision)
+    def dated(customer_id: int, kind: Literal["renewal", "notice", "ends", "renews"], of: int,
+              what: str, day: date, decision: Decision | None = None) -> Dated:
+        return Dated(customer_id=customer_id, customer=names[customer_id], kind=kind, id=of,
+                     what=what, day=day, decision=decision)
 
     # Renewals, last notice days and ends within that reach, at my customers.
     dates: list[Dated] = []
     for customer_id in mine:
         standing = found[customer_id]
-        dates += [dated(customer_id, "renewal", what, renewal.renews_on,
+        dates += [dated(customer_id, "renewal", renewal.id, what, renewal.renews_on,
                         renewal.decision)  # type: ignore[arg-type]
                   for renewal, what in standing.renewals if renewal.renews_on <= horizon]
-        dates += [dated(customer_id, "notice", notice.name, notice.day)
+        dates += [dated(customer_id, "notice", notice.agreement_id, notice.name, notice.day)
                   for notice in standing.notices]
-        dates += [dated(customer_id, "renews" if end.auto_renews else "ends", end.name, end.day)
+        dates += [dated(customer_id, "renews" if end.auto_renews else "ends", end.agreement_id,
+                        end.name, end.day)
                   for end in standing.ends]
     dates.sort(key=lambda d: (d.day, d.customer.casefold(), d.what.casefold()))
 
@@ -193,7 +197,8 @@ def my_work(worker: Worker, db: DB) -> MyWork:
             uncovered.append(Uncovered(customer_id=customer_id, customer=names[customer_id],
                                        services=standing.uncovered))
         monthly += [MonthlyCase(customer_id=customer_id, customer=names[customer_id],
-                                service=s.name, case_number=s.case_number, since=s.case_since)
+                                service_id=s.id, service=s.name, case_number=s.case_number,
+                                since=s.case_since)
                     for s in standing.services if s.case_kind == "monthly" and s.case_number
                     and (s.case_since is None or s.case_since < month_start)]
         if customer_id not in mine:
@@ -214,7 +219,7 @@ def my_work(worker: Worker, db: DB) -> MyWork:
     )
     managers = None
     if manages:
-        waiting = [dated(customer_id, "renewal", what, renewal.renews_on, "waiting")
+        waiting = [dated(customer_id, "renewal", renewal.id, what, renewal.renews_on, "waiting")
                    for customer_id, standing in found.items()
                    for renewal, what in standing.renewals if renewal.decision == "waiting"]
         waiting.sort(key=lambda d: (d.day, d.customer.casefold()))

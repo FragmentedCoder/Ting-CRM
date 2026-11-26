@@ -8,6 +8,7 @@
   import RowMenu from "#lib/components/RowMenu.svelte";
   import { sharedCustomer } from "#lib/context.js";
   import ContactCard from "#lib/components/ContactCard.svelte";
+  import PhoneField from "#lib/components/PhoneField.svelte";
   import Pill from "#lib/components/Pill.svelte";
   import {
     CONTACT_ROLES, SITE_KINDS, emptyContact, emptySite,
@@ -255,17 +256,9 @@
           <label for="contact-name">Name</label>
           <input id="contact-name" class="input" required maxlength="200" bind:value={contact.name} />
         </div>
-        <div class="field span-2">
+        <div class="field">
           <label for="contact-role">Title</label>
           <input id="contact-role" class="input" maxlength="150" placeholder="IT coordinator" bind:value={contact.role} />
-        </div>
-        <div class="field span-2">
-          <label for="contact-email">Email</label>
-          <input id="contact-email" class="input" type="email" maxlength="254" bind:value={contact.email} />
-        </div>
-        <div class="field">
-          <label for="contact-phone">Phone</label>
-          <input id="contact-phone" class="input" type="tel" maxlength="50" bind:value={contact.phone} />
         </div>
         <div class="field">
           <label for="contact-site">Site</label>
@@ -273,6 +266,14 @@
             <option value={null}>The whole company</option>
             {#each customer?.sites ?? [] as place (place.id)}<option value={place.id}>{place.name}</option>{/each}
           </select>
+        </div>
+        <div class="field span-2">
+          <label for="contact-email">Email</label>
+          <input id="contact-email" class="input" type="email" maxlength="254" bind:value={contact.email} />
+        </div>
+        <div class="field span-2">
+          <label for="contact-phone">Phone</label>
+          <PhoneField id="contact-phone" bind:value={contact.phone} />
         </div>
       </div>
       <fieldset class="checks across">

@@ -14,6 +14,8 @@ export interface Dated {
   customer_id: number;
   customer: string;
   kind: "renewal" | "notice" | "ends" | "renews";
+  /** The renewal's own ID, or the agreement's. */
+  id: number;
   what: string;
   day: string;
   decision: Decision | null;
@@ -72,7 +74,7 @@ export interface MyWork {
   /** What's the Managers' to deal with. */
   managers: {
     waiting: Dated[];
-    monthly_cases: { customer_id: number; customer: string; service: string; case_number: string; since: string | null }[];
+    monthly_cases: { customer_id: number; customer: string; service_id: number; service: string; case_number: string; since: string | null }[];
     uncovered: { customer_id: number; customer: string; services: string[] }[];
   } | null;
 }

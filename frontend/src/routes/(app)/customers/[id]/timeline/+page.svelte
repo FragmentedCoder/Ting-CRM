@@ -1,5 +1,6 @@
 <script lang="ts">
   import { resolve } from "$app/paths";
+  import { page } from "$app/state";
   import Check from "@lucide/svelte/icons/check";
   import Gavel from "@lucide/svelte/icons/gavel";
   import LocateFixed from "@lucide/svelte/icons/locate-fixed";
@@ -105,15 +106,31 @@
       - (line.clientHeight - row.offsetHeight) / 2;
   }
 
-  // It opens on today, once per customer.
-  let placedFor: number | null = null;
+  // A link from My work or the overview asks for one item ("?show=task-12"): the
+  // line opens on it, marked, where it otherwise opens on today.
+  const wanted = $derived(page.url.searchParams.get("show"));
+  let shown = $state<string | null>(null);
+
+  /** Scrolls the line so the item sits about halfway down. False when it isn't on it. */
+  function jumpTo(key: string): boolean {
+    const row = [...(line?.querySelectorAll<HTMLElement>("[data-key]") ?? [])].find((r) => r.dataset.key === key);
+    if (!line || !row) return false;
+    line.scrollTop += row.getBoundingClientRect().top - line.getBoundingClientRect().top
+      - (line.clientHeight - row.offsetHeight) / 2;
+    return true;
+  }
+
+  // It opens on today, or on the item asked for: once per customer and item.
+  let placedFor: string | null = null;
   $effect(() => {
     void months;
-    if (!loaded || !customer || placedFor === customer.id) return;
-    placedFor = customer.id;
+    const place = `${customer?.id}:${wanted ?? ""}`;
+    if (!loaded || !customer || placedFor === place) return;
+    placedFor = place;
     void tick().then(() => {
       fit();
-      jumpToToday();
+      shown = wanted !== null && jumpTo(wanted) ? wanted : null;
+      if (shown === null) jumpToToday();
     });
   });
 
@@ -149,7 +166,7 @@
 <svelte:head><title>{pageTitle(`Timeline · ${customer?.name ?? "Customer"}`)}</title></svelte:head>
 
 {#snippet entry(item: TimelineItem, detail: CustomerDetail)}
-  <li class="item {item.state}">
+  <li class="item {item.state}" class:shown={item.key === shown} data-key={item.key}>
     <span class="dot" aria-hidden="true"></span>
     <div class="body">
       <span class="top">
@@ -163,7 +180,8 @@
         {#if item.entry?.coverage === "billable"}<Pill tone="warning" text="Billable, no agreement" />{/if}
       </span>
       {#if item.agreement}
-        <a class="what" href={resolve("/(app)/customers/[id]/agreements", { id })}>{item.title}</a>
+        <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the path comes from resolve() -->
+        <a class="what" href="{resolve("/(app)/customers/[id]/agreements", { id })}?agreement={item.agreement.id}">{item.title}</a>
       {:else}
         <span class="what">{item.title}</span>
       {/if}
@@ -403,6 +421,14 @@
     align-items: flex-start;
     gap: var(--space-3);
     padding: var(--space-2) 0 var(--space-2) 30px;
+  }
+  /* The item a link asked for: marked, so it's found at once. */
+  .item.shown .body {
+    margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--link) 12%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--link) 45%, transparent);
   }
   .dot {
     position: absolute;
