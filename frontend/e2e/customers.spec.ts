@@ -266,6 +266,10 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(work).toContainText(/No agreement covered it on .+: the work is billable\./);
   await work.getByLabel("When").fill(now);
   await expect(work).toContainText("Covered by Service agreement 2026.");
+  // Work that hasn't happened yet can't be logged: tomorrow is out of range.
+  await work.getByLabel("When").fill(`${day(1)}T10:00`);
+  expect(await work.getByLabel("When").evaluate((field: HTMLInputElement) => field.validity.rangeOverflow)).toBe(true);
+  await work.getByLabel("When").fill(now);
   await work.getByRole("button", { name: "Log work" }).click();
   await openUnder(tech, "Timeline and work log", "Work log");
   const entries = tech.getByRole("region", { name: "Entries" });
@@ -366,7 +370,7 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
 
   // The manager sees every customer without being assigned, and runs it: its
   // details, how long its records are kept, its logo and who works with it. No
-  // deleting, and no admin panel.
+  // deleting, and of the admin panel only how far ahead Þing looks.
   const { context: managerContext, page: manager } = await signedIn(browser, "e2e-manager");
   await expect(manager.getByRole("heading", { name: "For Managers" })).toBeVisible();
   // The renewal nobody has decided on yet puts the customer among those needing attention.
@@ -377,8 +381,15 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(manager.getByRole("button", { name: "Delete customer" })).toHaveCount(0);
   await menu(manager, "People").click();
   await expect(manager.getByRole("checkbox", { name: /Tor Tekniker/ })).toBeChecked();
-  await expect(menu(manager, "Admin")).toHaveCount(0);
   await shot(manager, "4-manager-people");
+  await menu(manager, "Admin").click();
+  await expect(manager.getByRole("heading", { name: "General" })).toBeVisible();
+  await expect(manager.getByLabel("Show what's coming up for the next")).toHaveValue("12");
+  await expect(manager.getByRole("switch")).toHaveCount(0);
+  await expect(menu(manager, "Users")).toHaveCount(0);
+  await manager.getByRole("button", { name: "Save settings" }).click();
+  await expect(toastWith(manager, "Settings saved.")).toBeVisible();
+  await shot(manager, "4a-manager-general");
 
   // Deciding on a renewal is the Manager's, in the fixed words; the overview shows it.
   await openUnder(manager, "Timeline and work log", "Timeline");
