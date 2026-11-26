@@ -19,7 +19,7 @@
     systemsPreview,
     type CustomerDetail, type CustomerService, type Pin as PinRecord,
   } from "#lib/customers.js";
-  import { aheadUntil, aheadWords } from "#lib/general.svelte.js";
+  import { aheadUntil, aheadWords, general } from "#lib/general.svelte.js";
   import { decisionPill, dueTone, dueWords, today } from "#lib/planning.js";
   import { CASE_KINDS, showValue } from "#lib/services.js";
   import { TIMELINE_TYPES, shortDay, timelineItems } from "#lib/timeline.js";
@@ -135,7 +135,15 @@
     { label: "Choose who works with it", done: !!customer.assigned?.length,
       href: resolve("/(app)/customers/[id]/people", { id }) },
   ] : []);
-  const gettingStarted = $derived(!!customer?.may_manage && steps.some((step) => !step.done));
+  // The team can have it off, in the general settings.
+  const gettingStarted = $derived(general.current.getting_started && !!customer?.may_manage
+    && steps.some((step) => !step.done));
+  // Each row of the overview leads to what it's about: a service to its page, what's
+  // coming up to its place on the timeline, an agreement's date to the agreement.
+  const servicesHref = $derived(resolve("/(app)/customers/[id]/services", { id }));
+  const comingHref = (item: (typeof coming)[number]) => item.agreement
+    ? `${resolve("/(app)/customers/[id]/agreements", { id })}?agreement=${item.agreement.id}`
+    : `${resolve("/(app)/customers/[id]/timeline", { id })}?show=${item.key}`;
 </script>
 
 <svelte:head><title>{pageTitle(customer?.name ?? "Customer")}</title></svelte:head>
@@ -169,6 +177,26 @@
         </div>
       {/each}
     </div>
+  {/if}
+
+  {#if gettingStarted}
+    <section class="section" aria-labelledby="start-title">
+      <h2 class="section-title" id="start-title">Getting started</h2>
+      <ol class="steps">
+        {#each steps as step (step.label)}
+          <li class:done={step.done}>
+            {#if step.done}
+              <CircleCheck size={18} aria-hidden="true" />
+              <span>{step.label}<span class="visually-hidden">: done</span></span>
+            {:else}
+              <Circle size={18} aria-hidden="true" />
+              <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- each step's href comes from resolve() -->
+              <a href={step.href}>{step.label}</a>
+            {/if}
+          </li>
+        {/each}
+      </ol>
+    </section>
   {/if}
 
   <div class="tiles" aria-label="At a glance">
@@ -205,7 +233,8 @@
       </div>
       <div class="chips" aria-label="Services we provide">
         {#each services as service (service.id)}
-          <Pill {...servicePill(service)} />
+          <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- servicesHref comes from resolve() -->
+          <a class="chip" href="{servicesHref}?service={service.id}"><Pill {...servicePill(service)} /></a>
         {/each}
       </div>
       <div class="table-wrap">
@@ -214,7 +243,8 @@
           <tbody>
             {#each services.filter((s) => s.status === "active") as service (service.id)}
               <tr>
-                <td class="strong">{service.name}</td>
+                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- servicesHref comes from resolve() -->
+                <td><a class="strong what" href="{servicesHref}?service={service.id}">{service.name}</a></td>
                 <td>{atThisCustomer(service)}</td>
                 <td class="mono">{service.case_number || "—"}</td>
                 <td>
@@ -243,7 +273,8 @@
           {@const signed = currentVersion(agreement)?.signed_on}
           <li>
             <span class="agreement-top">
-              <span class="strong">{agreement.name}</span>
+              <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the path comes from resolve() -->
+              <a class="strong what" href="{resolve("/(app)/customers/[id]/agreements", { id })}?agreement={agreement.id}">{agreement.name}</a>
               <Pill tone={agreement.status === "active" ? "ok" : "warning"}
                 text={agreement.status === "active" ? "Active" : "Waiting for the customer"} />
             </span>
@@ -264,40 +295,6 @@
       {/if}
     </section>
   {/if}
-
-  <section class="section services" aria-labelledby="work-title">
-    <div class="heading-row">
-      <h2 class="section-title" id="work-title">Latest work</h2>
-      <a class="small" href={resolve("/(app)/customers/[id]/log", { id })}>All work logged</a>
-    </div>
-    {#if customer.may_edit}
-      <form class="quick" onsubmit={logQuick}>
-        <label class="visually-hidden" for="quick-log">Log work</label>
-        <input id="quick-log" class="input" maxlength="2000" bind:value={quick}
-          placeholder="What did you do? For example: replaced the switch in the server room" />
-        <button class="button button-primary" type="submit" disabled={logging || !quick.trim()}>Log work</button>
-        <button class="button button-secondary" type="button" onclick={() => (logOpen = true)}>More…</button>
-      </form>
-    {/if}
-    {#if customer.latest_work?.length}
-      <ul class="work">
-        {#each customer.latest_work as entry (entry.id)}
-          <li>
-            <time class="small muted mono" datetime={entry.happened_at}>{date(entry.happened_at)}</time>
-            <span class="work-body">
-              <span>{entry.text}</span>
-              <span class="small muted">
-                {[entry.author, LOG_KINDS[entry.kind], entry.service, entry.case_number || null].filter(Boolean).join(" · ")}
-              </span>
-            </span>
-          </li>
-        {/each}
-      </ul>
-    {:else}
-      <p class="muted">Nothing logged yet.</p>
-    {/if}
-  </section>
-  <LogWorkDialog bind:open={logOpen} {customer} onsaved={refresh} />
 
   <section class="section services" aria-labelledby="coming-title">
     <div class="heading-row">
@@ -323,7 +320,8 @@
               <span class="coming-title">
                 <Pill tone="info" text={TIMELINE_TYPES[item.type]} />
                 {#if item.renewal}<Pill {...decisionPill(item.renewal, now, until)} />{/if}
-                <span>{item.title}</span>
+                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- comingHref() uses resolve() -->
+                <a class="what" href={comingHref(item)}>{item.title}</a>
               </span>
               {#if item.detail}<span class="small muted">{item.detail}</span>{/if}
             </span>
@@ -361,7 +359,8 @@
         {#each systems.rows as { system, guest, host } (system.id)}
           <li class:guest>
             <span class="system-name">
-              <span class="mono strong">{system.name}</span>
+              <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the path comes from resolve() -->
+              <a class="mono strong what" href="{resolve("/(app)/customers/[id]/systems", { id })}?system={system.id}">{system.name}</a>
               {#if host}<Pill tone="neutral" text="Host" />{/if}
               {#if system.type === "virtual_machine"}<Pill tone="info" text="VM" />{/if}
             </span>
@@ -374,27 +373,41 @@
     {/if}
   </section>
 
-  <div class="grid">
-    {#if gettingStarted}
-      <section class="section wide" aria-labelledby="start-title">
-        <h2 class="section-title" id="start-title">Getting started</h2>
-        <ol class="steps">
-          {#each steps as step (step.label)}
-            <li class:done={step.done}>
-              {#if step.done}
-                <CircleCheck size={18} aria-hidden="true" />
-                <span>{step.label}<span class="visually-hidden">: done</span></span>
-              {:else}
-                <Circle size={18} aria-hidden="true" />
-                <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- each step's href comes from resolve() -->
-                <a href={step.href}>{step.label}</a>
-              {/if}
-            </li>
-          {/each}
-        </ol>
-      </section>
+  <section class="section services" aria-labelledby="work-title">
+    <div class="heading-row">
+      <h2 class="section-title" id="work-title">Latest work</h2>
+      <a class="small" href={resolve("/(app)/customers/[id]/log", { id })}>All work logged</a>
+    </div>
+    {#if customer.may_edit}
+      <form class="quick" onsubmit={logQuick}>
+        <label class="visually-hidden" for="quick-log">Log work</label>
+        <input id="quick-log" class="input" maxlength="2000" bind:value={quick}
+          placeholder="What did you do? For example: replaced the switch in the server room" />
+        <button class="button button-primary" type="submit" disabled={logging || !quick.trim()}>Log work</button>
+        <button class="button button-secondary" type="button" onclick={() => (logOpen = true)}>More…</button>
+      </form>
     {/if}
+    {#if customer.latest_work?.length}
+      <ul class="work">
+        {#each customer.latest_work as entry (entry.id)}
+          <li>
+            <time class="small muted mono" datetime={entry.happened_at}>{date(entry.happened_at)}</time>
+            <span class="work-body">
+              <span>{entry.text}</span>
+              <span class="small muted">
+                {[entry.author, LOG_KINDS[entry.kind], entry.service, entry.case_number || null].filter(Boolean).join(" · ")}
+              </span>
+            </span>
+          </li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="muted">Nothing logged yet.</p>
+    {/if}
+  </section>
+  <LogWorkDialog bind:open={logOpen} {customer} onsaved={refresh} />
 
+  <div class="grid">
     <section class="section" aria-labelledby="contacts-title">
       <h2 class="section-title" id="contacts-title">Contacts</h2>
       {#if customer.contacts?.length}
@@ -499,6 +512,22 @@
   }
   .strong {
     font-weight: 600;
+  }
+  /* A row's own name leads to the thing itself: it reads as the name, and as a link
+     when pointed at. */
+  .what {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .what:hover {
+    text-decoration: underline;
+  }
+  .chip {
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+  }
+  .chip:hover {
+    filter: brightness(0.95);
   }
   .services {
     margin-bottom: var(--space-4);
