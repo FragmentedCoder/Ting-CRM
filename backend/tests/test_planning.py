@@ -148,6 +148,81 @@ def test_work_done_earlier_is_logged_on_the_day_it_was_done(client, admin, nordl
         f"{soon(-7)}T12:00")
 
 
+def test_work_on_a_service_isnt_before_the_service_began(client, admin, nordlys  # noqa: F811
+                                                         ) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    backup = with_services(client, headers, url, "backup")["Backup"]["id"]
+    began = client.put(f"{url}/services/{backup}", headers=headers,
+                       json={"started_on": soon(-700)})
+    assert began.status_code == 200, began.text
+    yearly = {"count": 12, "unit": "months"}
+
+    # A service two years old has no recurring work from five years ago.
+    early = client.post(f"{url}/tasks", headers=headers, json={
+        "title": "Restore test", "due_on": soon(-1800), "every": yearly, "service_id": backup})
+    assert early.status_code == 422
+    assert "Backup has been active since" in early.json()["detail"]
+    # From the day it began, it can; and a task about no service isn't held to any.
+    first = client.post(f"{url}/tasks", headers=headers, json={
+        "title": "Restore test", "due_on": soon(-700), "every": yearly, "service_id": backup})
+    assert first.status_code == 200, first.text
+    assert client.post(f"{url}/tasks", headers=headers, json={
+        "title": "Find the old contract", "due_on": soon(-1800)}).status_code == 200
+    task = next(t for t in first.json()["tasks"] if t["title"] == "Restore test")
+
+    # Nor is it moved to before then, or ticked off as done before then.
+    moved = client.put(f"{url}/tasks/{task['id']}", headers=headers, json={
+        "title": "Restore test", "due_on": soon(-701), "every": yearly, "service_id": backup})
+    assert moved.status_code == 422
+    done_url = f"{url}/tasks/{task['id']}/done"
+    before = client.post(done_url, headers=headers, json={"done_on": soon(-701)})
+    assert before.status_code == 422
+    assert "can't have been done before that" in before.json()["detail"]
+    assert client.post(done_url, headers=headers, json={"done_on": soon(-700)}).status_code == 200
+
+
+def test_ticked_off_work_is_covered_or_billable_like_work_logged_by_hand(
+    client, admin, nordlys  # noqa: F811
+) -> None:
+    _, headers = admin
+    url = f"{CUSTOMERS}/{nordlys['id']}"
+    services = with_services(client, headers, url, "backup", "printers")
+    backup, printers = services["Backup"]["id"], services["Printers"]["id"]
+    client.post(f"{url}/agreements", headers=headers, json={
+        "name": "Service agreement 2026", "status": "active", "starts_on": soon(-50),
+        "sections": [{"ref": "§ 3.1", "service_id": backup}]})
+
+    def ticked(title: str, service_id: int | None, **done) -> dict:
+        made = client.post(f"{url}/tasks", headers=headers, json={
+            "title": title, "due_on": soon(0), "service_id": service_id}).json()
+        task = next(t for t in made["tasks"] if t["title"] == title)
+        finished = client.post(f"{url}/tasks/{task['id']}/done", headers=headers, json=done)
+        assert finished.status_code == 200, finished.text
+        return logged(client, headers, url, f"{title}: done.")
+
+    # By the agreements that ran on the day it was done, however late it's ticked off.
+    assert ticked("Restore test", backup)["coverage"] == "covered"
+    assert ticked("Restore test, before the agreement", backup, done_on=soon(-80))[
+        "coverage"] == "billable"
+    assert ticked("Change the toner", printers)["coverage"] == "billable"
+    assert ticked("Label the patch panel", None)["coverage"] == ""
+    # A renewal's entries too.
+    renewal = client.post(f"{url}/renewals", headers=headers, json={
+        "what": "Backup licence", "renews_on": soon(20), "service_id": backup}).json()
+    client.post(f"{url}/renewals/{renewal['renewals'][0]['id']}/renewed", headers=headers,
+                json={})
+    assert logged(client, headers, url, "Backup licence: renewed.")["coverage"] == "covered"
+
+    # The team can have it off: then only work logged by hand is marked.
+    off = client.put("/api/general", headers=headers, json={"cover_ticked_off_work": False})
+    assert off.status_code == 200, off.text
+    assert ticked("Restore test, unmarked", backup)["coverage"] == ""
+    by_hand = client.post(f"{url}/log", headers=headers,
+                          json={"text": "Checked the backup report", "service_id": backup})
+    assert by_hand.json()["coverage"] == "covered"
+
+
 @pytest.mark.parametrize(("sealed", "expected"), [
     # It remembers the newest day it was done.
     ({"every": {"count": 3, "unit": "months"}, "last_done_on": "2026-09-16"}, date(2026, 9, 16)),

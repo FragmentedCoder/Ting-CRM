@@ -25,7 +25,8 @@
   let found = $state<LogPage | null>(null);
   let error = $state<string | null>(null);
   let query = $state("");
-  let period = $state<"90d" | "year" | "all">("90d");
+  // Everything, unless narrowed: work from last year is the customer's work too.
+  let period = $state<"90d" | "year" | "all">("all");
   let kind = $state("");
   let serviceId = $state<number | null>(null);
   let systemId = $state<number | null>(null);
@@ -166,8 +167,14 @@
           {#if found.total > found.entries.length}
             <p class="small muted">Showing the newest {found.entries.length} of {found.total}. Narrow it down with the filters.</p>
           {/if}
+          {#if found.total_logged > found.total}
+            <p class="small muted">
+              {found.total_logged - found.total} more {found.total_logged - found.total === 1 ? "entry isn't" : "entries aren't"}
+              shown: the filters leave {found.total_logged - found.total === 1 ? "it" : "them"} out.
+            </p>
+          {/if}
         {:else}
-          <p class="muted none">{found.summary.entries || period !== "90d" || query ? "Nothing matches." : "Nothing logged in the last 90 days."}</p>
+          <p class="muted none">{found.total_logged ? "Nothing matches: the filters leave nothing." : "Nothing logged yet."}</p>
         {/if}
       {/if}
     </section>
@@ -196,7 +203,7 @@
         <div class="field">
           <label for="filter-period">Period</label>
           <select id="filter-period" class="input" bind:value={period}>
-            <option value="90d">Last 90 days</option><option value="year">Last year</option><option value="all">Everything</option>
+            <option value="all">Everything</option><option value="year">Last year</option><option value="90d">Last 90 days</option>
           </select>
         </div>
         <div class="field">

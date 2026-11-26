@@ -88,8 +88,11 @@ def test_the_log_is_searched_and_filtered(client, admin, setup, person) -> None:
         page = client.get(f"{url}/log", headers=as_astrid, params=params).json()
         return [e["text"] for e in page["entries"]]
 
-    assert texts() == ["Printer drum ordered", "Firmware on FW01"]
-    assert texts(period="all")[-1] == "Yearly review"
+    # Everything, unless narrowed: work from months ago is the customer's work too.
+    assert texts() == ["Printer drum ordered", "Firmware on FW01", "Yearly review"]
+    assert texts(period="90d") == ["Printer drum ordered", "Firmware on FW01"]
+    narrowed = client.get(f"{url}/log", headers=as_astrid, params={"period": "90d"}).json()
+    assert (narrowed["total"], narrowed["total_logged"]) == (2, 3)
     assert texts(q="fw01") == ["Firmware on FW01"]
     assert texts(q="mikkel") == ["Printer drum ordered"]
     assert texts(kind="call") == ["Printer drum ordered"]
@@ -195,6 +198,30 @@ def test_only_its_author_or_a_manager_changes_an_entry(client, setup, person, se
         "customer.log_removed"]
 
 
+def test_work_cant_be_logged_ahead_of_time(client, admin, setup) -> None:
+    url, _, _ = setup
+    _, headers = admin
+    now = clock.utcnow()
+
+    def logging(ahead: timedelta):
+        return client.post(f"{url}/log", headers=headers, json={
+            "text": "Replaced the switch", "happened_at": (now + ahead).isoformat()})
+
+    # Not this evening, and not tomorrow: it hasn't happened yet.
+    for ahead in (timedelta(hours=3), timedelta(days=1), timedelta(minutes=10)):
+        refused = logging(ahead)
+        assert refused.status_code == 422
+        assert "ahead of time" in refused.json()["detail"]
+    # A clock a few minutes fast is taken as now.
+    fast = logging(timedelta(minutes=2))
+    assert fast.status_code == 200, fast.text
+    assert fast.json()["happened_at"] <= clock.utcnow().isoformat().replace("+00:00", "Z")
+    # Nor can an entry be moved ahead.
+    moved = client.put(f"{url}/log/{fast.json()['id']}", headers=headers, json={
+        "text": "Replaced the switch", "happened_at": (now + timedelta(hours=2)).isoformat()})
+    assert moved.status_code == 422
+
+
 @pytest.mark.parametrize("body", [
     {"text": ""},
     {"text": "x", "kind": "fax"},
@@ -225,7 +252,7 @@ def test_the_export_is_the_entries_shown_and_is_logged(client, admin, setup, ses
     assert rows[1][3] == "'=HYPERLINK(\"http://evil.example\")"
     assert rows[1][7] == "billable"
     logged = [e.details for e in audit_entries(session, "customer.log_exported")]
-    assert logged == ['{"filters":{"billable":"True","period":"90d"},"rows":1}']
+    assert logged == ['{"filters":{"billable":"True","period":"all"},"rows":1}']
 
 
 def test_auditors_dont_read_the_log(client, setup, person) -> None:  # noqa: F811

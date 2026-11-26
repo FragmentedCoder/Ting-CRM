@@ -171,6 +171,17 @@ test("the admin panel, from adding a user to their first sign-in", async ({ brow
   await expect(admin).toHaveTitle(/Nordlys CRM/);
   await shot(admin, "9-branding");
 
+  // General: how Þing behaves for the whole team, with its defaults.
+  await adminMenu(admin, "General").click();
+  await expect(admin.getByRole("heading", { name: "General", exact: true })).toBeVisible();
+  await expect(admin.getByLabel("Show what's coming up for the next")).toHaveValue("12");
+  await expect(admin.getByRole("switch", { name: /Mark work ticked off from a task/ })).toBeChecked();
+  await expect(admin.getByRole("switch", { name: /Show Getting started on a new customer/ })).toBeChecked();
+  await expect(admin.getByLabel("Country code offered first")).toHaveValue("+45");
+  await admin.getByRole("button", { name: "Save settings" }).click();
+  await expect(toastWith(admin, "Settings saved.")).toBeVisible();
+  await shot(admin, "9c-general");
+
   // Server health: every check runs, and the audit chain is intact; the daily
   // timestamp (it needs the internet) is asked for here too.
   await adminMenu(admin, "Server health").click();

@@ -11,6 +11,7 @@
   import PlanningDialogs from "#lib/components/PlanningDialogs.svelte";
   import { formatCvr, type CustomerDetail } from "#lib/customers.js";
   import { date } from "#lib/format.js";
+  import { aheadWords } from "#lib/general.svelte.js";
   import { DATED_KINDS, firstName, greeting, reasonWords, type MyTask, type MyWork } from "#lib/mywork.js";
   import { decisionPill, dueTone, dueWords, today } from "#lib/planning.js";
   import { roleName } from "#lib/roles.js";
@@ -115,7 +116,7 @@
           <dt>Overdue</dt><dd>{work.counts.overdue}</dd>
         </div>
         <div class="count"><dt>Due this week</dt><dd>{work.counts.this_week}</dd></div>
-        <div class="count"><dt>Renewals and notice days, next 60 days</dt><dd>{work.counts.dates}</dd></div>
+        <div class="count"><dt>Renewals and notice days, next {aheadWords(work.ahead_months)}</dt><dd>{work.counts.dates}</dd></div>
         <div class="count" class:warning={work.counts.attention > 0}>
           <dt>Customers needing attention</dt><dd>{work.counts.attention}</dd>
         </div>
@@ -146,6 +147,12 @@
             </ul>
           {:else}
             <p class="muted">Nothing is waiting for you.</p>
+          {/if}
+          {#if work.later}
+            <p class="small muted">
+              {work.later === 1 ? "One more is" : `${work.later} more are`} due after {date(work.ahead_until)},
+              further off than the team looks ahead: on its customer's timeline until then.
+            </p>
           {/if}
         </section>
 
@@ -178,7 +185,7 @@
                   <span class="body">
                     <span class="line">
                       <Pill tone="info" text={DATED_KINDS[dated.kind]} />
-                      {#if dated.kind === "renewal"}<Pill {...decisionPill({ decision: dated.decision ?? "", renews_on: dated.day }, now)} />{/if}
+                      {#if dated.kind === "renewal"}<Pill {...decisionPill({ decision: dated.decision ?? "", renews_on: dated.day }, now, work.ahead_until)} />{/if}
                       <span class="strong">{dated.what}</span>
                     </span>
                     <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href() uses resolve() -->
@@ -192,7 +199,7 @@
               {/each}
             </ul>
           {:else}
-            <p class="muted">Nothing in the next 60 days.</p>
+            <p class="muted">Nothing in the next {aheadWords(work.ahead_months)}.</p>
           {/if}
         </section>
 

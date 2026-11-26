@@ -39,12 +39,15 @@
   let error = $state<string | null>(null);
   let busy = $state(false);
   let wasOpen = false;
+  // The latest "When" can be: now. Work that hasn't happened yet can't be logged.
+  let latest = $state(toLocalInput(new Date()));
 
   // Each time it opens: the entry's values, or a fresh one for now.
   $effect(() => {
     if (open && !wasOpen) {
       kind = entry?.kind ?? "work";
       happened = toLocalInput(entry ? new Date(entry.happened_at) : new Date());
+      latest = toLocalInput(new Date());
       text = entry?.text ?? "";
       serviceId = entry?.service_id ?? null;
       systemIds = [...(entry?.system_ids ?? [])];
@@ -68,6 +71,10 @@
 
   async function save(event: SubmitEvent) {
     event.preventDefault();
+    if (new Date(happened).getTime() > Date.now() + 60_000) {
+      error = "Work can't be logged ahead of time: it's logged once it's done. Plan ahead with a task.";
+      return;
+    }
     busy = true;
     error = null;
     const body = {
@@ -107,7 +114,8 @@
         </div>
         <div class="field">
           <label for="log-when">When</label>
-          <input id="log-when" class="input" type="datetime-local" required bind:value={happened} />
+          <input id="log-when" class="input" type="datetime-local" required max={latest}
+            onfocus={() => (latest = toLocalInput(new Date()))} bind:value={happened} />
         </div>
       </div>
       <div class="pair">

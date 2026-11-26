@@ -220,6 +220,24 @@ def counts_from(due_on: date, sealed: dict[str, Any], today: date) -> date | Non
     return guess if guess <= today else None
 
 
+def plain_day(day: date) -> str:
+    """"9 Feb 2023", for a message."""
+    return f"{day.day} {day:%b %Y}"
+
+
+def not_before_its_service(db: Session, sealer: Sealer, service_id: int | None, day: date,
+                           refusal: str) -> None:
+    """Work on a service can't be planned or done before the service began: a service
+    that's two years old has no recurring work from five years ago. `refusal` is the
+    message, with {service} and {began} to fill in."""
+    service = db.get(CustomerService, service_id) if service_id is not None else None
+    if service is None or service.started_on is None or day >= service.started_on:
+        return
+    name = str(sealer.open("service", service.id, service.sealed).get("name", ""))
+    raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        refusal.format(service=name, began=plain_day(service.started_on)))
+
+
 def _named(db: Session, sealer: Sealer, customer: Customer, service_id: int | None,
            system_id: int | None) -> tuple[str, str]:
     """The service's and system's names, each checked as this customer's."""
@@ -271,6 +289,9 @@ def chosen_people(db: Session, customer_id: int, audience: Audience, people: lis
 def task_fields(db: Session, sealer: Sealer, customer: Customer, body: TaskIn,
                 renewal_id: int | None = None) -> dict[str, Any]:
     service_name, system_name = _named(db, sealer, customer, body.service_id, body.system_id)
+    not_before_its_service(
+        db, sealer, body.service_id, body.due_on,
+        "{service} has been active since {began}: work on it can't be due before that.")
     return {
         "title": body.title.strip(), "notes": body.notes.strip(), "service_id": body.service_id,
         "service_name": service_name, "system_id": body.system_id, "system_name": system_name,

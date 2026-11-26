@@ -18,6 +18,7 @@
   import { sharedCustomer } from "#lib/context.js";
   import { SYSTEM_TYPES, type CaseKind, type CustomerDetail, type CustomerService } from "#lib/customers.js";
   import { date } from "#lib/format.js";
+  import { aheadUntil } from "#lib/general.svelte.js";
   import {
     decisionPill, dueTone, dueWords, forWhom as whoFor, renewalOpen, rhythm, today, warnLine,
   } from "#lib/planning.js";
@@ -368,7 +369,7 @@
                           {/if}
                         </td>
                         <td class="nowrap">{date(renewal.renews_on)}</td>
-                        <td><Pill {...decisionPill(renewal, now)} /></td>
+                        <td><Pill {...decisionPill(renewal, now, aheadUntil(now))} /></td>
                         <td class="small">{warnLine(renewal)}</td>
                         {#if customer.may_edit}
                           <td class="actions">

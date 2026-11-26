@@ -19,6 +19,7 @@
     systemsPreview,
     type CustomerDetail, type CustomerService, type Pin as PinRecord,
   } from "#lib/customers.js";
+  import { aheadUntil, aheadWords } from "#lib/general.svelte.js";
   import { decisionPill, dueTone, dueWords, today } from "#lib/planning.js";
   import { CASE_KINDS, showValue } from "#lib/services.js";
   import { TIMELINE_TYPES, shortDay, timelineItems } from "#lib/timeline.js";
@@ -44,8 +45,12 @@
   // (and what's overdue) first.
   const now = today();
   let planning = $state<ReturnType<typeof PlanningDialogs>>();
-  const coming = $derived(customer
+  const planned = $derived(customer
     ? timelineItems(customer, [], now).filter((item) => item.state !== "done").reverse() : []);
+  // As far ahead as the team looks: what's further off waits on the timeline.
+  const until = $derived(aheadUntil(now));
+  const coming = $derived(planned.filter((item) => item.day <= until));
+  const later = $derived(planned.length - coming.length);
   const COMING_SHOWN = 6;
 
   // Logging work: one line straight from the overview, or the full form.
@@ -317,7 +322,7 @@
             <span class="work-body">
               <span class="coming-title">
                 <Pill tone="info" text={TIMELINE_TYPES[item.type]} />
-                {#if item.renewal}<Pill {...decisionPill(item.renewal, now)} />{/if}
+                {#if item.renewal}<Pill {...decisionPill(item.renewal, now, until)} />{/if}
                 <span>{item.title}</span>
               </span>
               {#if item.detail}<span class="small muted">{item.detail}</span>{/if}
@@ -329,9 +334,15 @@
           </li>
         {/each}
       </ul>
-      {#if coming.length > COMING_SHOWN}
-        <p class="small muted">And {coming.length - COMING_SHOWN} more on the timeline.</p>
+      {#if coming.length > COMING_SHOWN || later}
+        <p class="small muted">
+          {[coming.length > COMING_SHOWN ? `${coming.length - COMING_SHOWN} more` : null,
+            later ? `${later} further off than the next ${aheadWords()}` : null].filter(Boolean).join(", and ")}
+          on the timeline.
+        </p>
       {/if}
+    {:else if later}
+      <p class="muted">Nothing in the next {aheadWords()}; {later} further off on the timeline.</p>
     {:else}
       <p class="muted">Nothing planned.</p>
     {/if}

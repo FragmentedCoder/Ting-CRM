@@ -31,7 +31,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app import clock
-from app.attention import AHEAD_DAYS, REASONS_SHOWN, Reason, reasons, standings
+from app.attention import REASONS_SHOWN, Reason, reasons, standings
 from app.auth.dependencies import DB, require
 from app.auth.sessions import UserSession
 from app.customer_routes import Team
@@ -44,6 +44,7 @@ from app.customers import (
     may_manage,
     sights,
 )
+from app.general import ahead, general
 from app.planning import CustomerTaskPerson, Decision, TaskOut, describe_task
 from app.roles import Capability, Role, roles_of
 
@@ -110,6 +111,11 @@ class ForManagers(BaseModel):
 
 class MyWork(BaseModel):
     today: date
+    # How far ahead what's coming up reaches (the team's setting), and the last day
+    # that's within it. Tasks due later aren't listed: `later` counts them.
+    ahead_months: int
+    ahead_until: date
+    later: int
     tasks: list[MyTask]
     dates: list[Dated]
     attention: list[Attention]
@@ -134,13 +140,16 @@ def my_work(worker: Worker, db: DB) -> MyWork:
     mine = set(seen) if manages or not (assigned & set(seen)) else assigned & set(seen)
     names = {customer_id: keyring.details(customer)["name"]
              for customer_id, customer in seen.items()}
+    # What's coming up reaches as far ahead as the team has set: nearer always shows.
+    horizon = ahead(db, today)
     # Agreements and services are opened for my customers; a Manager's are all of them.
-    found = standings(db, keyring, seen, today, set(seen) if manages else mine)
+    found = standings(db, keyring, seen, today, set(seen) if manages else mine, horizon)
 
     # Tasks: mine, wherever they are, soonest first.
     named = set(db.scalars(select(CustomerTaskPerson.task_id)
                            .where(CustomerTaskPerson.user_id == me)))
     tasks: list[MyTask] = []
+    later = 0
     rows = sorted((row for standing in found.values() for row in standing.open_tasks),
                   key=lambda row: (row.due_on, row.id))
     for row in rows:
@@ -148,7 +157,9 @@ def my_work(worker: Worker, db: DB) -> MyWork:
         for_me = (row.id in named if row.audience == "people"
                   else manages if row.audience == "managers"
                   else me in held or (technician and not held))
-        if for_me:
+        if for_me and row.due_on > horizon:
+            later += 1
+        elif for_me:
             sealed = keyring.sealer(seen[row.customer_id]).open("task", row.id, row.sealed)
             tasks.append(MyTask(customer_id=row.customer_id, customer=names[row.customer_id],
                                 task=describe_task(db, row, sealed, me, manages)))
@@ -158,8 +169,7 @@ def my_work(worker: Worker, db: DB) -> MyWork:
         return Dated(customer_id=customer_id, customer=names[customer_id], kind=kind, what=what,
                      day=day, decision=decision)
 
-    # Renewals, last notice days and ends in the coming weeks, at my customers.
-    horizon = today + timedelta(days=AHEAD_DAYS)
+    # Renewals, last notice days and ends within that reach, at my customers.
     dates: list[Dated] = []
     for customer_id in mine:
         standing = found[customer_id]
@@ -209,5 +219,6 @@ def my_work(worker: Worker, db: DB) -> MyWork:
                    for renewal, what in standing.renewals if renewal.decision == "waiting"]
         waiting.sort(key=lambda d: (d.day, d.customer.casefold()))
         managers = ForManagers(waiting=waiting, monthly_cases=monthly, uncovered=uncovered)
-    return MyWork(today=today, tasks=tasks, dates=dates, attention=attention, counts=counts,
+    return MyWork(today=today, ahead_months=general(db).warn_ahead_months, ahead_until=horizon,
+                  later=later, tasks=tasks, dates=dates, attention=attention, counts=counts,
                   managers=managers)
