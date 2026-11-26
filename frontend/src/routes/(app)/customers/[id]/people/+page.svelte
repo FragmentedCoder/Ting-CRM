@@ -6,6 +6,7 @@
   import Pill from "#lib/components/Pill.svelte";
   import { sharedCustomer } from "#lib/context.js";
   import { findPeople, otherCustomers, samePeople, type CustomerDetail } from "#lib/customers.js";
+  import { roleName } from "#lib/roles.js";
   import { toast } from "#lib/toast.svelte.js";
 
   // The technicians who work with the customer. Administrators and Managers choose,
@@ -75,6 +76,7 @@
                 <Avatar name={person.display_name} url={person.avatar_url} size={40} />
                 <span class="who">
                   <span class="check-title">{person.display_name}</span>
+                  <span class="small">{person.roles.map(roleName).join(", ")}</span>
                   <span class="small muted mono">{person.username}</span>
                   <span class="small muted">{otherCustomers(person, assigned.includes(person.id))}</span>
                   {#if person.limited}
@@ -105,7 +107,10 @@
         {#each customer.assigned as person (person.id)}
           <li class="person">
             <Avatar name={person.display_name} url={person.avatar_url} size={40} />
-            <span class="who"><span class="check-title">{person.display_name}</span></span>
+            <span class="who">
+              <span class="check-title">{person.display_name}</span>
+              <span class="small">{person.roles.map(roleName).join(", ")}</span>
+            </span>
           </li>
         {/each}
       </ul>
