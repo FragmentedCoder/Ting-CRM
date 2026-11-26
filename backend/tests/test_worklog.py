@@ -195,6 +195,30 @@ def test_only_its_author_or_a_manager_changes_an_entry(client, setup, person, se
         "customer.log_removed"]
 
 
+def test_work_cant_be_logged_ahead_of_time(client, admin, setup) -> None:
+    url, _, _ = setup
+    _, headers = admin
+    now = clock.utcnow()
+
+    def logging(ahead: timedelta):
+        return client.post(f"{url}/log", headers=headers, json={
+            "text": "Replaced the switch", "happened_at": (now + ahead).isoformat()})
+
+    # Not this evening, and not tomorrow: it hasn't happened yet.
+    for ahead in (timedelta(hours=3), timedelta(days=1), timedelta(minutes=10)):
+        refused = logging(ahead)
+        assert refused.status_code == 422
+        assert "ahead of time" in refused.json()["detail"]
+    # A clock a few minutes fast is taken as now.
+    fast = logging(timedelta(minutes=2))
+    assert fast.status_code == 200, fast.text
+    assert fast.json()["happened_at"] <= clock.utcnow().isoformat().replace("+00:00", "Z")
+    # Nor can an entry be moved ahead.
+    moved = client.put(f"{url}/log/{fast.json()['id']}", headers=headers, json={
+        "text": "Replaced the switch", "happened_at": (now + timedelta(hours=2)).isoformat()})
+    assert moved.status_code == 422
+
+
 @pytest.mark.parametrize("body", [
     {"text": ""},
     {"text": "x", "kind": "fax"},

@@ -141,15 +141,20 @@ def sealed_fields(db: Session, sealer: Sealer, customer: Customer, body: LogEntr
     }
 
 
+# How far a person's clock may run ahead of the server's before "now" is refused.
+CLOCK_SLACK = timedelta(minutes=5)
+
+
 def when(body: LogEntryIn) -> datetime:
-    """When the entry happened: now unless given, and never ahead of time (planned
-    work is a task, not a log entry)."""
+    """When the entry happened: now unless given, and never ahead of time. Work that
+    hasn't happened yet can't be logged: planned work is a task, not a log entry."""
     now = clock.utcnow()
     moment = body.happened_at or now
-    if moment > now + timedelta(days=1):
+    if moment > now + CLOCK_SLACK:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT,
-                            "A log entry is for work that's been done. Plan ahead with a task.")
-    return moment
+                            "Work can't be logged ahead of time: it's logged once it's done. "
+                            "Plan ahead with a task.")
+    return min(moment, now)
 
 
 def work_day(body: LogEntryIn, moment: datetime) -> date:
