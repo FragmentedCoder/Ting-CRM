@@ -24,6 +24,7 @@
   import Server from "@lucide/svelte/icons/server";
   import Settings from "@lucide/svelte/icons/settings";
   import Shield from "@lucide/svelte/icons/shield-check";
+  import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
   import Building from "@lucide/svelte/icons/building";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import DatabaseBackup from "@lucide/svelte/icons/database-backup";
@@ -91,7 +92,10 @@
   const path = $derived(page.url.pathname);
   const customer = $derived(openCustomer());
   const full = $derived(customer?.visibility === "full");
-  const showAdmin = $derived(can(current, "administer") || can(current, "read_audit_log"));
+  // Admin holds what each may open: all of it for Administrators, the audit log for
+  // Auditors, General for Managers.
+  const showAdmin = $derived(can(current, "administer") || can(current, "read_audit_log")
+    || can(current, "manage_customers"));
   const sees = $derived(current.user.roles.length > 0);
   let menuOpen = $state(false);
   let searchOpen = $state(false);
@@ -161,11 +165,12 @@
 
   const adminItems = $derived.by((): Item[] => {
     const items: Item[] = [];
-    const add = (route: `/(app)/admin/${"users" | "security" | "branding" | "backups" | "email" | "integrations" | "certificate" | "health" | "audit"}`,
+    const add = (route: `/(app)/admin/${"users" | "general" | "security" | "branding" | "backups" | "email" | "integrations" | "certificate" | "health" | "audit"}`,
                  label: string, icon: Item["icon"]) =>
       items.push({ href: resolve(route), label, icon, current: path.startsWith(resolve(route)) });
     if (can(current, "administer")) {
       add("/(app)/admin/users", "Users", Users);
+      add("/(app)/admin/general", "General", SlidersHorizontal);
       add("/(app)/admin/security", "Security", Shield);
       add("/(app)/admin/branding", "Branding", Palette);
       add("/(app)/admin/backups", "Backups", DatabaseBackup);
@@ -174,6 +179,7 @@
       add("/(app)/admin/certificate", "Certificate", LockKeyhole);
       add("/(app)/admin/health", "Server health", HeartPulse);
     }
+    else if (can(current, "manage_customers")) add("/(app)/admin/general", "General", SlidersHorizontal);
     if (can(current, "read_audit_log")) add("/(app)/admin/audit", "Audit log", ScrollText);
     return items;
   });
