@@ -70,6 +70,14 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   expect((status.top + status.bottom) / 2).toBeLessThan(name.bottom);
   await expect(boss.getByRole("button", { name: `Customer ${CUSTOMER}` })).toBeVisible();
   await expect(menu(boss, "Overview")).toHaveAttribute("aria-current", "page");
+  // Getting started is the first thing under the pinned warnings, and Latest work
+  // sits right over Contacts and People.
+  const top = async (name: string) => (await edges(boss.getByRole("region", { name }))).top;
+  expect(await top("Getting started")).toBeLessThan((await edges(boss.getByLabel("At a glance"))).top);
+  expect(await top("Getting started")).toBeGreaterThan((await edges(boss.getByRole("note", { name: "Pinned warnings" }))).top);
+  expect(await top("Latest work")).toBeGreaterThan(await top("Coming up"));
+  expect(await top("Latest work")).toBeGreaterThan(await top("Systems"));
+  expect(await top("Latest work")).toBeLessThan(await top("Contacts"));
 
   // Its sites and contacts, then who works with it.
   await openContacts(boss);
@@ -88,6 +96,9 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await contact.getByLabel("Title").fill("IT manager");
   await contact.getByRole("checkbox", { name: "Technical contact" }).check();
   await contact.getByLabel("Email").fill("sigrid@fjordlys.example");
+  // A phone number starts on the team's country code; another can be chosen.
+  await expect(contact.getByLabel("Country code")).toHaveValue("+45");
+  await contact.getByLabel("Phone").fill("12 34 56 78");
   expect((await edges(contact)).width).toBeGreaterThan(800);
   expect((await edges(contact.getByLabel("Title"))).top).toBe((await edges(contact.getByLabel("Name"))).top);
   await shot(boss, "1a-contact-form");
@@ -101,6 +112,7 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   await expect(hovedkontor).toContainText("Technical contact");
   const card = boss.getByRole("region", { name: "For the whole company" }).getByRole("listitem").filter({ hasText: "Sigrid Holm" });
   await expect(card.getByText("sigrid@fjordlys.example")).toBeVisible();
+  await expect(card.getByRole("link", { name: "+45 12 34 56 78" })).toBeVisible();
   // The card's menu is in its top right corner.
   const corner = await edges(card);
   const more = await edges(card.getByRole("button", { name: "Actions for Sigrid Holm" }));
@@ -116,6 +128,7 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
   const save = boss.getByRole("button", { name: "Save", exact: true });
   await expect(save).toBeDisabled();
   await expect(boss.getByRole("checkbox", { name: /Tor Tekniker/ })).toHaveAccessibleName(/No other customers/);
+  await expect(boss.getByRole("checkbox", { name: /Tor Tekniker/ })).toHaveAccessibleName(/Technician/);
   await boss.getByRole("checkbox", { name: /Tor Tekniker/ }).check();
   await expect(boss.getByRole("main")).toContainText(/1 of \d+ technicians/);
   await boss.getByRole("button", { name: "Undo changes" }).click();
@@ -337,6 +350,16 @@ test("customers, from adding one to deleting it", async ({ browser }) => {
     /Renewal in \d+ days: Firewall feature key/,
   );
   await expect(tech.getByRole("region", { name: "Recently viewed" })).toContainText(CUSTOMER);
+  // A task's name leads to the task itself: its place on the customer's timeline, marked.
+  await mine.getByRole("link", { name: "Update the firewall's firmware" }).click();
+  await expect(tech).toHaveURL(/\/timeline\?show=task-\d+$/);
+  await expect(tech.locator("li.shown")).toContainText("Update the firewall's firmware");
+  // And a service on the overview to the service.
+  await menu(tech, "Overview").click();
+  await tech.getByRole("region", { name: "Services" }).getByRole("row", { name: /Support/ }).getByRole("link", { name: "Support" }).click();
+  await expect(tech).toHaveURL(/\/services\?service=\d+$/);
+  await expect(tech.getByRole("heading", { name: "Support", exact: true })).toBeVisible();
+  await menu(tech, "My work").click();
   await tech.getByRole("button", { name: "New task" }).click();
   await expect(tech.getByRole("dialog").getByLabel("Customer")).toContainText(CUSTOMER);
   await tech.getByRole("dialog").getByRole("button", { name: "Continue" }).click();
