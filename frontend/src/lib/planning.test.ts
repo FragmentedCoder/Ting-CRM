@@ -81,6 +81,15 @@ describe("a renewal", () => {
     expect(on("", "2026-11-01")).toEqual({ tone: "critical", text: "Overdue, no decision" });
   });
 
+  it("isn't a warning while it's further off than the team looks ahead", () => {
+    const far = { decision: "" as const, renews_on: "2027-12-18" };
+    expect(decisionPill(far, "2026-11-18", "2027-11-18")).toEqual({ tone: "neutral", text: "Not due yet" });
+    // Within reach, on its last day, it's open; and a decision made early still shows.
+    expect(decisionPill(far, "2026-11-18", "2027-12-18")).toEqual({ tone: "warning", text: "Renewal open" });
+    expect(decisionPill({ ...far, decision: "approved" }, "2026-11-18", "2027-11-18")).toEqual(
+      { tone: "ok", text: "Approved" });
+  });
+
   it("is open until it's renewed, or has run out as decided", () => {
     expect(renewalOpen({ decision: "", renews_on: "2026-11-01" }, "2026-11-18")).toBe(true);
     expect(renewalOpen({ decision: "declined", renews_on: "2026-12-01" }, "2026-11-18")).toBe(true);

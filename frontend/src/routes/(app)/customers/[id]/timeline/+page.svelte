@@ -17,6 +17,7 @@
   import Switch from "#lib/components/Switch.svelte";
   import { sharedCustomer } from "#lib/context.js";
   import type { CustomerDetail } from "#lib/customers.js";
+  import { aheadUntil } from "#lib/general.svelte.js";
   import { REASONS, decisionPill, dueWords, today, warnLine, type Renewal, type Task } from "#lib/planning.js";
   import {
     TIMELINE_TYPES, TYPE_GROUPS, filterTimeline, longDay, shortDay, timelineItems, timelineMonths,
@@ -155,7 +156,7 @@
         <span class="visually-hidden">{STATES[item.state]}:</span>
         <time class="small mono when" datetime={item.entry?.happened_at ?? item.day}>{shortDay(item.day)}{item.time ? ` · ${item.time}` : ""}</time>
         <Pill tone="info" text={TIMELINE_TYPES[item.type]} />
-        {#if item.renewal}<Pill {...decisionPill(item.renewal, now)} />{/if}
+        {#if item.renewal}<Pill {...decisionPill(item.renewal, now, aheadUntil(now))} />{/if}
         {#if item.state === "overdue" && (!item.renewal || item.renewal.decision)}
           <Pill tone="critical" text={dueWords(item.day, now)} />
         {/if}

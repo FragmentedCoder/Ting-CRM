@@ -60,6 +60,11 @@ export interface Attention {
 
 export interface MyWork {
   today: string;
+  /** How far ahead what's coming up reaches (the team's setting), the last day
+   *  within it, and how many of my tasks are due later than that. */
+  ahead_months: number;
+  ahead_until: string;
+  later: number;
   tasks: MyTask[];
   dates: Dated[];
   attention: Attention[];

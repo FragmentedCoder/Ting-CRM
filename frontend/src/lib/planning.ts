@@ -173,16 +173,18 @@ export function dueWords(day: string, now = today()): string {
 }
 
 /** A renewal's decision as a pill; an undecided one is open, or overdue once its
- *  date has passed. */
+ *  date has passed. One further off than the team looks ahead (`until`, see
+ *  aheadUntil) isn't a warning yet: it's just not due. */
 export function decisionPill(
-  renewal: Pick<Renewal, "decision" | "renews_on">, now = today(),
-): { tone: "ok" | "warning" | "critical"; text: string } {
+  renewal: Pick<Renewal, "decision" | "renews_on">, now = today(), until: string | null = null,
+): { tone: "ok" | "warning" | "critical" | "neutral"; text: string } {
   if (renewal.decision === "approved" || renewal.decision === "renewed") {
     return { tone: "ok", text: DECISIONS[renewal.decision] };
   }
   if (renewal.decision === "waiting") return { tone: "warning", text: DECISIONS.waiting };
   if (renewal.decision === "declined") return { tone: "critical", text: DECISIONS.declined };
-  return renewal.renews_on < now ? { tone: "critical", text: "Overdue, no decision" }
+  if (renewal.renews_on < now) return { tone: "critical", text: "Overdue, no decision" };
+  return until !== null && renewal.renews_on > until ? { tone: "neutral", text: "Not due yet" }
     : { tone: "warning", text: "Renewal open" };
 }
 
