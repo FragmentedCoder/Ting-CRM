@@ -16,6 +16,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import audit, clock
@@ -55,16 +56,20 @@ class LogPage(BaseModel):
     entries: list[LogEntryOut]
     # How many match, of which `entries` is a page.
     total: int
+    # How many the customer has in all, whatever the filters: the page says when
+    # the filters leave some out.
+    total_logged: int
     # The last 90 days, whatever the filters.
     summary: LogSummary
 
 
 class Filters:
-    """What the Work log page narrows by; the export takes the same."""
+    """What the Work log page narrows by; the export takes the same. Everything,
+    unless narrowed: work from last year is the customer's work too."""
 
     def __init__(
         self,
-        period: Period = "90d",
+        period: Period = "all",
         q: Annotated[str, Query(max_length=200)] = "",
         service_id: int | None = None,
         system_id: int | None = None,
@@ -123,7 +128,9 @@ def list_entries(customer_id: int, request: Request, record: FullSession, db: DB
     found = _matching(db, record, customer, filters)
     recent = entries_of(db, Keyring().sealer(customer), customer.id, viewer_id=record.user_id,
                         manages=False, since=clock.utcnow() - timedelta(days=90))
-    return LogPage(entries=found[offset:offset + limit], total=len(found),
+    logged = db.scalar(select(func.count()).select_from(CustomerLogEntry)
+                       .where(CustomerLogEntry.customer_id == customer.id)) or 0
+    return LogPage(entries=found[offset:offset + limit], total=len(found), total_logged=logged,
                    summary=summarise(recent))
 
 

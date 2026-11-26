@@ -24,7 +24,9 @@ export interface LogEntry {
 
 export interface LogPage {
   entries: LogEntry[];
+  /** How many match the filters, and how many the customer has in all. */
   total: number;
+  total_logged: number;
   /** The last 90 days, whatever the filters. */
   summary: { entries: number; on_site: number; people: number; billable: number; by_service: [string, number][] };
 }

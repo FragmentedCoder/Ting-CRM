@@ -88,8 +88,11 @@ def test_the_log_is_searched_and_filtered(client, admin, setup, person) -> None:
         page = client.get(f"{url}/log", headers=as_astrid, params=params).json()
         return [e["text"] for e in page["entries"]]
 
-    assert texts() == ["Printer drum ordered", "Firmware on FW01"]
-    assert texts(period="all")[-1] == "Yearly review"
+    # Everything, unless narrowed: work from months ago is the customer's work too.
+    assert texts() == ["Printer drum ordered", "Firmware on FW01", "Yearly review"]
+    assert texts(period="90d") == ["Printer drum ordered", "Firmware on FW01"]
+    narrowed = client.get(f"{url}/log", headers=as_astrid, params={"period": "90d"}).json()
+    assert (narrowed["total"], narrowed["total_logged"]) == (2, 3)
     assert texts(q="fw01") == ["Firmware on FW01"]
     assert texts(q="mikkel") == ["Printer drum ordered"]
     assert texts(kind="call") == ["Printer drum ordered"]
@@ -249,7 +252,7 @@ def test_the_export_is_the_entries_shown_and_is_logged(client, admin, setup, ses
     assert rows[1][3] == "'=HYPERLINK(\"http://evil.example\")"
     assert rows[1][7] == "billable"
     logged = [e.details for e in audit_entries(session, "customer.log_exported")]
-    assert logged == ['{"filters":{"billable":"True","period":"90d"},"rows":1}']
+    assert logged == ['{"filters":{"billable":"True","period":"all"},"rows":1}']
 
 
 def test_auditors_dont_read_the_log(client, setup, person) -> None:  # noqa: F811
