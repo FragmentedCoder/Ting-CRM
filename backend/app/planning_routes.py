@@ -22,11 +22,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app import audit, clock
+from app.agreements import agreements_of, coverage
 from app.auth.dependencies import DB, client_ip, require
 from app.auth.sessions import UserSession
 from app.customer_routes import CustomerDetail, _detail, visible_customer
 from app.customer_services import CustomerService
 from app.customers import Customer, Keyring, Sealer, may_manage
+from app.general import general
 from app.planning import (
     CustomerRenewal,
     CustomerRenewalPerson,
@@ -38,6 +40,7 @@ from app.planning import (
     add_interval,
     chosen_people,
     counts_from,
+    not_before_its_service,
     renewal_fields,
     task_fields,
 )
@@ -112,16 +115,20 @@ def _happened(day: date | None, moment: datetime | None, refusal: str
 
 
 def _note(db: Session, sealer: Sealer, customer: Customer, record: UserSession, text: str,
-          sealed: dict[str, Any], moment: datetime) -> None:
+          sealed: dict[str, Any], day: date, moment: datetime) -> None:
     """A work log entry for something done from a task or renewal, about its service
-    and system, at the moment it happened."""
+    and system, at the moment it happened. Like work logged by hand, it's Covered or
+    Billable by the agreements that ran on its day, unless the team has that off."""
     service_id = sealed.get("service_id")
-    case_number = ""
+    case_number = covered = ""
     if service_id is not None:
         service = db.get(CustomerService, service_id)
         if service is not None:
             case_number = str(sealer.open("service", service.id, service.sealed)
                               .get("case_number", ""))
+            if general(db).cover_ticked_off_work:
+                by_agreement = coverage(agreements_of(db, sealer, customer.id), on=day)
+                covered = "covered" if service.id in by_agreement else "billable"
     entry = CustomerLogEntry(customer_id=customer.id, happened_at=moment,
                              author_id=record.user_id, sealed=b"")
     db.add(entry)
@@ -132,7 +139,7 @@ def _note(db: Session, sealer: Sealer, customer: Customer, record: UserSession, 
         "service_name": sealed.get("service_name", ""),
         "system_ids": [system_id] if system_id is not None else [],
         "system_names": [sealed["system_name"]] if sealed.get("system_name") else [],
-        "case_number": case_number, "coverage": "", "on_site": False,
+        "case_number": case_number, "coverage": covered, "on_site": False,
         "ticket": sealed.get("ticket", ""),
     })
 
@@ -222,11 +229,14 @@ def finish_task(customer_id: int, task_id: int, body: Done, request: Request, ed
     keyring = Keyring()
     sealer = keyring.sealer(customer)
     sealed = sealer.open("task", task.id, task.sealed)
+    not_before_its_service(
+        db, sealer, sealed.get("service_id"), done_on,
+        "{service} has been active since {began}: work on it can't have been done before that.")
     task.done_at, task.done_by = moment, editor.user_id
     title = str(sealed.get("title", ""))
     note = body.note.strip()
     _note(db, sealer, customer, editor, f"{title}: {note}" if note else f"{title}: done.",
-          sealed, moment)
+          sealed, done_on, moment)
     details: dict[str, object] = {"task": task.id, "done_on": done_on.isoformat()}
     if sealed.get("every"):
         every = Every.model_validate(sealed["every"])
@@ -341,7 +351,8 @@ def decide_renewal(customer_id: int, renewal_id: int, body: DecisionIn, request:
     what = str(sealed.get("what", ""))
     if declined:
         _note(db, sealer, customer, manager,
-              f"{what}: won't be renewed, because {REASONS[body.reason]}.", sealed, moment)
+              f"{what}: won't be renewed, because {REASONS[body.reason]}.", sealed,
+              decided_on, moment)
         if sealed["fallback"]:
             due = body.fallback_due or renewal.renews_on - timedelta(days=2)
             task = _new_task(db, sealer, customer, TaskIn(
@@ -351,7 +362,8 @@ def decide_renewal(customer_id: int, renewal_id: int, body: DecisionIn, request:
             ), manager.user_id, renewal.id)
             details["task"] = task.id
     elif body.decision == "approved":
-        _note(db, sealer, customer, manager, f"{what}: renewal approved.", sealed, moment)
+        _note(db, sealer, customer, manager, f"{what}: renewal approved.", sealed,
+              decided_on, moment)
     _log(db, request, manager, "customer.renewal_decided", customer.id, details)
     db.commit()
     return _detail(db, manager, keyring, customer, "full")
@@ -379,7 +391,7 @@ def mark_renewed(customer_id: int, renewal_id: int, body: Renewed, request: Requ
     next_on = body.next_on or (add_interval(renewal.renews_on, every) if every else None)
     what, note = str(sealed.get("what", "")), body.note.strip()
     text = f"{what}: renewed" + (f", next on {next_on.isoformat()}" if next_on else "")
-    _note(db, sealer, customer, editor, f"{text}. {note}".strip(), sealed, moment)
+    _note(db, sealer, customer, editor, f"{text}. {note}".strip(), sealed, renewed_on, moment)
     details: dict[str, object] = {"renewal": renewal.id, "renewed_on": renewed_on.isoformat()}
     if next_on:
         details["next_on"] = next_on.isoformat()
