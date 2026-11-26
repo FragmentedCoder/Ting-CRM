@@ -69,6 +69,41 @@ def test_my_tasks_are_the_ones_for_me_wherever_they_are(client, admin, nordlys, 
         t["task"]["title"] for t in client.get(MY_WORK, headers=as_astrid).json()["tasks"]]
 
 
+def test_whats_coming_up_reaches_as_far_ahead_as_the_team_has_set(
+    client, admin, nordlys, person  # noqa: F811
+) -> None:
+    _, headers = admin
+    astrid, as_astrid = person("astrid", T)
+    assign(client, admin, nordlys["id"], astrid)
+    task(client, headers, nordlys["id"], "Overdue since last year", -400)
+    task(client, headers, nordlys["id"], "Updates", 63)
+    task(client, headers, nordlys["id"], "Restore test", 200)
+    task(client, headers, nordlys["id"], "Replace the firewall", 900)
+    renewal(client, headers, nordlys["id"], "Antivirus licences", 63)
+    renewal(client, headers, nordlys["id"], "Domain nordlys.example", 500)
+    renewal(client, headers, nordlys["id"], "Warranty on HV01", 1500)
+
+    def mine() -> tuple[list[str], list[str], int]:
+        work = client.get(MY_WORK, headers=as_astrid).json()
+        return ([t["task"]["title"] for t in work["tasks"]], [d["what"] for d in work["dates"]],
+                work["later"])
+
+    # A year ahead unless set otherwise. What's nearer always shows, however near
+    # or overdue; what's further waits, and is counted.
+    assert mine() == (["Overdue since last year", "Updates", "Restore test"],
+                      ["Antivirus licences"], 1)
+    work = client.get(MY_WORK, headers=as_astrid).json()
+    assert (work["ahead_months"], work["counts"]["dates"]) == (12, 1)
+    # Down to three months...
+    client.put("/api/general/warnings", headers=headers, json={"warn_ahead_months": 3})
+    assert mine() == (["Overdue since last year", "Updates"], ["Antivirus licences"], 2)
+    # ...and up to three years.
+    client.put("/api/general/warnings", headers=headers, json={"warn_ahead_months": 36})
+    assert mine() == (["Overdue since last year", "Updates", "Restore test",
+                       "Replace the firewall"],
+                      ["Antivirus licences", "Domain nordlys.example"], 0)
+
+
 def test_dates_and_attention_are_for_my_customers(client, admin, nordlys, person  # noqa: F811
                                                   ) -> None:
     _, headers = admin
@@ -86,7 +121,8 @@ def test_dates_and_attention_are_for_my_customers(client, admin, nordlys, person
     renewal(client, headers, nordlys["id"], "Firewall feature key", 20)
     renewal(client, headers, nordlys["id"], "Certificate for vpn.nordlys.example", 12,
             )
-    renewal(client, headers, nordlys["id"], "Domain nordlys.example", 200)
+    # Further off than the team looks ahead (a year, unless set otherwise).
+    renewal(client, headers, nordlys["id"], "Domain nordlys.example", 500)
     renewal(client, headers, other["id"], "Antivirus", 10)
 
     mine = client.get(MY_WORK, headers=as_astrid).json()

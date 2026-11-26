@@ -89,13 +89,14 @@ class Standing:
 
 
 def standings(db: Session, keyring: Keyring, customers: dict[int, Customer], today: date,
-              detailed: set[int]) -> dict[int, Standing]:
+              detailed: set[int], horizon: date | None = None) -> dict[int, Standing]:
     """Each customer's standing. Agreements and services are opened for the customers
-    in `detailed` only."""
+    in `detailed` only. Renewals and agreement dates are gathered up to `horizon`:
+    as far as the rules reach unless given (My work gives the team's own reach)."""
     found = {customer_id: Standing() for customer_id in customers}
     sealers = {customer_id: keyring.sealer(customer)
                for customer_id, customer in customers.items()}
-    horizon = today + timedelta(days=AHEAD_DAYS)
+    horizon = horizon or today + timedelta(days=AHEAD_DAYS)
 
     for task in db.scalars(select(CustomerTask).where(CustomerTask.done_at.is_(None))
                            .order_by(CustomerTask.due_on, CustomerTask.id)):
