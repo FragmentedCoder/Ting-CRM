@@ -125,10 +125,49 @@ test("the side menu, with customers", async ({ browser }) => {
   await mette.waitForTimeout(1500);
   expect(loads).toHaveLength(1);
 
+  // The menu's groups stay as they're left. Opening one and going to a page in it
+  // folds nothing else; nor does Overview, or a reload.
+  await mette.goto(`/customers/${fjordlys.id}`);
+  const contactsGroup = menu(mette).getByRole("button", { name: "Contacts and systems" });
+  const servicesGroup = menu(mette).getByRole("button", { name: "Services and agreements" });
+  const timelineGroup = menu(mette).getByRole("button", { name: "Timeline and work log" });
+  for (const group of [contactsGroup, servicesGroup, timelineGroup]) {
+    if ((await group.getAttribute("aria-expanded")) === "true") await group.click();
+    await expect(group).toHaveAttribute("aria-expanded", "false");
+  }
+  await contactsGroup.click();
+  await menu(mette).getByRole("link", { name: "Systems", exact: true }).click();
+  await expect(mette).toHaveURL(/\/systems$/);
+  await servicesGroup.click();
+  await menu(mette).getByRole("link", { name: "Agreements", exact: true }).click();
+  await expect(mette).toHaveURL(/\/agreements$/);
+  await expect(contactsGroup).toHaveAttribute("aria-expanded", "true");
+  await expect(servicesGroup).toHaveAttribute("aria-expanded", "true");
+  await menu(mette).getByRole("link", { name: "Overview", exact: true }).click();
+  await expect(mette).toHaveURL(new RegExp(`/customers/${fjordlys.id}$`));
+  await expect(contactsGroup).toHaveAttribute("aria-expanded", "true");
+  await expect(servicesGroup).toHaveAttribute("aria-expanded", "true");
+  await expect(timelineGroup).toHaveAttribute("aria-expanded", "false");
+  await mette.reload();
+  await expect(contactsGroup).toHaveAttribute("aria-expanded", "true");
+  await expect(servicesGroup).toHaveAttribute("aria-expanded", "true");
+  await expect(timelineGroup).toHaveAttribute("aria-expanded", "false");
+  // Folded by hand, a group stays folded; going to one of its pages opens it again.
+  await servicesGroup.click();
+  await mette.reload();
+  await expect(servicesGroup).toHaveAttribute("aria-expanded", "false");
+  await mette.goto(`/customers/${fjordlys.id}/services`);
+  await expect(servicesGroup).toHaveAttribute("aria-expanded", "true");
+  await expect(contactsGroup).toHaveAttribute("aria-expanded", "true");
+
   // Opening Admin pushes nothing up: the menu runs from the top. Clicked again on
   // its own pages, a group folds away and opens again.
   await mette.goto(`/customers/${fjordlys.id}`);
   await expect(menu(mette).getByRole("button", { name: "Contacts and systems" })).toBeVisible();
+  // With the customer's groups folded the whole menu is in view, so nothing scrolls.
+  for (const group of [contactsGroup, servicesGroup, timelineGroup]) {
+    if ((await group.getAttribute("aria-expanded")) === "true") await group.click();
+  }
   const adminItem = menu(mette).getByRole("link", { name: "Admin", exact: true });
   const usersItem = menu(mette).getByRole("link", { name: "Users", exact: true });
   const before = await adminItem.boundingBox();

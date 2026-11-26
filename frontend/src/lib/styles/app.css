@@ -158,6 +158,15 @@ select.input {
   height: 46px;
 }
 
+/* A box of several lines is dragged taller or shorter, between a least and a most
+   that fit the form around it: never wider than its place, nor down over the
+   buttons under it. */
+textarea.input {
+  min-height: 68px;
+  max-height: min(60vh, 480px);
+  resize: vertical;
+}
+
 .input:focus-visible {
   outline: 2px solid var(--link);
   outline-offset: 0;
@@ -252,14 +261,18 @@ select.input {
 
 /* App pages: the signed-in area and the admin panel. */
 
+/* A page takes the whole of the room beside the menu, however wide the window. */
 .page-content {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
   width: 100%;
-  max-width: 1080px;
-  margin: 0 auto;
   padding: var(--space-8) var(--space-6);
+}
+
+/* Running text stays a readable line's length where the page is wide. */
+.page-content p:not(.alert) {
+  max-width: 100ch;
 }
 
 .page-header {

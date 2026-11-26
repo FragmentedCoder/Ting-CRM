@@ -67,24 +67,60 @@
   }
 
   // An item with others under it (Admin).
-  // On its own page, clicking it again folds the group away or opens it again.
+  // On its own pages, clicking it again folds the group away or opens it again.
   interface Group {
     key: string;
     open: boolean;
     here: boolean;
   }
 
-  const folded = new SvelteSet<string>();
+  // Which groups of the menu are open: a customer's fold-out groups, and Admin.
+  // They stay as you leave them. Moving to a page opens the group it's in, and
+  // nothing folds on its own: not when you open another group, go to Overview or
+  // reload. It's kept in this browser, for whoever is signed in.
+  const open = new SvelteSet<string>();
+  let remembered: string | null = null;
 
-  function group(key: string, shown: boolean, here: boolean): Group {
-    return { key, open: shown && !folded.has(key), here };
+  function menuKey(): string {
+    return `ting.menu.open.${(session.current ?? info).user.id}`;
+  }
+
+  /** Brings back what was open before a reload, once per person signed in. */
+  function recall() {
+    const key = menuKey();
+    if (remembered === key) return;
+    remembered = key;
+    open.clear();
+    try {
+      const found: unknown = JSON.parse(localStorage.getItem(key) ?? "[]");
+      if (Array.isArray(found)) for (const name of found) if (typeof name === "string") open.add(name);
+    } catch {
+      // Nothing kept, or not readable: the menu starts folded.
+    }
+  }
+
+  function remember() {
+    try {
+      localStorage.setItem(menuKey(), JSON.stringify([...open]));
+    } catch {
+      // A browser that keeps nothing: the menu still works, until a reload.
+    }
+  }
+
+  function toggle(key: string) {
+    if (open.has(key)) open.delete(key);
+    else open.add(key);
+    remember();
+  }
+
+  function group(key: string, here: boolean): Group {
+    return { key, open: open.has(key), here };
   }
 
   function follow(event: MouseEvent, found?: Group) {
     if (!found?.here) return;
     event.preventDefault();
-    if (folded.has(found.key)) folded.delete(found.key);
-    else folded.add(found.key);
+    toggle(found.key);
   }
 
   const current = $derived(session.current ?? info);
@@ -139,20 +175,13 @@
     ];
   });
 
-  // A customer group is open while it holds the page you're on, unless you fold it;
-  // elsewhere it's folded, unless you open it.
-  const opened = new SvelteSet<string>();
-
-  function sectionOpen(section: Section): boolean {
-    const here = section.items.some((item) => item.current);
-    return here ? !folded.has(section.key) : opened.has(section.key);
-  }
-
-  function toggleSection(section: Section) {
-    const here = section.items.some((item) => item.current);
-    const set = here ? folded : opened;
-    if (set.has(section.key)) set.delete(section.key);
-    else set.add(section.key);
+  /** The group that holds the page you're on, if one does. */
+  function groupHere(): string | null {
+    if (path.startsWith("/admin")) return "admin";
+    for (const item of customerItems) {
+      if ("key" in item && item.items.some((child) => child.current)) return item.key;
+    }
+    return null;
   }
 
   // The customer's own settings (details; for Administrators also retention, the logo and
@@ -201,14 +230,33 @@
     };
   });
 
-  // Where you are: its groups open, and a long menu scrolled to show it.
+  // Where you are: its group opens (the others stay as they are), and a long menu
+  // is scrolled to show it.
   async function showWhereYouAre() {
-    const [, section] = page.url.pathname.split("/");
-    if (section === "admin") folded.delete("admin");
+    recall();
+    const here = groupHere();
+    if (here && !open.has(here)) {
+      open.add(here);
+      remember();
+    }
     following = true;
     await tick();
     showCurrent();
   }
+
+  // The customer's groups arrive after the page does (the menu fills in once the
+  // customer has loaded): the one you're in opens then, once per page.
+  let shownFor = "";
+  $effect(() => {
+    const here = groupHere();
+    if (!here || shownFor === path) return;
+    shownFor = path;
+    recall();
+    if (!open.has(here)) {
+      open.add(here);
+      remember();
+    }
+  });
 
   // Moving to another page closes the menu on a phone, and shows where you are.
   afterNavigate(() => {
@@ -346,14 +394,14 @@
                   {#if "href" in item}
                     <li>{@render link(item)}</li>
                   {:else}
-                    {@const open = sectionOpen(item)}
+                    {@const unfolded = open.has(item.key)}
                     <li>
-                      <button class="item" type="button" aria-expanded={open} onclick={() => toggleSection(item)}>
+                      <button class="item" type="button" aria-expanded={unfolded} onclick={() => toggle(item.key)}>
                         <item.icon size={16} aria-hidden="true" />
                         <span class="text">{item.label}</span>
-                        {@render chevron(open)}
+                        {@render chevron(unfolded)}
                       </button>
-                      {#if open}
+                      {#if unfolded}
                         <ul class="items nested">
                           {#each item.items as child (child.href)}
                             <li>{@render link(child, 1)}</li>
@@ -380,7 +428,7 @@
         {/if}
 
         {#if showAdmin}
-          {@const admin = group("admin", path.startsWith("/admin"), path.startsWith("/admin"))}
+          {@const admin = group("admin", path.startsWith("/admin"))}
           <ul class="items divided">
             <li>
               {@render link({ href: resolve("/(app)/admin"), label: "Admin", icon: Shield,

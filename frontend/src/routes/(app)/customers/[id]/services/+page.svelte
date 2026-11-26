@@ -617,6 +617,10 @@
     border-radius: var(--radius-md);
     background: var(--bg);
   }
+  /* A badge in a tile is as wide as its words, not as the tile. */
+  .tile :global(.pill) {
+    align-self: flex-start;
+  }
   .label {
     margin: 0;
     color: var(--text-muted);
