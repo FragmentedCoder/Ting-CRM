@@ -64,6 +64,7 @@ class Reason(BaseModel):
 class AgreementDate:
     day: date
     name: str
+    agreement_id: int = 0
     # For an end: whether the agreement renews by itself then.
     auto_renews: bool = False
 
@@ -130,10 +131,11 @@ def standings(db: Session, keyring: Keyring, customers: dict[int, Customer], tod
         name = str(sealers[customer_id].open("agreement", agreement.id, agreement.sealed)
                    .get("name", ""))
         if notice and agreement.notice_by is not None:
-            found[customer_id].notices.append(AgreementDate(agreement.notice_by, name))
+            found[customer_id].notices.append(
+                AgreementDate(agreement.notice_by, name, agreement.id))
         if ending and agreement.ends_on is not None:
             found[customer_id].ends.append(
-                AgreementDate(agreement.ends_on, name, agreement.auto_renews))
+                AgreementDate(agreement.ends_on, name, agreement.id, agreement.auto_renews))
 
     for customer_id in detailed & found.keys():
         sealer = sealers[customer_id]

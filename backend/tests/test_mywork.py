@@ -118,7 +118,7 @@ def test_dates_and_attention_are_for_my_customers(client, admin, nordlys, person
         "sections": [{"ref": "§ 3.1", "service_id": services["Support"]["id"]}]})
     task(client, headers, nordlys["id"], "Restore test", -2)
     task(client, headers, nordlys["id"], "Updates", -9)
-    renewal(client, headers, nordlys["id"], "Firewall feature key", 20)
+    key = renewal(client, headers, nordlys["id"], "Firewall feature key", 20)
     renewal(client, headers, nordlys["id"], "Certificate for vpn.nordlys.example", 12,
             )
     # Further off than the team looks ahead (a year, unless set otherwise).
@@ -133,6 +133,9 @@ def test_dates_and_attention_are_for_my_customers(client, admin, nordlys, person
         ("notice", "Service agreement 2026", soon(40), None),
         ("renews", "Service agreement 2026", soon(55), None),
     ]
+    # Each comes with what it is, for the page to link to: the renewal, the agreement.
+    agreement = client.get(url, headers=headers).json()["agreements"][0]["id"]
+    assert [d["id"] for d in mine["dates"]][1:] == [key["id"], agreement, agreement]
     # The most urgent three, and how many more there are.
     (needs,) = mine["attention"]
     assert (needs["customer"], needs["more"]) == ("Nordlys IT ApS", 1)
@@ -204,8 +207,9 @@ def test_managers_get_what_is_theirs_to_deal_with(client, admin, nordlys, person
     _, as_mette = person("mette", M)
     later = client.get(MY_WORK, headers=as_mette).json()
     assert later["managers"]["monthly_cases"] == [
-        {"customer_id": nordlys["id"], "customer": "Nordlys IT ApS", "service": "Support",
-         "case_number": "TDSE26114", "since": given.isoformat()}]
+        {"customer_id": nordlys["id"], "customer": "Nordlys IT ApS",
+         "service_id": support["id"], "service": "Support", "case_number": "TDSE26114",
+         "since": given.isoformat()}]
 
 
 def test_only_customers_seen_in_full_and_still_customers(client, admin, nordlys, person  # noqa: F811
